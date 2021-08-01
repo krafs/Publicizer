@@ -81,6 +81,9 @@ Do that by specifying this property:
     <PublicizeAsReferenceAssemblies>false</PublicizeAsReferenceAssemblies>
 </PropertyGroup>
 ```
+## Acknowledgements
+Project builds upon rwmt's [Publicise](https://github.com/rwmt/Publicise), simplyWiri's [TaskPubliciser](https://github.com/simplyWiri/TaskPubliciser), and [this gist](https://gist.github.com/Zetrith/d86b1d84e993c8117983c09f1a5dcdcd) by Zetrith
+
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
