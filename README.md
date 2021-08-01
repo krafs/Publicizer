@@ -1,5 +1,5 @@
 # Publicizer
-Publicizer is an MSBuild library for getting compile-time public access to any member in referenced assemblies.
+Publicizer is an MSBuild library for allowing direct access to non-public members in .NET assemblies.
 
 ## Installation
 Use the Visual Studio package manager and reference [Krafs.Publicizer](https://www.nuget.org/packages/Krafs.Publicizer).
@@ -71,7 +71,7 @@ Among other things, this tells the runtime to not enforce access checks.
 
 However, the compiler cannot be suppressed like that. Instead, we have to trick it that all the members actually **are** public.
 Publicizer does this by copying the referenced assemblies into memory, rewriting the access modifiers to public, and feeding these assemblies to the compiler instead of the real ones.
-The compiler only detects public members, and will let us compile.
+The compiler then only detects public members, and will let us compile.
 
 By default, Publicizer additionally creates the new assemblies as [reference assemblies](https://docs.microsoft.com/en-us/dotnet/standard/assembly/reference-assemblies/). 
 This reduces build times and memory usage. However, if you use your IDE's decompilation feature to inspect code, you may want to turn that off, or you will just see empty methods.

@@ -1,21 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<DevelopmentDependency>true</DevelopmentDependency>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<BuildOutputTargetFolder>build</BuildOutputTargetFolder>
 		<ContentTargetFolders>build</ContentTargetFolders>
 		<IncludeBuildOutput>true</IncludeBuildOutput>
 		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 	</PropertyGroup>
 	
-	<PropertyGroup>
+	<PropertyGroup Label="Package properties">
 		<Title>Publicizer</Title>
 		<PackageId>Krafs.Publicizer</PackageId>
 		<Authors>Krafs</Authors>
+		<Copyright>Copyright (c) Krafs</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/krafs/Publicizer</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
 		<Description>MSBuild library for allowing direct access to non-public members in .NET assemblies.</Description>
 		<PackageTags>msbuild accesschecks public publicizer</PackageTags>
 		<Version>1.0.0</Version>
