@@ -1,0 +1,5 @@
+﻿<Project>
+	<PropertyGroup Condition="$(Configuration) == 'Release'">
+		<PackageOutputPath>C:\LocalNugetFeed\</PackageOutputPath>
+	</PropertyGroup>
+</Project>

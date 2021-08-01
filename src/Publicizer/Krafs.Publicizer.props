@@ -1,0 +1,5 @@
+<Project>
+	<UsingTask
+		TaskName="PublicizeAssemblies"
+		AssemblyFile="$([MSBuild]::ValueOrDefault('$(PublicizeAssembliesTaskAssembly)', '$(MSBuildThisFileDirectory)net472\Publicizer.dll'))" />
+</Project>

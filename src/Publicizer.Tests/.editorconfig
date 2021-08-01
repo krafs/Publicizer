@@ -1,0 +1,5 @@
+# C# files
+[*.cs]
+
+# Don't use underscores in class names. This is a good analyzer, but in tests it can be clearer if it's allowed.
+dotnet_diagnostic.CA1707.severity = none
