@@ -15,6 +15,7 @@ namespace Publicizer
         public ITaskItem[]? Publicizes { get; set; }
         public ITaskItem[]? DoNotPublicizes { get; set; }
         public string? OutputDirectory { get; set; }
+        public string? PublicizeAsReferenceAssemblies { get; set; }
 
         [Output]
         public ITaskItem[]? UpdatedReferencePaths { get; set; }
@@ -32,6 +33,12 @@ namespace Publicizer
             else if (OutputDirectory is null)
             {
                 Log.LogError(nameof(OutputDirectory) + " was null!");
+                return false;
+            }
+
+            if (!bool.TryParse(PublicizeAsReferenceAssemblies, out bool publicizeAsReferenceAssemblies))
+            {
+                Log.LogError(nameof(PublicizeAsReferenceAssemblies) + " cannot be parsed as bool.");
                 return false;
             }
 
@@ -118,7 +125,7 @@ namespace Publicizer
                 {
                     using ModuleDef module = ModuleDefMD.Load(assemblyPath);
 
-                    PublicizeAssembly(module, assemblyPublicizes, assemblyDoNotPublicizes);
+                    PublicizeAssembly(module, assemblyPublicizes, assemblyDoNotPublicizes, publicizeAsReferenceAssemblies);
 
                     using FileStream fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
                     module.Write(fileStream);
@@ -151,7 +158,11 @@ namespace Publicizer
             return Hasher.ComputeHash(allBytes);
         }
 
-        private static void PublicizeAssembly(ModuleDef module, List<string> publicizePatterns, List<string> doNotPublicizePatterns)
+        private static void PublicizeAssembly(
+            ModuleDef module,
+            List<string> publicizePatterns,
+            List<string> doNotPublicizePatterns,
+            bool publicizeAsReferenceAssemblies)
         {
             bool publicizeAll = publicizePatterns.Any(x => x == module.Assembly.Name);
             var doNotPublicizePropertyMethods = new List<MethodDef>();
@@ -192,7 +203,7 @@ namespace Publicizer
 
                     if (shouldPublicizeProperty)
                     {
-                        AssemblyEditor.PublicizeProperty(propertyDef);
+                        AssemblyEditor.PublicizeProperty(propertyDef, publicizeAsReferenceAssemblies);
                         publicizedAnyMember = true;
                     }
                 }
@@ -208,7 +219,7 @@ namespace Publicizer
 
                     if (shouldPublicizeMethod)
                     {
-                        AssemblyEditor.PublicizeMethod(methodDef);
+                        AssemblyEditor.PublicizeMethod(methodDef, publicizeAsReferenceAssemblies);
                         publicizedAnyMember = true;
                     }
                 }

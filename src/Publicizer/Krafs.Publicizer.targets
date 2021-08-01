@@ -9,11 +9,16 @@
 			<Publicize Include="@(ReferencePath->'%(Filename)')" />
 		</ItemGroup>
 
+		<PropertyGroup Condition="$(PublicizeAsReferenceAssemblies) != 'false'">
+			<PublicizeAsReferenceAssemblies>true</PublicizeAsReferenceAssemblies>
+		</PropertyGroup>
+
 		<PublicizeAssemblies
 			ReferencePaths="@(ReferencePath)"
 			Publicizes="@(Publicize)"
 			DoNotPublicizes="@(DoNotPublicize)"
-			OutputDirectory="$(IntermediateOutputPath)PublicizedAssemblies\">
+			OutputDirectory="$(IntermediateOutputPath)PublicizedAssemblies\"
+			PublicizeAsReferenceAssemblies="$(PublicizeAsReferenceAssemblies)">
 			<Output TaskParameter="UpdatedReferencePaths" ItemName="_UpdatedReferencePaths" />
 		</PublicizeAssemblies>
 

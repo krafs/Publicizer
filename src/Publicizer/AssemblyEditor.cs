@@ -22,25 +22,28 @@ namespace Publicizer
             }
         }
 
-        public static void PublicizeProperty(PropertyDef property)
+        public static void PublicizeProperty(PropertyDef property, bool publicizeAsReferenceAssemblies)
         {
             if (property.GetMethod is MethodDef getMethod)
             {
-                PublicizeMethod(getMethod);
+                PublicizeMethod(getMethod, publicizeAsReferenceAssemblies);
             }
 
             if (property.SetMethod is MethodDef setMethod)
             {
-                PublicizeMethod(setMethod);
+                PublicizeMethod(setMethod, publicizeAsReferenceAssemblies);
             }
         }
 
-        public static void PublicizeMethod(MethodDef method)
+        public static void PublicizeMethod(MethodDef method, bool publicizeAsReferenceAssemblies)
         {
             method.Attributes &= ~MethodAttributes.MemberAccessMask;
             method.Attributes |= MethodAttributes.Public;
 
-            StripMethodBody(method);
+            if (publicizeAsReferenceAssemblies)
+            {
+                StripMethodBody(method);
+            }
         }
 
         public static void PublicizeField(FieldDef field)
