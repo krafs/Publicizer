@@ -14,7 +14,7 @@
 		<Title>Publicizer</Title>
 		<PackageId>Krafs.Publicizer</PackageId>
 		<Authors>Krafs</Authors>
-		<Copyright>Copyright (c) Krafs</Copyright>
+		<Copyright>© Krafs 2021</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/krafs/Publicizer</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
