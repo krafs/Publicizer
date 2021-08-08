@@ -1,5 +1,5 @@
 # Publicizer
-Publicizer is an MSBuild library for allowing direct access to non-public members in .NET assemblies.
+Publicizer is an MSBuild library for allowing direct access to non-public members in referenced assemblies.
 
 ## Installation
 Use the Visual Studio package manager and reference [Krafs.Publicizer](https://www.nuget.org/packages/Krafs.Publicizer).
