@@ -24,6 +24,9 @@ dotnet_analyzer_diagnostic.severity = error
 # IDE0090: Use 'new(...)'
 dotnet_diagnostic.IDE0090.severity = none
 
+# IDE0130: Namespace does not match containing folder.
+dotnet_diagnostic.IDE0130.severity = none
+
 # Organize usings
 dotnet_separate_import_directive_groups = false
 dotnet_sort_system_directives_first = true

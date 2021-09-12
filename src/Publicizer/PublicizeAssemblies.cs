@@ -18,7 +18,10 @@ namespace Publicizer
         public string? PublicizeAsReferenceAssemblies { get; set; }
 
         [Output]
-        public ITaskItem[]? UpdatedReferencePaths { get; set; }
+        public ITaskItem[]? ReferencePathsToDelete { get; set; }
+
+        [Output]
+        public ITaskItem[]? ReferencePathsToAdd { get; set; }
 
         public override bool Execute()
         {
@@ -101,7 +104,8 @@ namespace Publicizer
                 doNotPublicizes.Add(pattern);
             }
 
-            List<ITaskItem> updatedReferencePaths = new List<ITaskItem>();
+            List<ITaskItem> referencePathsToDelete = new List<ITaskItem>();
+            List<ITaskItem> referencePathsToAdd = new List<ITaskItem>();
 
             foreach (ITaskItem reference in ReferencePaths)
             {
@@ -131,22 +135,26 @@ namespace Publicizer
                     module.Write(fileStream);
                 }
 
-                reference.SetReferenceAssemblyPath(outputAssemblyPath);
-                updatedReferencePaths.Add(reference);
+                referencePathsToDelete.Add(reference);
+                ITaskItem newReference = new TaskItem(outputAssemblyPath);
+                reference.CopyMetadataTo(newReference);
+                referencePathsToAdd.Add(newReference);
             }
 
-            UpdatedReferencePaths = updatedReferencePaths.ToArray();
+            ReferencePathsToDelete = referencePathsToDelete.ToArray();
+            ReferencePathsToAdd = referencePathsToAdd.ToArray();
+
             return true;
         }
 
-        private static string ComputeHash(string assemblyPath, List<string> publicizes, List<string> assemblyDoNotPublicizes)
+        private static string ComputeHash(string assemblyPath, List<string> publicizes, List<string> doNotPublicizes)
         {
             StringBuilder sb = new StringBuilder();
             foreach (string publicizePattern in publicizes)
             {
                 sb.Append(publicizePattern);
             }
-            foreach (string doNotPublicizePattern in assemblyDoNotPublicizes)
+            foreach (string doNotPublicizePattern in doNotPublicizes)
             {
                 sb.Append(doNotPublicizePattern);
             }
