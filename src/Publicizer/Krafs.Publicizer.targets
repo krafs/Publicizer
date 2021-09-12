@@ -19,12 +19,13 @@
 			DoNotPublicizes="@(DoNotPublicize)"
 			OutputDirectory="$(IntermediateOutputPath)PublicizedAssemblies\"
 			PublicizeAsReferenceAssemblies="$(PublicizeAsReferenceAssemblies)">
-			<Output TaskParameter="UpdatedReferencePaths" ItemName="_UpdatedReferencePaths" />
+			<Output TaskParameter="ReferencePathsToDelete" ItemName="_ReferencePathsToDelete" />
+			<Output TaskParameter="ReferencePathsToAdd" ItemName="_ReferencePathsToAdd" />
 		</PublicizeAssemblies>
 
 		<ItemGroup>
-			<ReferencePath Remove="@(_UpdatedReferencePaths)" />
-			<ReferencePath Include="@(_UpdatedReferencePaths)" />
+			<ReferencePath Remove="@(_ReferencePathsToDelete)" />
+			<ReferencePath Include="@(_ReferencePathsToAdd)" />
 		</ItemGroup>
 
 		<PropertyGroup>
