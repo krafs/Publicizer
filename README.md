@@ -11,7 +11,7 @@ dotnet add package Krafs.Publicizer
 Or add directly to your project file:
 ```xml
 <ItemGroup>
-    <PackageReference Include="Krafs.Publicizer" Version="1.0.1" />
+    <PackageReference Include="Krafs.Publicizer" Version="1.0.2" />
 </ItemGroup>
 ```
 
@@ -59,8 +59,8 @@ PackageReferences, like other kinds of References, point towards one or more und
 Below is an example of publicizing two assemblies from the package [Krafs.Rimworld.Ref](https://www.nuget.org/packages/Krafs.Rimworld.Ref/):
 ```xml
 <ItemGroup>
-    <PackageReference Include="Krafs.Publicizer" Version="1.0.1" />
-    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.3.3117" />
+    <PackageReference Include="Krafs.Publicizer" Version="1.0.2" />
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.3.3200" />
 </ItemGroup>
 
 <ItemGroup>
