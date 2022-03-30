@@ -46,15 +46,6 @@ This can be useful when two members collide when publicized.
 </ItemGroup>
 ```
 
-### Include compiler generated members:
-By default, `[CompilerGenerated]` types and members aren't publicized.
-You can override this with _PublicizeCompilerGenerated_.
-```xml
-<PropertyGroup>
-    <PublicizeCompilerGenerated>true</PublicizeCompilerGenerated>
-</PropertyGroup>
-```
-
 ### Multiple includes
 As with most Items, you can include multiple patterns with semi-colons:
 ```xml
@@ -62,6 +53,15 @@ As with most Items, you can include multiple patterns with semi-colons:
     <Publicize Include="AssemblyOne;AssemblyTwo;AssemblyThree" />
 </ItemGroup>
 ```
+
+### Compiler generated members:
+When publicizing an entire assembly, `[CompilerGenerated]` members aren't publicized by default, unless that member is specifically included. To publicize all compiler generated members, use _PublicizeCompilerGenerated_.
+```xml
+<PropertyGroup>
+    <PublicizeCompilerGenerated>true</PublicizeCompilerGenerated>
+</PropertyGroup>
+```
+
 ### Publicize assemblies from a PackageReference
 PackageReferences, like other kinds of References, point towards one or more underlying assemblies. Publicizing these assemblies is just a matter of finding out what the underlying assemblies are called, and then specify them the same way as above.
 

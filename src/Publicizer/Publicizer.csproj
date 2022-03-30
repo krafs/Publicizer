@@ -33,9 +33,5 @@
 		<Content Include="Krafs.Publicizer.props" />
 		<Content Include="Krafs.Publicizer.targets" />
 	</ItemGroup>	
-	
-	<ItemGroup>
-	  <Folder Include="Properties\" />
-	</ItemGroup>	
 
 </Project>

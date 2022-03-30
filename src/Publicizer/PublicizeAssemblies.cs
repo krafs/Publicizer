@@ -182,7 +182,7 @@ namespace Publicizer
             bool publicizeAsReferenceAssemblies,
             bool publicizeCompilerGenerated)
         {
-            bool publicizeAll = publicizePatterns.Any(x => x == module.Assembly.Name);
+            bool publicizeAll = publicizePatterns.Contains(module.Assembly.Name);
             var doNotPublicizePropertyMethods = new List<MethodDef>();
 
             // TYPES
@@ -190,15 +190,10 @@ namespace Publicizer
             {
                 doNotPublicizePropertyMethods.Clear();
 
-                if (!publicizeCompilerGenerated && typeDef.HasCustomAttributes && typeDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
-                {
-                    continue;
-                }
-
                 bool publicizedAnyMember = false;
                 string typeName = typeDef.ReflectionFullName;
 
-                if (doNotPublicizePatterns.Any(x => x == typeName))
+                if (doNotPublicizePatterns.Contains(typeName))
                 {
                     continue;
                 }
@@ -206,81 +201,129 @@ namespace Publicizer
                 // PROPERTIES
                 foreach (PropertyDef propertyDef in typeDef.Properties)
                 {
-                    if (!publicizeCompilerGenerated && propertyDef.HasCustomAttributes && propertyDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                    string propertyName = $"{typeName}.{propertyDef.Name}";
+
+                    bool forcePublicizeMethod = publicizePatterns.Contains(propertyName);
+
+                    if (publicizeAll)
+                    {
+                        if (!forcePublicizeMethod)
+                        {
+                            if (doNotPublicizePatterns.Contains(propertyName))
+                            {
+                                if (propertyDef.GetMethod is MethodDef getter)
+                                {
+                                    doNotPublicizePropertyMethods.Add(getter);
+                                }
+                                if (propertyDef.SetMethod is MethodDef setter)
+                                {
+                                    doNotPublicizePropertyMethods.Add(setter);
+                                }
+
+                                continue;
+                            }
+
+                            if (!publicizeCompilerGenerated && propertyDef.HasCustomAttributes &&
+                                propertyDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (!forcePublicizeMethod)
                     {
                         continue;
                     }
 
-                    string propertyName = $"{typeName}.{propertyDef.Name}";
-
-                    bool explicitlyDoNotPublicize = !doNotPublicizePatterns.Any(x => x == propertyName);
-                    if (explicitlyDoNotPublicize)
-                    {
-                        if (propertyDef.GetMethod is MethodDef getter)
-                        {
-                            doNotPublicizePropertyMethods.Add(getter);
-                        }
-                        if (propertyDef.SetMethod is MethodDef setter)
-                        {
-                            doNotPublicizePropertyMethods.Add(setter);
-                        }
-                    }
-
-                    bool shouldPublicizeProperty = explicitlyDoNotPublicize
-                        && (publicizeAll || publicizePatterns.Any(x => x == propertyName));
-
-                    if (shouldPublicizeProperty)
-                    {
-                        AssemblyEditor.PublicizeProperty(propertyDef, publicizeAsReferenceAssemblies);
-                        publicizedAnyMember = true;
-                    }
+                    AssemblyEditor.PublicizeProperty(propertyDef, publicizeAsReferenceAssemblies);
+                    publicizedAnyMember = true;
                 }
 
                 // METHODS
                 foreach (MethodDef methodDef in typeDef.Methods)
                 {
-                    if (!publicizeCompilerGenerated && methodDef.HasCustomAttributes && methodDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                    string methodName = $"{typeName}.{methodDef.Name}";
+
+                    bool forcePublicizeMethod = publicizePatterns.Contains(methodName);
+
+                    if (publicizeAll)
+                    {
+                        if (!forcePublicizeMethod)
+                        {
+                            if (doNotPublicizePatterns.Contains(methodName))
+                            {
+                                continue;
+                            }
+
+                            if (!publicizeCompilerGenerated && methodDef.HasCustomAttributes &&
+                                methodDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                            {
+                                continue;
+                            }
+
+                            if (doNotPublicizePropertyMethods.Contains(methodDef))
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (!forcePublicizeMethod)
                     {
                         continue;
                     }
 
-                    string methodName = $"{typeName}.{methodDef.Name}";
-
-                    // DoNotPublicize does not override Publicize when both are present.
-                    bool shouldPublicizeMethod = !doNotPublicizePropertyMethods.Contains(methodDef) && !doNotPublicizePatterns.Any(x => x == methodName)
-                        && (publicizeAll || publicizePatterns.Any(x => x == methodName));
-
-                    if (shouldPublicizeMethod)
-                    {
-                        AssemblyEditor.PublicizeMethod(methodDef, publicizeAsReferenceAssemblies);
-                        publicizedAnyMember = true;
-                    }
+                    AssemblyEditor.PublicizeMethod(methodDef, publicizeAsReferenceAssemblies);
+                    publicizedAnyMember = true;
                 }
 
                 // FIELDS
                 foreach (FieldDef fieldDef in typeDef.Fields)
                 {
-                    if (!publicizeCompilerGenerated && fieldDef.HasCustomAttributes && fieldDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                    string fieldName = $"{typeName}.{fieldDef.Name}";
+
+                    bool forcePublicizeField = publicizePatterns.Contains(fieldName);
+
+                    if (publicizeAll)
+                    {
+                        if (!forcePublicizeField)
+                        {
+                            if (doNotPublicizePatterns.Contains(fieldName))
+                            {
+                                continue;
+                            }
+
+                            if (!publicizeCompilerGenerated && fieldDef.HasCustomAttributes &&
+                                fieldDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (!forcePublicizeField)
                     {
                         continue;
                     }
 
-                    string fieldName = $"{typeName}.{fieldDef.Name}";
+                    AssemblyEditor.PublicizeField(fieldDef);
+                    publicizedAnyMember = true;
+                }
 
-                    bool shouldPublicizeField = !doNotPublicizePatterns.Any(x => x == fieldName)
-                        && (publicizeAll || publicizePatterns.Any(x => x == fieldName));
+                bool forcePublicizeType = publicizePatterns.Contains(typeName);
 
-                    if (shouldPublicizeField)
+                if (publicizeAll)
+                {
+                    if (!forcePublicizeType && !publicizeCompilerGenerated && typeDef.HasCustomAttributes &&
+                        typeDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
                     {
-                        AssemblyEditor.PublicizeField(fieldDef);
-                        publicizedAnyMember = true;
+                        continue;
                     }
                 }
-
-                if (publicizedAnyMember || publicizeAll || publicizePatterns.Any(x => x == typeName))
+                else if (!publicizedAnyMember && !forcePublicizeType)
                 {
-                    AssemblyEditor.PublicizeType(typeDef);
+                    continue;
                 }
+
+                AssemblyEditor.PublicizeType(typeDef);
             }
         }
     }
