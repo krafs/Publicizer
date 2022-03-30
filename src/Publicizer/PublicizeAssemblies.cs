@@ -16,6 +16,7 @@ namespace Publicizer
         public ITaskItem[]? DoNotPublicizes { get; set; }
         public string? OutputDirectory { get; set; }
         public string? PublicizeAsReferenceAssemblies { get; set; }
+        public string? PublicizeCompilerGenerated { get; set; }
 
         [Output]
         public ITaskItem[]? ReferencePathsToDelete { get; set; }
@@ -42,6 +43,12 @@ namespace Publicizer
             if (!bool.TryParse(PublicizeAsReferenceAssemblies, out bool publicizeAsReferenceAssemblies))
             {
                 Log.LogError(nameof(PublicizeAsReferenceAssemblies) + " cannot be parsed as bool.");
+                return false;
+            }
+
+            if (!bool.TryParse(PublicizeCompilerGenerated, out bool publicizeCompilerGenerated))
+            {
+                Log.LogError(nameof(PublicizeCompilerGenerated) + " cannot be parsed as bool.");
                 return false;
             }
 
@@ -129,7 +136,7 @@ namespace Publicizer
                 {
                     using ModuleDef module = ModuleDefMD.Load(assemblyPath);
 
-                    PublicizeAssembly(module, assemblyPublicizes, assemblyDoNotPublicizes, publicizeAsReferenceAssemblies);
+                    PublicizeAssembly(module, assemblyPublicizes, assemblyDoNotPublicizes, publicizeAsReferenceAssemblies, publicizeCompilerGenerated);
 
                     using FileStream fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
                     module.Write(fileStream);
@@ -166,11 +173,14 @@ namespace Publicizer
             return Hasher.ComputeHash(allBytes);
         }
 
+        private const string s_compilerGeneratedAttribute = "CompilerGeneratedAttribute";
+
         private static void PublicizeAssembly(
             ModuleDef module,
             List<string> publicizePatterns,
             List<string> doNotPublicizePatterns,
-            bool publicizeAsReferenceAssemblies)
+            bool publicizeAsReferenceAssemblies,
+            bool publicizeCompilerGenerated)
         {
             bool publicizeAll = publicizePatterns.Any(x => x == module.Assembly.Name);
             var doNotPublicizePropertyMethods = new List<MethodDef>();
@@ -179,6 +189,11 @@ namespace Publicizer
             foreach (TypeDef typeDef in module.GetTypes())
             {
                 doNotPublicizePropertyMethods.Clear();
+
+                if (!publicizeCompilerGenerated && typeDef.HasCustomAttributes && typeDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                {
+                    continue;
+                }
 
                 bool publicizedAnyMember = false;
                 string typeName = typeDef.ReflectionFullName;
@@ -191,6 +206,11 @@ namespace Publicizer
                 // PROPERTIES
                 foreach (PropertyDef propertyDef in typeDef.Properties)
                 {
+                    if (!publicizeCompilerGenerated && propertyDef.HasCustomAttributes && propertyDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                    {
+                        continue;
+                    }
+
                     string propertyName = $"{typeName}.{propertyDef.Name}";
 
                     bool explicitlyDoNotPublicize = !doNotPublicizePatterns.Any(x => x == propertyName);
@@ -219,6 +239,11 @@ namespace Publicizer
                 // METHODS
                 foreach (MethodDef methodDef in typeDef.Methods)
                 {
+                    if (!publicizeCompilerGenerated && methodDef.HasCustomAttributes && methodDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                    {
+                        continue;
+                    }
+
                     string methodName = $"{typeName}.{methodDef.Name}";
 
                     // DoNotPublicize does not override Publicize when both are present.
@@ -235,6 +260,11 @@ namespace Publicizer
                 // FIELDS
                 foreach (FieldDef fieldDef in typeDef.Fields)
                 {
+                    if (!publicizeCompilerGenerated && fieldDef.HasCustomAttributes && fieldDef.CustomAttributes.Any(x => x.AttributeType.TypeName == s_compilerGeneratedAttribute))
+                    {
+                        continue;
+                    }
+
                     string fieldName = $"{typeName}.{fieldDef.Name}";
 
                     bool shouldPublicizeField = !doNotPublicizePatterns.Any(x => x == fieldName)

@@ -13,13 +13,18 @@
 			<PublicizeAsReferenceAssemblies>true</PublicizeAsReferenceAssemblies>
 		</PropertyGroup>
 
+    <PropertyGroup Condition="$(PublicizeCompilerGenerated) != 'true'">
+      <PublicizeCompilerGenerated>false</PublicizeCompilerGenerated>
+    </PropertyGroup>
+
 		<PublicizeAssemblies
 			ReferencePaths="@(ReferencePath)"
 			Publicizes="@(Publicize)"
 			DoNotPublicizes="@(DoNotPublicize)"
 			OutputDirectory="$(IntermediateOutputPath)PublicizedAssemblies\"
-			PublicizeAsReferenceAssemblies="$(PublicizeAsReferenceAssemblies)">
-			<Output TaskParameter="ReferencePathsToDelete" ItemName="_ReferencePathsToDelete" />
+			PublicizeAsReferenceAssemblies="$(PublicizeAsReferenceAssemblies)"
+      PublicizeCompilerGenerated="$(PublicizeCompilerGenerated)">
+      <Output TaskParameter="ReferencePathsToDelete" ItemName="_ReferencePathsToDelete" />
 			<Output TaskParameter="ReferencePathsToAdd" ItemName="_ReferencePathsToAdd" />
 		</PublicizeAssemblies>
 

@@ -11,7 +11,7 @@ dotnet add package Krafs.Publicizer
 Or add directly to your project file:
 ```xml
 <ItemGroup>
-    <PackageReference Include="Krafs.Publicizer" Version="1.0.2" />
+    <PackageReference Include="Krafs.Publicizer" Version="1.0.3" />
 </ItemGroup>
 ```
 
@@ -44,6 +44,15 @@ This can be useful when two members collide when publicized.
     <Publicize Include="AssemblyOne" />
     <DoNotPublicize Include="AssemblyOne:MyNamespace.MyType._privateField" />
 </ItemGroup>
+```
+
+### Include compiler generated members:
+By default, `[CompilerGenerated]` types and members aren't publicized.
+You can override this with _PublicizeCompilerGenerated_.
+```xml
+<PropertyGroup>
+    <PublicizeCompilerGenerated>true</PublicizeCompilerGenerated>
+</PropertyGroup>
 ```
 
 ### Multiple includes
