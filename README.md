@@ -1,6 +1,11 @@
 # Publicizer
 Publicizer is an MSBuild library for allowing direct access to non-public members in referenced assemblies.
 
+## Important!
+Currently, publicized assemblies [can only be used in the Mono runtime](https://github.com/krafs/Publicizer/issues/13).
+
+Publicization is a hack. It can cause unexpected behaviour, and should not be used in any kind of production environment. It's mostly used for game modding.
+
 ## Installation
 Use your IDE's package manager and reference [Krafs.Publicizer](https://www.nuget.org/packages/Krafs.Publicizer) from nuget.org.
 
