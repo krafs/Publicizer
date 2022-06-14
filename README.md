@@ -16,7 +16,7 @@ dotnet add package Krafs.Publicizer
 Or add directly to your project file:
 ```xml
 <ItemGroup>
-    <PackageReference Include="Krafs.Publicizer" Version="1.0.2" />
+    <PackageReference Include="Krafs.Publicizer" Version="1.0.3" />
 </ItemGroup>
 ```
 
@@ -58,6 +58,15 @@ As with most Items, you can include multiple patterns with semi-colons:
     <Publicize Include="AssemblyOne;AssemblyTwo;AssemblyThree" />
 </ItemGroup>
 ```
+
+### Compiler generated members:
+When publicizing an entire assembly, `[CompilerGenerated]` members aren't publicized by default, unless that member is specifically included. To publicize all compiler generated members, use _PublicizeCompilerGenerated_.
+```xml
+<PropertyGroup>
+    <PublicizeCompilerGenerated>true</PublicizeCompilerGenerated>
+</PropertyGroup>
+```
+
 ### Publicize assemblies from a PackageReference
 PackageReferences, like other kinds of References, point towards one or more underlying assemblies. Publicizing these assemblies is just a matter of finding out what the underlying assemblies are called, and then specify them the same way as above.
 
