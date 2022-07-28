@@ -14,13 +14,13 @@
 		<Title>Publicizer</Title>
 		<PackageId>Krafs.Publicizer</PackageId>
 		<Authors>Krafs</Authors>
-		<Copyright>© Krafs 2021</Copyright>
+		<Copyright>© Krafs 2022</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/krafs/Publicizer</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
 		<Description>MSBuild library for allowing direct access to non-public members in .NET assemblies.</Description>
 		<PackageTags>msbuild accesschecks public publicizer</PackageTags>
-		<Version>1.0.2</Version>
+		<Version>1.0.3</Version>
 	</PropertyGroup>
 	
 	<ItemGroup>
