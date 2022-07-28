@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/src/Publicizer/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "enhancement"
+    assignees:
+      - "krafs"
+      
+  - package-ecosystem: "nuget"
+    directory: "/src/Publicizer.Tests/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "enhancement"
+    assignees:
+      - "krafs"
