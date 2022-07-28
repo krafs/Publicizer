@@ -45,10 +45,7 @@ namespace Publicizer
                 return false;
             }
 
-            if (DoNotPublicizes is null)
-            {
-                DoNotPublicizes = Array.Empty<ITaskItem>();
-            }
+            DoNotPublicizes ??= Array.Empty<ITaskItem>();
 
             Directory.CreateDirectory(OutputDirectory);
 
@@ -123,8 +120,8 @@ namespace Publicizer
 
                 string hash = ComputeHash(assemblyPath, assemblyPublicizes, assemblyDoNotPublicizes);
 
-                string publicizedAssemblyName = $"{assemblyName}.{hash}.dll";
-                string outputAssemblyPath = Path.Combine(OutputDirectory, publicizedAssemblyName);
+                string publicizedAssemblyName = $"{assemblyName}.{hash}";
+                string outputAssemblyPath = Path.Combine(OutputDirectory, publicizedAssemblyName + ".dll");
                 if (!File.Exists(outputAssemblyPath))
                 {
                     using ModuleDef module = ModuleDefMD.Load(assemblyPath);
@@ -134,11 +131,20 @@ namespace Publicizer
                     using FileStream fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
                     module.Write(fileStream);
                 }
-
                 referencePathsToDelete.Add(reference);
                 ITaskItem newReference = new TaskItem(outputAssemblyPath);
                 reference.CopyMetadataTo(newReference);
                 referencePathsToAdd.Add(newReference);
+
+                string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
+                string originalDocumentationFullPath = Path.Combine(assemblyDirectory, assemblyName + ".xml");
+
+                if (File.Exists(originalDocumentationFullPath))
+                {
+                    string newDocumentationRelativePath = Path.Combine(OutputDirectory, publicizedAssemblyName + ".xml");
+                    string newDocumentationFullPath = Path.GetFullPath(newDocumentationRelativePath);
+                    File.Copy(originalDocumentationFullPath, newDocumentationFullPath, overwrite: true);
+                }
             }
 
             ReferencePathsToDelete = referencePathsToDelete.ToArray();
