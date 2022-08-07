@@ -4,6 +4,16 @@
 		TaskName="PublicizeAssemblies"
 		AssemblyFile="$([MSBuild]::ValueOrDefault('$(PublicizeAssembliesTaskAssembly)', '$(MSBuildThisFileDirectory)net472\Publicizer.dll'))" />
 
+	<PropertyGroup>
+		<PublicizerRuntimeStrategy>IgnoresAccessChecksTo</PublicizerRuntimeStrategy>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Update="@(Compile)">
+			<Visible Condition="'%(NuGetItemType)' == 'Compile' AND '%(NuGetPackageId)' == 'Krafs.Publicizer'">false</Visible>
+		</Compile>
+	</ItemGroup>
+	
 	<ItemDefinitionGroup>
 		<Publicize Visible="false" />
 		<DoNotPublicize Visible="false" />

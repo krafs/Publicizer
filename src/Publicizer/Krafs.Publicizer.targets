@@ -28,8 +28,28 @@
 			<ReferencePath Include="@(_ReferencePathsToAdd)" />
 		</ItemGroup>
 
-		<PropertyGroup>
+	</Target>
+	
+	<Target Name="ResolvePublicizerRuntimeStrategy" BeforeTargets="FindReferenceAssembliesForReferences" AfterTargets="PublicizeAssemblies">
+
+		<ItemGroup Condition="$(PublicizerRuntimeStrategy) == 'IgnoresAccessChecksTo'" >
+			<AssemblyAttribute Include="System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute">
+				<_Parameter1>%(_ReferencePathsToAdd.OriginalFilename)</_Parameter1>
+			</AssemblyAttribute>
+		</ItemGroup>
+		
+		<ItemGroup Condition="$(PublicizerRuntimeStrategy) != 'IgnoresAccessChecksTo'" >
+			<Compile Remove="@(Compile)" Condition="'%(Compile.NuGetItemType)' == 'Compile' AND '%(Compile.NuGetPackageId)' == 'Krafs.Publicizer'" />
+		</ItemGroup>
+
+		<PropertyGroup Condition="$(PublicizerRuntimeStrategy) == 'Unsafe'" >
 			<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		</PropertyGroup>
+
+		<Error 
+			Text="'PublicizerRuntimeStrategy' must be either 'Unsafe' or 'IgnoresAccessChecksTo'. Defaults to 'IgnoresAccessChecksTo' if unspecified." 
+			Condition="$(PublicizerRuntimeStrategy) != 'Unsafe' AND $(PublicizerRuntimeStrategy) != 'IgnoresAccessChecksTo'"/>
+
 	</Target>
+
 </Project>

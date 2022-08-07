@@ -4,7 +4,6 @@
 		<DevelopmentDependency>true</DevelopmentDependency>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<BuildOutputTargetFolder>build</BuildOutputTargetFolder>
-		<ContentTargetFolders>build</ContentTargetFolders>
 		<IncludeBuildOutput>true</IncludeBuildOutput>
 		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -30,8 +29,9 @@
 	</ItemGroup>	
 	
 	<ItemGroup>
-		<Content Include="Krafs.Publicizer.props" />
-		<Content Include="Krafs.Publicizer.targets" />
-	</ItemGroup>	
+		<Content Include="Krafs.Publicizer.props;Krafs.Publicizer.targets" PackagePath="build" />
+		<Compile Remove="IgnoresAccessChecksToAttribute.cs" />
+		<Content Include="IgnoresAccessChecksToAttribute.cs" PackagePath="contentfiles\cs\any\Publicizer" />
+	</ItemGroup>
 
 </Project>
