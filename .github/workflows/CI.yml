@@ -15,11 +15,8 @@ on:
       
 jobs:
   build:
-    name: Build on ${{ matrix.operating-system }}
-    runs-on: ${{ matrix.operating-system }}
-    strategy:
-      matrix:
-        operating-system: [ubuntu-latest, windows-latest, macOS-latest]
+    name: Build
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Setup Dotnet
@@ -32,7 +29,7 @@ jobs:
       run: dotnet restore
       
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build -c Release --no-restore
       
     - name: Test
       run: dotnet test --no-build --no-restore
