@@ -27,6 +27,7 @@ namespace Publicizer.Tests
 
               <PropertyGroup>
                 <TargetFramework>{targetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <OutDir>{libraryRoot}</OutDir>
               </PropertyGroup>
 
@@ -52,6 +53,7 @@ namespace Publicizer.Tests
 
               <PropertyGroup>
                 <TargetFramework>{targetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <OutputType>exe</OutputType>
                 <OutDir>{appRoot}</OutDir>
               </PropertyGroup>
