@@ -4,6 +4,7 @@
 
   <PropertyGroup>
     <PublicizeAssembliesDependsOn>ResolveAssemblyReferences</PublicizeAssembliesDependsOn>
+    <PublicizeBeforeTargets>ResolveReferences</PublicizeBeforeTargets>
     <PublicizerRuntimeStrategies>Unsafe;IgnoresAccessChecksTo</PublicizerRuntimeStrategies>
     <PublicizeAll>false</PublicizeAll>
   </PropertyGroup>

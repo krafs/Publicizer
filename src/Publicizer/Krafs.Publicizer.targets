@@ -1,6 +1,6 @@
 <Project>
 
-  <Target Name="PublicizeAssemblies" DependsOnTargets="$(PublicizeAssembliesDependsOn)" BeforeTargets="ResolveReferences">
+  <Target Name="PublicizeAssemblies" DependsOnTargets="$(PublicizeAssembliesDependsOn)" BeforeTargets="$(PublicizeBeforeTargets)">
 
     <ItemGroup Condition="$(PublicizeAll)">
       <Publicize Include="@(ReferencePath->'%(Filename)')" />
