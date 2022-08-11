@@ -1,4 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+	
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
 		<DevelopmentDependency>true</DevelopmentDependency>
@@ -8,7 +9,8 @@
 		<IncludeBuildOutput>true</IncludeBuildOutput>
 		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<PackageOutputPath>bin</PackageOutputPath>
+		<OutDir Condition="$(OutDir) == ''">bin</OutDir>
+		<PackageOutputPath>$(OutDir)</PackageOutputPath>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludePackageDependencies</TargetsForTfmSpecificBuildOutput>
 	</PropertyGroup>
 	

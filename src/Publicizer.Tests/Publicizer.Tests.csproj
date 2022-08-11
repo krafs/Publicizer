@@ -15,7 +15,16 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Publicizer\Publicizer.csproj" />
-		<None Include="..\Publicizer\bin\Krafs.Publicizer.*.nupkg" CopyToOutputDirectory="PreserveNewest" Visible="false" />
 	</ItemGroup>
+
+	<Target Name="CopyNugetPackage" AfterTargets="AfterBuild">
+		
+	<ItemGroup>
+		<PublicizerNuget Include="..\Publicizer\bin\Krafs.Publicizer.*.nupkg"  />
+	</ItemGroup>
+		
+	<Copy SourceFiles="@(PublicizerNuget)" DestinationFolder="$(OutputPath)" />
+		
+	</Target>
 
 </Project>
