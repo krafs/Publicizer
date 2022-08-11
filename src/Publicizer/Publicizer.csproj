@@ -1,47 +1,49 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-	
-	<PropertyGroup>
-		<TargetFramework>net472</TargetFramework>
-		<DevelopmentDependency>true</DevelopmentDependency>
-		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<BuildOutputTargetFolder>build</BuildOutputTargetFolder>
-		<IncludeBuildOutput>true</IncludeBuildOutput>
-		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<OutDir Condition="$(OutDir) == ''">bin</OutDir>
-		<PackageOutputPath>$(OutDir)</PackageOutputPath>
-		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludePackageDependencies</TargetsForTfmSpecificBuildOutput>
-	</PropertyGroup>
-	
-	<PropertyGroup Label="Package properties">
-		<Title>Publicizer</Title>
-		<PackageId>Krafs.Publicizer</PackageId>
-		<Authors>Krafs</Authors>
-		<Copyright>© Krafs 2022</Copyright>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/krafs/Publicizer</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
-		<Description>MSBuild library for allowing direct access to non-public members in .NET assemblies.</Description>
-		<PackageTags>msbuild accesschecks public publicizer</PackageTags>
-		<Version>1.0.3</Version>
-	</PropertyGroup>
-	
-	<ItemGroup>
-		<PackageReference Include="dnlib" Version="3.5.0" />
-		<PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.2.0" PrivateAssets="all" />
-	</ItemGroup>	
-	
-	<ItemGroup>
-		<Content Include="Krafs.Publicizer.props" PackagePath="build" />
-		<Content Include="Krafs.Publicizer.targets" PackagePath="build" />
-		<Compile Remove="IgnoresAccessChecksToAttribute.cs" />
-		<Content Include="IgnoresAccessChecksToAttribute.cs" PackagePath="contentfiles\cs\any\Publicizer" />
-	</ItemGroup>
 
-	<Target Name="IncludePackageDependencies">
-		<ItemGroup>
-			<BuildOutputInPackage Include="$(OutDir)dnlib.dll" />
-		</ItemGroup>
-	</Target>
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <BuildOutputTargetFolder>build</BuildOutputTargetFolder>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <OutDir Condition="$(OutDir) == ''">bin</OutDir>
+    <PackageOutputPath>$(OutDir)</PackageOutputPath>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludePackageDependencies</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package properties">
+    <Title>Publicizer</Title>
+    <PackageId>Krafs.Publicizer</PackageId>
+    <Authors>Krafs</Authors>
+    <Copyright>© Krafs 2022</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/krafs/Publicizer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
+    <Description>MSBuild library for allowing direct access to non-public members in .NET assemblies.</Description>
+    <PackageTags>msbuild accesschecks public publicizer</PackageTags>
+    <Version>1.0.3</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="dnlib" Version="3.5.0" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.2.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Krafs.Publicizer.props" PackagePath="build" />
+    <Content Include="Krafs.Publicizer.targets" PackagePath="build" />
+    <Compile Remove="IgnoresAccessChecksToAttribute.cs" />
+    <Content Include="IgnoresAccessChecksToAttribute.cs" PackagePath="contentfiles\cs\any\Publicizer" />
+  </ItemGroup>
+
+  <Target Name="IncludePackageDependencies">
+    <ItemGroup>
+      <BuildOutputInPackage Include="$(OutDir)dnlib.dll" />
+    </ItemGroup>
+  </Target>
 
 </Project>
