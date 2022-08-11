@@ -1,17 +1,16 @@
 ﻿using Microsoft.Build.Framework;
 
-namespace Publicizer
-{
-    public static class TaskItemExtensions
-    {
-        public static string GetFileName(this ITaskItem item)
-        {
-            return item.GetMetadata(ItemConstants.FileName);
-        }
+namespace Publicizer;
 
-        public static string GetFullPath(this ITaskItem item)
-        {
-            return item.GetMetadata(ItemConstants.FullPath);
-        }
+internal static class TaskItemExtensions
+{
+    internal static string GetFileName(this ITaskItem item)
+    {
+        return item.GetMetadata(ItemConstants.FileName);
+    }
+
+    internal static string GetFullPath(this ITaskItem item)
+    {
+        return item.GetMetadata(ItemConstants.FullPath);
     }
 }

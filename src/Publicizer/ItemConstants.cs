@@ -1,18 +1,17 @@
-﻿namespace Publicizer
+﻿namespace Publicizer;
+
+internal static class ItemConstants
 {
-    public static class ItemConstants
+    internal const string FullPath = "Fullpath";
+    internal const string FileName = "Filename";
+
+    internal static class DoNotPublicize
     {
-        public const string FullPath = "Fullpath";
-        public const string FileName = "Filename";
+        internal const string ItemName = "DoNotPublicize";
+    }
 
-        public static class DoNotPublicize
-        {
-            public const string ItemName = "DoNotPublicize";
-        }
-
-        public static class Publicize
-        {
-            public const string ItemName = "Publicize";
-        }
+    internal static class Publicize
+    {
+        internal const string ItemName = "Publicize";
     }
 }

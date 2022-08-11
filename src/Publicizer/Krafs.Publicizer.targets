@@ -1,62 +1,59 @@
 <Project>
 
-	<Target
-		Name="PublicizeAssemblies"
-		BeforeTargets="FindReferenceAssembliesForReferences"
-		DependsOnTargets="ResolveAssemblyReferences">
+  <Target Name="PublicizeAssemblies" BeforeTargets="FindReferenceAssembliesForReferences" DependsOnTargets="ResolveAssemblyReferences">
 
-		<ItemGroup Condition="$(PublicizeAll) == 'true'">
-			<Publicize Include="@(ReferencePath->'%(Filename)')" />
-		</ItemGroup>
+    <ItemGroup Condition="$(PublicizeAll) == 'true'">
+      <Publicize Include="@(ReferencePath->'%(Filename)')" />
+    </ItemGroup>
 
-		<PropertyGroup Condition="$(PublicizeAsReferenceAssemblies) != 'false'">
-			<PublicizeAsReferenceAssemblies>true</PublicizeAsReferenceAssemblies>
-		</PropertyGroup>
+    <PropertyGroup Condition="$(PublicizeAsReferenceAssemblies) != 'false'">
+      <PublicizeAsReferenceAssemblies>true</PublicizeAsReferenceAssemblies>
+    </PropertyGroup>
 
-		<PublicizeAssemblies
+    <PublicizeAssemblies
 			ReferencePaths="@(ReferencePath)"
 			Publicizes="@(Publicize)"
 			DoNotPublicizes="@(DoNotPublicize)"
 			OutputDirectory="$(IntermediateOutputPath)PublicizedAssemblies\"
 			PublicizeAsReferenceAssemblies="$(PublicizeAsReferenceAssemblies)">
-			<Output TaskParameter="ReferencePathsToDelete" ItemName="_ReferencePathsToDelete" />
-			<Output TaskParameter="ReferencePathsToAdd" ItemName="_ReferencePathsToAdd" />
-		</PublicizeAssemblies>
+      <Output TaskParameter="ReferencePathsToDelete" ItemName="_ReferencePathsToDelete" />
+      <Output TaskParameter="ReferencePathsToAdd" ItemName="_ReferencePathsToAdd" />
+    </PublicizeAssemblies>
 
-		<ItemGroup>
-			<ReferencePath Remove="@(_ReferencePathsToDelete)" />
-			<ReferencePath Include="@(_ReferencePathsToAdd)" />
-		</ItemGroup>
+    <ItemGroup>
+      <ReferencePath Remove="@(_ReferencePathsToDelete)" />
+      <ReferencePath Include="@(_ReferencePathsToAdd)" />
+    </ItemGroup>
 
-	</Target>
-	
-	<Target Name="ResolvePublicizerRuntimeStrategies" BeforeTargets="FindReferenceAssembliesForReferences" AfterTargets="PublicizeAssemblies">
+  </Target>
 
-		<PropertyGroup>
-			<_unsafePattern>(;|\b)Unsafe(;|\b)</_unsafePattern>
-			<_iactPattern>(;|\b)IgnoresAccessChecksTo(;|\b)</_iactPattern>
-			<_useUnsafeStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_unsafePattern), RegexOptions.IgnoreCase))</_useUnsafeStrategy>
-			<_useIactStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_iactPattern), RegexOptions.IgnoreCase))</_useIactStrategy>
-		</PropertyGroup>
-				
-		<ItemGroup Condition="$(_useIactStrategy)" >
-			<AssemblyAttribute Include="System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute">
-				<_Parameter1>%(_ReferencePathsToAdd.Filename)</_Parameter1>
-			</AssemblyAttribute>
-		</ItemGroup>
-		
-		<ItemGroup Condition="!$(_useIactStrategy)" >
-			<Compile Remove="@(Compile)" Condition="'%(Compile.NuGetItemType)' == 'Compile' AND '%(Compile.NuGetPackageId)' == 'Krafs.Publicizer'" />
-		</ItemGroup>
+  <Target Name="ResolvePublicizerRuntimeStrategies" BeforeTargets="FindReferenceAssembliesForReferences" AfterTargets="PublicizeAssemblies">
 
-		<PropertyGroup Condition="$(_useUnsafeStrategy)" >
-			<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		</PropertyGroup>
+    <PropertyGroup>
+      <_unsafePattern>(;|\b)Unsafe(;|\b)</_unsafePattern>
+      <_iactPattern>(;|\b)IgnoresAccessChecksTo(;|\b)</_iactPattern>
+      <_useUnsafeStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_unsafePattern), RegexOptions.IgnoreCase))</_useUnsafeStrategy>
+      <_useIactStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_iactPattern), RegexOptions.IgnoreCase))</_useIactStrategy>
+    </PropertyGroup>
 
-		<Error 
+    <ItemGroup Condition="$(_useIactStrategy)" >
+      <AssemblyAttribute Include="System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute">
+        <_Parameter1>%(_ReferencePathsToAdd.Filename)</_Parameter1>
+      </AssemblyAttribute>
+    </ItemGroup>
+
+    <ItemGroup Condition="!$(_useIactStrategy)" >
+      <Compile Remove="@(Compile)" Condition="'%(Compile.NuGetItemType)' == 'Compile' AND '%(Compile.NuGetPackageId)' == 'Krafs.Publicizer'" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="$(_useUnsafeStrategy)" >
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <Error
 			Text="'PublicizerRuntimeStrategies' must contain one or both of 'Unsafe' and 'IgnoresAccessChecksTo'. Defaults to both ('Unsafe;IgnoresAccessChecksTo') if unspecified."
 			Condition="!$(_useUnsafeStrategy) AND !$(_useIactStrategy)"/>
 
-	</Target>
+  </Target>
 
 </Project>

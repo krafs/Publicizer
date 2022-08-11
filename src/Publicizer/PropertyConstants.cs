@@ -1,8 +1,7 @@
-﻿namespace Publicizer
+﻿namespace Publicizer;
+
+internal static class PropertyConstants
 {
-    public static class PropertyConstants
-    {
-        public const string PublicizeAssembliesTaskAssembly = "PublicizeAssembliesTaskAssembly";
-        public const string PublicizeAll = "PublicizeAll";
-    }
+    internal const string PublicizeAssembliesTaskAssembly = "PublicizeAssembliesTaskAssembly";
+    internal const string PublicizeAll = "PublicizeAll";
 }

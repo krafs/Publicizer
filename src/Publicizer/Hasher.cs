@@ -1,28 +1,25 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace Publicizer
+namespace Publicizer;
+
+/// <summary>
+/// Helper class for various hash related functions.
+/// </summary>
+internal static class Hasher
 {
-    /// <summary>
-    /// Helper class for various hash related functions.
-    /// </summary>
-    public static class Hasher
+    internal static string ComputeHash(byte[] bytes)
     {
-        public static string ComputeHash(byte[] bytes)
+        using var algorithm = MD5.Create();
+
+        var computedHash = algorithm.ComputeHash(bytes);
+        var sb = new StringBuilder();
+        foreach (var b in computedHash)
         {
-#pragma warning disable CA5351 // Do Not Use Broken Cryptographic Algorithms
-            using MD5 algorithm = MD5.Create();
-#pragma warning restore CA5351 // Do Not Use Broken Cryptographic Algorithms
-
-            byte[] computedHash = algorithm.ComputeHash(bytes);
-            StringBuilder sb = new StringBuilder();
-            foreach (byte b in computedHash)
-            {
-                sb.Append($"{b:X2}");
-            }
-            string hexadecimalHash = sb.ToString();
-
-            return hexadecimalHash;
+            sb.Append($"{b:X2}");
         }
+        var hexadecimalHash = sb.ToString();
+
+        return hexadecimalHash;
     }
 }

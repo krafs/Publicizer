@@ -1,30 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
-		<LangVersion>preview</LangVersion>
-		<IsPackable>false</IsPackable>
-		<NoWarn>NU1702;MSB3277</NoWarn>
-	</PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>NU1702</NoWarn>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.3.0" />
-		<PackageReference Include="NUnit" Version="3.13.3" />
-		<PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
-	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.3.0" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
+  </ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\Publicizer\Publicizer.csproj" />
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Publicizer\Publicizer.csproj" />
+  </ItemGroup>
 
-	<Target Name="CopyNugetPackage" AfterTargets="AfterBuild">
-		
-	<ItemGroup>
-		<PublicizerNuget Include="..\Publicizer\bin\Krafs.Publicizer.*.nupkg"  />
-	</ItemGroup>
-		
-	<Copy SourceFiles="@(PublicizerNuget)" DestinationFolder="$(OutputPath)" />
-		
-	</Target>
+  <Target Name="CopyNugetPackage" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <PublicizerNuget Include="..\Publicizer\bin\Krafs.Publicizer.*.nupkg"  />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublicizerNuget)" DestinationFolder="$(OutputPath)" />
+  </Target>
 
 </Project>
