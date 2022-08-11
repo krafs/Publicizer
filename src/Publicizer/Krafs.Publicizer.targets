@@ -41,7 +41,7 @@
 				
 		<ItemGroup Condition="$(_useIactStrategy)" >
 			<AssemblyAttribute Include="System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute">
-				<_Parameter1>%(_ReferencePathsToAdd.OriginalFilename)</_Parameter1>
+				<_Parameter1>%(_ReferencePathsToAdd.Filename)</_Parameter1>
 			</AssemblyAttribute>
 		</ItemGroup>
 		

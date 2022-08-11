@@ -74,7 +74,7 @@ namespace Publicizer.Tests
             Nuget.CreateConfigThatRestoresPublicizerLocally(appRoot);
 
             Process buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-            Process runAppProcess = Runner.Run("mono", appPath);
+            Process runAppProcess = Runner.Run("dotnet", appPath);
 
             Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.StandardOutput.ReadToEnd);
             Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.StandardOutput.ReadToEnd);
