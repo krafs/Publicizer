@@ -5,7 +5,7 @@
 		AssemblyFile="$([MSBuild]::ValueOrDefault('$(PublicizeAssembliesTaskAssembly)', '$(MSBuildThisFileDirectory)net472\Publicizer.dll'))" />
 
 	<PropertyGroup>
-		<PublicizerRuntimeStrategy>IgnoresAccessChecksTo</PublicizerRuntimeStrategy>
+		<PublicizerRuntimeStrategies>Unsafe;IgnoresAccessChecksTo</PublicizerRuntimeStrategies>
 	</PropertyGroup>
 
 	<ItemGroup>

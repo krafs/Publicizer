@@ -15,24 +15,25 @@ on:
       
 jobs:
   build:
-    name: Build on ${{ matrix.operating-system }}
-    runs-on: ${{ matrix.operating-system }}
-    strategy:
-      matrix:
-        operating-system: [ubuntu-latest, windows-latest, macOS-latest]
+    name: Build
+    runs-on: ubuntu-latest
     steps:
+
     - uses: actions/checkout@v2
-    - name: Setup Dotnet
-      uses: actions/setup-dotnet@v1
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v2
       with:
         dotnet-version: 6.0.x
-        include-prerelease: true
+      env:
+        DOTNET_NOLOGO: true
+        DOTNET_CLI_TELEMETRY_OPTOUT: true
         
     - name: Restore
       run: dotnet restore
       
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build -c Release --no-restore
       
     - name: Test
-      run: dotnet test --no-build --no-restore
+      run: dotnet test -c Release --no-build --no-restore
