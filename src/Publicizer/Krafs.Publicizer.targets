@@ -28,8 +28,35 @@
 			<ReferencePath Include="@(_ReferencePathsToAdd)" />
 		</ItemGroup>
 
+	</Target>
+	
+	<Target Name="ResolvePublicizerRuntimeStrategies" BeforeTargets="FindReferenceAssembliesForReferences" AfterTargets="PublicizeAssemblies">
+
 		<PropertyGroup>
+			<_unsafePattern>(;|\b)Unsafe(;|\b)</_unsafePattern>
+			<_iactPattern>(;|\b)IgnoresAccessChecksTo(;|\b)</_iactPattern>
+			<_useUnsafeStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_unsafePattern), RegexOptions.IgnoreCase))</_useUnsafeStrategy>
+			<_useIactStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_iactPattern), RegexOptions.IgnoreCase))</_useIactStrategy>
+		</PropertyGroup>
+				
+		<ItemGroup Condition="$(_useIactStrategy)" >
+			<AssemblyAttribute Include="System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute">
+				<_Parameter1>%(_ReferencePathsToAdd.OriginalFilename)</_Parameter1>
+			</AssemblyAttribute>
+		</ItemGroup>
+		
+		<ItemGroup Condition="!$(_useIactStrategy)" >
+			<Compile Remove="@(Compile)" Condition="'%(Compile.NuGetItemType)' == 'Compile' AND '%(Compile.NuGetPackageId)' == 'Krafs.Publicizer'" />
+		</ItemGroup>
+
+		<PropertyGroup Condition="$(_useUnsafeStrategy)" >
 			<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		</PropertyGroup>
+
+		<Error 
+			Text="'PublicizerRuntimeStrategies' must contain one or both of 'Unsafe' and 'IgnoresAccessChecksTo'. Defaults to both ('Unsafe;IgnoresAccessChecksTo') if unspecified."
+			Condition="!$(_useUnsafeStrategy) AND !$(_useIactStrategy)"/>
+
 	</Target>
+
 </Project>

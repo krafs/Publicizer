@@ -134,6 +134,7 @@ namespace Publicizer
                 referencePathsToDelete.Add(reference);
                 ITaskItem newReference = new TaskItem(outputAssemblyPath);
                 reference.CopyMetadataTo(newReference);
+                newReference.SetMetadata("OriginalFilename", assemblyName);
                 referencePathsToAdd.Add(newReference);
 
                 string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
