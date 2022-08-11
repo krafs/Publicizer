@@ -120,8 +120,9 @@ namespace Publicizer
 
                 string hash = ComputeHash(assemblyPath, assemblyPublicizes, assemblyDoNotPublicizes);
 
-                string publicizedAssemblyName = $"{assemblyName}.{hash}";
-                string outputAssemblyPath = Path.Combine(OutputDirectory, publicizedAssemblyName + ".dll");
+                string outputAssemblyFolder = Path.Combine(OutputDirectory, $"{assemblyName}.{hash}");
+                Directory.CreateDirectory(outputAssemblyFolder);
+                string outputAssemblyPath = Path.Combine(outputAssemblyFolder, assemblyName + ".dll");
                 if (!File.Exists(outputAssemblyPath))
                 {
                     using ModuleDef module = ModuleDefMD.Load(assemblyPath);
@@ -134,7 +135,6 @@ namespace Publicizer
                 referencePathsToDelete.Add(reference);
                 ITaskItem newReference = new TaskItem(outputAssemblyPath);
                 reference.CopyMetadataTo(newReference);
-                newReference.SetMetadata("OriginalFilename", assemblyName);
                 referencePathsToAdd.Add(newReference);
 
                 string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
@@ -142,7 +142,7 @@ namespace Publicizer
 
                 if (File.Exists(originalDocumentationFullPath))
                 {
-                    string newDocumentationRelativePath = Path.Combine(OutputDirectory, publicizedAssemblyName + ".xml");
+                    string newDocumentationRelativePath = Path.Combine(outputAssemblyFolder, assemblyName + ".xml");
                     string newDocumentationFullPath = Path.GetFullPath(newDocumentationRelativePath);
                     File.Copy(originalDocumentationFullPath, newDocumentationFullPath, overwrite: true);
                 }
