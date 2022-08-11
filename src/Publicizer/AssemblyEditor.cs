@@ -22,39 +22,28 @@ internal static class AssemblyEditor
         }
     }
 
-    internal static void PublicizeProperty(PropertyDef property, bool publicizeAsReferenceAssemblies)
+    internal static void PublicizeProperty(PropertyDef property)
     {
         if (property.GetMethod is MethodDef getMethod)
         {
-            PublicizeMethod(getMethod, publicizeAsReferenceAssemblies);
+            PublicizeMethod(getMethod);
         }
 
         if (property.SetMethod is MethodDef setMethod)
         {
-            PublicizeMethod(setMethod, publicizeAsReferenceAssemblies);
+            PublicizeMethod(setMethod);
         }
     }
 
-    internal static void PublicizeMethod(MethodDef method, bool publicizeAsReferenceAssemblies)
+    internal static void PublicizeMethod(MethodDef method)
     {
         method.Attributes &= ~MethodAttributes.MemberAccessMask;
         method.Attributes |= MethodAttributes.Public;
-
-        if (publicizeAsReferenceAssemblies)
-        {
-            StripMethodBody(method);
-        }
     }
 
     internal static void PublicizeField(FieldDef field)
     {
         field.Attributes &= ~FieldAttributes.FieldAccessMask;
         field.Attributes |= FieldAttributes.Public;
-    }
-
-    internal static void StripMethodBody(MethodDef method)
-    {
-        method.Body = new CilBody();
-        method.Body.Instructions.Add(new Instruction(OpCodes.Ret));
     }
 }

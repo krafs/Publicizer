@@ -15,7 +15,6 @@ public class PublicizeAssemblies : Task
     public ITaskItem[]? Publicizes { get; set; }
     public ITaskItem[]? DoNotPublicizes { get; set; }
     public string? OutputDirectory { get; set; }
-    public string? PublicizeAsReferenceAssemblies { get; set; }
 
     [Output]
     public ITaskItem[]? ReferencePathsToDelete { get; set; }
@@ -36,12 +35,6 @@ public class PublicizeAssemblies : Task
         else if (OutputDirectory is null)
         {
             Log.LogError(nameof(OutputDirectory) + " was null!");
-            return false;
-        }
-
-        if (!bool.TryParse(PublicizeAsReferenceAssemblies, out var publicizeAsReferenceAssemblies))
-        {
-            Log.LogError(nameof(PublicizeAsReferenceAssemblies) + " cannot be parsed as bool.");
             return false;
         }
 
@@ -127,7 +120,7 @@ public class PublicizeAssemblies : Task
             {
                 using ModuleDef module = ModuleDefMD.Load(assemblyPath);
 
-                PublicizeAssembly(module, assemblyPublicizes, assemblyDoNotPublicizes, publicizeAsReferenceAssemblies);
+                PublicizeAssembly(module, assemblyPublicizes, assemblyDoNotPublicizes);
 
                 using var fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
                 module.Write(fileStream);
@@ -176,8 +169,7 @@ public class PublicizeAssemblies : Task
     private static void PublicizeAssembly(
         ModuleDef module,
         List<string> publicizePatterns,
-        List<string> doNotPublicizePatterns,
-        bool publicizeAsReferenceAssemblies)
+        List<string> doNotPublicizePatterns)
     {
         var publicizeAll = publicizePatterns.Any(x => x == module.Assembly.Name);
         var doNotPublicizePropertyMethods = new List<MethodDef>();
@@ -218,7 +210,7 @@ public class PublicizeAssemblies : Task
 
                 if (shouldPublicizeProperty)
                 {
-                    AssemblyEditor.PublicizeProperty(propertyDef, publicizeAsReferenceAssemblies);
+                    AssemblyEditor.PublicizeProperty(propertyDef);
                     publicizedAnyMember = true;
                 }
             }
@@ -234,7 +226,7 @@ public class PublicizeAssemblies : Task
 
                 if (shouldPublicizeMethod)
                 {
-                    AssemblyEditor.PublicizeMethod(methodDef, publicizeAsReferenceAssemblies);
+                    AssemblyEditor.PublicizeMethod(methodDef);
                     publicizedAnyMember = true;
                 }
             }
