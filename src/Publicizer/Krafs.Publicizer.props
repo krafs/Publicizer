@@ -1,11 +1,11 @@
 <Project>
-
-  <UsingTask
-		TaskName="PublicizeAssemblies"
-		AssemblyFile="$([MSBuild]::ValueOrDefault('$(PublicizeAssembliesTaskAssembly)', '$(MSBuildThisFileDirectory)net472\Publicizer.dll'))" />
+  
+  <UsingTask TaskName="PublicizeAssemblies" AssemblyFile="$(MSBuildThisFileDirectory)net472\Publicizer.dll" />
 
   <PropertyGroup>
+    <PublicizeAssembliesDependsOn>ResolveAssemblyReferences</PublicizeAssembliesDependsOn>
     <PublicizerRuntimeStrategies>Unsafe;IgnoresAccessChecksTo</PublicizerRuntimeStrategies>
+    <PublicizeAll>false</PublicizeAll>
   </PropertyGroup>
 
   <ItemGroup>
