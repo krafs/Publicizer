@@ -4,7 +4,7 @@ namespace Publicizer.Tests;
 
 internal static class Runner
 {
-    internal static Process Run(string command, params string[] arguments)
+    internal static ProcessResult Run(string command, params string[] arguments)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -16,9 +16,17 @@ internal static class Runner
         {
             startInfo.ArgumentList.Add(argument);
         }
-        var process = Process.Start(startInfo)!;
+        using var process = Process.Start(startInfo)!;
         process.WaitForExit();
 
-        return process;
+        var result = new ProcessResult(
+            ExitCode: process.ExitCode,
+            Output: process.StandardOutput.ReadToEnd(),
+            Error: process.StandardError.ReadToEnd()
+        );
+
+        process.Close();
+
+        return result;
     }
 }

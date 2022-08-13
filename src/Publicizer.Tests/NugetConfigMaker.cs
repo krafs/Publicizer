@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace Publicizer.Tests;
 
-internal static class Nuget
+internal static class NugetConfigMaker
 {
     internal static void CreateConfigThatRestoresPublicizerLocally(string root)
     {
