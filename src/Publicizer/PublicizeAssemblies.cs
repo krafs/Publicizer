@@ -11,6 +11,7 @@ namespace Publicizer;
 public class PublicizeAssemblies : Task
 {
     private static readonly string CompilerGeneratedFullName = typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).FullName;
+
     public ITaskItem[]? ReferencePaths { get; set; }
     public ITaskItem[]? Publicizes { get; set; }
     public ITaskItem[]? DoNotPublicizes { get; set; }
@@ -66,7 +67,11 @@ public class PublicizeAssemblies : Task
             {
                 using ModuleDef module = ModuleDefMD.Load(assemblyPath);
 
-                PublicizeAssembly(module, assemblyContext);
+                var isAssemblyModified = PublicizeAssembly(module, assemblyContext);
+                if (!isAssemblyModified)
+                {
+                    continue;
+                }
 
                 using var fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
                 module.Write(fileStream);
@@ -173,8 +178,9 @@ public class PublicizeAssemblies : Task
         return Hasher.ComputeHash(allBytes);
     }
 
-    private static void PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext)
+    private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext)
     {
+        var publicizedAnyMemberInAssembly = false;
         var doNotPublicizePropertyMethods = new HashSet<MethodDef>();
 
         // TYPES
@@ -182,7 +188,7 @@ public class PublicizeAssemblies : Task
         {
             doNotPublicizePropertyMethods.Clear();
 
-            var publicizedAnyMember = false;
+            var publicizedAnyMemberInType = false;
             var typeName = typeDef.ReflectionFullName;
 
             var explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
@@ -210,7 +216,7 @@ public class PublicizeAssemblies : Task
                 if (explicitlyPublicizeProperty)
                 {
                     AssemblyEditor.PublicizeProperty(propertyDef);
-                    publicizedAnyMember = true;
+                    publicizedAnyMemberInType = true;
                     continue;
                 }
 
@@ -233,7 +239,7 @@ public class PublicizeAssemblies : Task
                     }
 
                     AssemblyEditor.PublicizeProperty(propertyDef);
-                    publicizedAnyMember = true;
+                    publicizedAnyMemberInType = true;
                 }
             }
 
@@ -258,7 +264,7 @@ public class PublicizeAssemblies : Task
                 if (explicitlyPublicizeMethod)
                 {
                     AssemblyEditor.PublicizeMethod(methodDef);
-                    publicizedAnyMember = true;
+                    publicizedAnyMemberInType = true;
                     continue;
                 }
 
@@ -281,7 +287,7 @@ public class PublicizeAssemblies : Task
                     }
 
                     AssemblyEditor.PublicizeMethod(methodDef);
-                    publicizedAnyMember = true;
+                    publicizedAnyMemberInType = true;
                 }
             }
 
@@ -300,7 +306,7 @@ public class PublicizeAssemblies : Task
                 if (explicitlyPublicizeField)
                 {
                     AssemblyEditor.PublicizeField(fieldDef);
-                    publicizedAnyMember = true;
+                    publicizedAnyMemberInType = true;
                     continue;
                 }
 
@@ -323,13 +329,14 @@ public class PublicizeAssemblies : Task
                     }
 
                     AssemblyEditor.PublicizeField(fieldDef);
-                    publicizedAnyMember = true;
+                    publicizedAnyMemberInType = true;
                 }
             }
 
-            if (publicizedAnyMember)
+            if (publicizedAnyMemberInType)
             {
                 AssemblyEditor.PublicizeType(typeDef);
+                publicizedAnyMemberInAssembly = true;
             }
 
             if (explicitlyDoNotPublicizeType)
@@ -360,6 +367,8 @@ public class PublicizeAssemblies : Task
                 AssemblyEditor.PublicizeType(typeDef);
             }
         }
+
+        return publicizedAnyMemberInAssembly;
     }
 
     private static bool IsCompilerGenerated(IHasCustomAttribute memberDef)
