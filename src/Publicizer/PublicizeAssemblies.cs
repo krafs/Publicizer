@@ -348,6 +348,7 @@ public class PublicizeAssemblies : Task
             if (explicitlyPublicizeType)
             {
                 AssemblyEditor.PublicizeType(typeDef);
+                publicizedAnyMemberInAssembly = true;
                 continue;
             }
 
@@ -365,6 +366,7 @@ public class PublicizeAssemblies : Task
                 }
 
                 AssemblyEditor.PublicizeType(typeDef);
+                publicizedAnyMemberInAssembly = true;
             }
         }
 
