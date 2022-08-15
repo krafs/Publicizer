@@ -4,13 +4,23 @@ namespace Publicizer;
 
 internal static class TaskItemExtensions
 {
-    internal static string GetFileName(this ITaskItem item)
+    internal static string FileName(this ITaskItem item)
     {
-        return item.GetMetadata(ItemConstants.FileName);
+        return item.GetMetadata("Filename");
     }
 
-    internal static string GetFullPath(this ITaskItem item)
+    internal static string FullPath(this ITaskItem item)
     {
-        return item.GetMetadata(ItemConstants.FullPath);
+        return item.GetMetadata("Fullpath");
+    }
+
+    internal static bool IncludeCompilerGeneratedMembers(this ITaskItem item)
+    {
+        if (bool.TryParse(item.GetMetadata("IncludeCompilerGeneratedMembers"), out var includeCompilerGeneratedMembers))
+        {
+            return includeCompilerGeneratedMembers;
+        }
+
+        return true;
     }
 }
