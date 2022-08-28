@@ -8,3 +8,12 @@ updates:
       - "enhancement"
     assignees:
       - "krafs"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "enhancement"
+    assignees:
+      - "krafs"
