@@ -25,6 +25,7 @@
     <RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
     <Description>MSBuild library for allowing direct access to non-public members in .NET assemblies.</Description>
     <PackageTags>msbuild accesschecks public publicizer</PackageTags>
+    <PackageIcon>icon.png</PackageIcon>
     <Version>1.0.3</Version>
   </PropertyGroup>
 
@@ -34,6 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\"/>
     <Content Include="Krafs.Publicizer.props" PackagePath="build" />
     <Content Include="Krafs.Publicizer.targets" PackagePath="build" />
     <Compile Remove="IgnoresAccessChecksToAttribute.cs" />
