@@ -1,16 +1,16 @@
 version: 2
 updates:
   - package-ecosystem: "nuget"
-    directory: "/src/Publicizer/"
+    directory: "/"
     schedule:
       interval: "daily"
     labels:
       - "enhancement"
     assignees:
       - "krafs"
-      
-  - package-ecosystem: "nuget"
-    directory: "/src/Publicizer.Tests/"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "daily"
     labels:
