@@ -26,6 +26,7 @@
     <Description>MSBuild library for allowing direct access to non-public members in .NET assemblies.</Description>
     <PackageTags>msbuild accesschecks public publicizer</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>2.0.0</Version>
   </PropertyGroup>
 
@@ -36,6 +37,7 @@
 
   <ItemGroup>
     <None Include="..\..\icon.png" Pack="true" PackagePath="\"/>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
     <Content Include="Krafs.Publicizer.props" PackagePath="build" />
     <Content Include="Krafs.Publicizer.targets" PackagePath="build" />
     <Compile Remove="IgnoresAccessChecksToAttribute.cs" />
