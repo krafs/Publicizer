@@ -54,7 +54,8 @@ Unsafe means that the assembly will be compiled with the [unsafe](https://docs.m
 
 IgnoresAccessChecksTo emits an [IgnoresAccessChecksToAttribute](https://www.strathweb.com/2018/10/no-internalvisibleto-no-problem-bypassing-c-visibility-rules-with-roslyn/) to your source code, which then becomes part of your assembly.
 
-Unsafe works for most versions of [Mono](https://www.mono-project.com/). IgnoresAccessChecksTo should work for most other runtimes, like CoreClr. That said - there could be exceptions. 
+Unsafe works for most versions of [Mono](https://www.mono-project.com/). IgnoresAccessChecksTo should work for most other runtimes, like CoreClr. That said - there could be exceptions.
+
 These strategies can be toggled on or off by editing the PublicizerRuntimeStrategies-property in your project file.
 
 Both strategies are enabled by default:
