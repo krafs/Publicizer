@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using dnlib.DotNet;
+using dnlib.DotNet.Writer;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
@@ -74,7 +76,14 @@ public class PublicizeAssemblies : Task
                 }
 
                 using var fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
-                module.Write(fileStream);
+
+                var writerOptions = new ModuleWriterOptions(module);
+
+                // Writing the module sometime fails without this flag due to how it was originally compiled.
+                // https://github.com/krafs/Publicizer/issues/42
+                writerOptions.MetadataOptions.Flags |= MetadataFlags.KeepOldMaxStack;
+
+                module.Write(fileStream, writerOptions);
             }
             referencePathsToDelete.Add(reference);
             ITaskItem newReference = new TaskItem(outputAssemblyPath);
