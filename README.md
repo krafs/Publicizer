@@ -94,7 +94,7 @@ This compiles just fine. However, during execution the runtime is presumably loa
 So you have a Student class with a public Name-property overriding a protected Name-property on the Person class. 
 This will cause an access check mismatch at runtime and throw an error.
 
-You can avoid this by instructing Publicizer to not publicize Person.Name. Use the _DoNotPublicize_-item for this:
+You can avoid this by instructing Publicizer to not publicize Person.Name. You can use the _DoNotPublicize_-item for this:
 ```xml
 <ItemGroup>
     <Publicize Include="ExampleAssembly" />
@@ -102,26 +102,30 @@ You can avoid this by instructing Publicizer to not publicize Person.Name. Use t
 </ItemGroup>
 ```
 
+However, if there is a lot of protected members you have to override, doing this for all of them can be cumbersome.
+For this scenario, you can instruct Publicizer to ignore all virtual members in the assembly:
+```xml
+<ItemGroup>
+    <Publicize Include="ExampleAssembly" IncludeVirtualMembers="false" />
+</ItemGroup>
+```
+
 ### Compiler-generated member name conflicts
 Sometimes assemblies contain members generated automatically by the compiler, like backing-fields for events. 
 These generated members sometimes have names that conflict with other member names when they become public.
 
-You can solve this the same way as above - using _DoNotPublicize_-items.
-
-However, some assemblies have a lot of generated members, and putting them all in _DoNotPublicize_-items could be cumbersome.
-For this scenario, you can tell Publicizer to ignore all compiler-generated members. 
-Given the assembly is called GameAssembly your config could look like this:
+You can solve this in the same ways as above - either by using individual _DoNotPublicize_-items, or by telling Publicizer to ignore all compiler-generated members in the assembly:
 ```xml
 <ItemGroup>
-    <Publicize Include="GameAssembly" IncludeCompilerGeneratedMembers="false" />
+    <Publicize Include="ExampleAssembly" IncludeCompilerGeneratedMembers="false" />
 </ItemGroup>
 ```
 
-You can still publicize specific compiler-generated members by specifying them explicitly:
+If you opt to ignore all virtual and/or compiler-generated members, you can still publicize specific ignored members by specifying them explicitly:
 ```xml
 <ItemGroup>
-    <Publicize Include="GameAssembly" IncludeCompilerGeneratedMembers="false" />
-    <Publicize Include="GameAssembly:Game.Player.SpecificMember" />
+    <Publicize Include="ExampleAssembly" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false" />
+    <Publicize Include="ExampleAssembly:Example.Person.SpecificMember" />
 </ItemGroup>
 ```
 
