@@ -342,6 +342,7 @@ public class PublicizeAssemblies : Task
             {
                 AssemblyEditor.PublicizeType(typeDef);
                 publicizedAnyMemberInAssembly = true;
+                continue;
             }
 
             if (explicitlyDoNotPublicizeType)
