@@ -8,8 +8,9 @@ namespace Publicizer;
 /// </summary>
 internal static class AssemblyEditor
 {
-    internal static void PublicizeType(TypeDef type)
+    internal static bool PublicizeType(TypeDef type)
     {
+        var oldAttributes = type.Attributes;
         type.Attributes &= ~TypeAttributes.VisibilityMask;
 
         if (type.IsNested)
@@ -20,33 +21,43 @@ internal static class AssemblyEditor
         {
             type.Attributes |= TypeAttributes.Public;
         }
+        return type.Attributes != oldAttributes;
     }
 
-    internal static void PublicizeProperty(PropertyDef property, bool includeVirtual = true)
+    internal static bool PublicizeProperty(PropertyDef property, bool includeVirtual = true)
     {
+        var publicized = false;
+
         if (property.GetMethod is MethodDef getMethod)
         {
-            PublicizeMethod(getMethod, includeVirtual);
+            publicized |= PublicizeMethod(getMethod, includeVirtual);
         }
 
         if (property.SetMethod is MethodDef setMethod)
         {
-            PublicizeMethod(setMethod, includeVirtual);
+            publicized |= PublicizeMethod(setMethod, includeVirtual);
         }
+
+        return publicized;
     }
 
-    internal static void PublicizeMethod(MethodDef method, bool includeVirtual = true)
+    internal static bool PublicizeMethod(MethodDef method, bool includeVirtual = true)
     {
         if (includeVirtual || !method.IsVirtual)
         {
+            var oldAttributes = method.Attributes;
             method.Attributes &= ~MethodAttributes.MemberAccessMask;
             method.Attributes |= MethodAttributes.Public;
+            return method.Attributes != oldAttributes;
         }
+        return false;
     }
 
-    internal static void PublicizeField(FieldDef field)
+    internal static bool PublicizeField(FieldDef field)
     {
+        var oldAttributes = field.Attributes;
         field.Attributes &= ~FieldAttributes.FieldAccessMask;
         field.Attributes |= FieldAttributes.Public;
+        return field.Attributes != oldAttributes;
     }
 }
