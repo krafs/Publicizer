@@ -22,23 +22,26 @@ internal static class AssemblyEditor
         }
     }
 
-    internal static void PublicizeProperty(PropertyDef property)
+    internal static void PublicizeProperty(PropertyDef property, bool includeVirtual = true)
     {
         if (property.GetMethod is MethodDef getMethod)
         {
-            PublicizeMethod(getMethod);
+            PublicizeMethod(getMethod, includeVirtual);
         }
 
         if (property.SetMethod is MethodDef setMethod)
         {
-            PublicizeMethod(setMethod);
+            PublicizeMethod(setMethod, includeVirtual);
         }
     }
 
-    internal static void PublicizeMethod(MethodDef method)
+    internal static void PublicizeMethod(MethodDef method, bool includeVirtual = true)
     {
-        method.Attributes &= ~MethodAttributes.MemberAccessMask;
-        method.Attributes |= MethodAttributes.Public;
+        if (includeVirtual || !method.IsVirtual)
+        {
+            method.Attributes &= ~MethodAttributes.MemberAccessMask;
+            method.Attributes |= MethodAttributes.Public;
+        }
     }
 
     internal static void PublicizeField(FieldDef field)

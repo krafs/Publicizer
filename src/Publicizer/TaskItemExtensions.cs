@@ -23,4 +23,14 @@ internal static class TaskItemExtensions
 
         return true;
     }
+
+    internal static bool IncludeVirtualMembers(this ITaskItem item)
+    {
+        if (bool.TryParse(item.GetMetadata("IncludeVirtualMembers"), out var includeVirtualMembers))
+        {
+            return includeVirtualMembers;
+        }
+
+        return true;
+    }
 }

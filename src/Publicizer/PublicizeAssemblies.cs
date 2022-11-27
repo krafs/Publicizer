@@ -130,6 +130,7 @@ public class PublicizeAssemblies : Task
             if (isAssemblyPattern)
             {
                 assemblyContext.IncludeCompilerGeneratedMembers = item.IncludeCompilerGeneratedMembers();
+                assemblyContext.IncludeVirtualMembers = item.IncludeVirtualMembers();
                 assemblyContext.ExplicitlyPublicizeAssembly = true;
             }
             else
@@ -169,6 +170,7 @@ public class PublicizeAssemblies : Task
         var sb = new StringBuilder();
         sb.Append(assemblyContext.AssemblyName);
         sb.Append(assemblyContext.IncludeCompilerGeneratedMembers);
+        sb.Append(assemblyContext.IncludeVirtualMembers);
         sb.Append(assemblyContext.ExplicitlyPublicizeAssembly);
         sb.Append(assemblyContext.ExplicitlyDoNotPublicizeAssembly);
         foreach (var publicizePattern in assemblyContext.PublicizeMemberPatterns)
@@ -247,7 +249,7 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    AssemblyEditor.PublicizeProperty(propertyDef);
+                    AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers);
                     publicizedAnyMemberInType = true;
                 }
             }
@@ -295,7 +297,7 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    AssemblyEditor.PublicizeMethod(methodDef);
+                    AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers);
                     publicizedAnyMemberInType = true;
                 }
             }

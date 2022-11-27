@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemDefinitionGroup>
-    <Publicize Visible="false" IncludeCompilerGeneratedMembers="true" />
+    <Publicize Visible="false" IncludeCompilerGeneratedMembers="true" IncludeVirtualMembers="true" />
     <DoNotPublicize Visible="false" />
   </ItemDefinitionGroup>
 
