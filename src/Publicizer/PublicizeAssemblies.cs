@@ -226,8 +226,7 @@ public class PublicizeAssemblies : Task
                 var explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
                 if (explicitlyPublicizeProperty)
                 {
-                    AssemblyEditor.PublicizeProperty(propertyDef);
-                    publicizedAnyMemberInType = true;
+                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeProperty(propertyDef);
                     continue;
                 }
 
@@ -249,8 +248,7 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers);
-                    publicizedAnyMemberInType = true;
+                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers);
                 }
             }
 
@@ -274,8 +272,7 @@ public class PublicizeAssemblies : Task
                 var explicitlyPublicizeMethod = assemblyContext.PublicizeMemberPatterns.Contains(methodName);
                 if (explicitlyPublicizeMethod)
                 {
-                    AssemblyEditor.PublicizeMethod(methodDef);
-                    publicizedAnyMemberInType = true;
+                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeMethod(methodDef);
                     continue;
                 }
 
@@ -297,8 +294,7 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers);
-                    publicizedAnyMemberInType = true;
+                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers);
                 }
             }
 
@@ -316,8 +312,7 @@ public class PublicizeAssemblies : Task
                 var explicitlyPublicizeField = assemblyContext.PublicizeMemberPatterns.Contains(fieldName);
                 if (explicitlyPublicizeField)
                 {
-                    AssemblyEditor.PublicizeField(fieldDef);
-                    publicizedAnyMemberInType = true;
+                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeField(fieldDef);
                     continue;
                 }
 
@@ -339,8 +334,7 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    AssemblyEditor.PublicizeField(fieldDef);
-                    publicizedAnyMemberInType = true;
+                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeField(fieldDef);
                 }
             }
 
@@ -358,8 +352,7 @@ public class PublicizeAssemblies : Task
             var explicitlyPublicizeType = assemblyContext.PublicizeMemberPatterns.Contains(typeName);
             if (explicitlyPublicizeType)
             {
-                AssemblyEditor.PublicizeType(typeDef);
-                publicizedAnyMemberInAssembly = true;
+                publicizedAnyMemberInAssembly |= AssemblyEditor.PublicizeType(typeDef);
                 continue;
             }
 
@@ -376,8 +369,7 @@ public class PublicizeAssemblies : Task
                     continue;
                 }
 
-                AssemblyEditor.PublicizeType(typeDef);
-                publicizedAnyMemberInAssembly = true;
+                publicizedAnyMemberInAssembly |= AssemblyEditor.PublicizeType(typeDef);
             }
         }
 
