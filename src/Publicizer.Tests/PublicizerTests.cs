@@ -680,4 +680,81 @@ public class PublicizerTests
         Assert.That(buildAppProcess.Output, Does.Match("CS0117: 'LibraryClass' does not contain a definition for 'CompilerGeneratedPrivateField'"));
         Assert.That(buildAppProcess.Output, Does.Not.Match("CS0117: 'LibraryClass' does not contain a definition for 'PrivateField'"));
     }
+
+    [Test]
+    public void PublicizeAssembly_ExceptVirtual_FailsCompileAndPrintsErrorCodeCS0122ForVirtualMethod()
+    {
+        using var libraryFolder = new TemporaryFolder();
+        var libraryCodePath = Path.Combine(libraryFolder.Path, "LibraryClass.cs");
+        var libraryCode = """
+            namespace LibraryNamespace;
+            public class LibraryClass
+            {
+                protected virtual string ProtectedVirtualMethod() => "foo";
+                private string PrivateMethod() => "bar";
+            }
+            """;
+        File.WriteAllText(libraryCodePath, libraryCode);
+
+        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.csproj");
+        var libraryCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutDir>{libraryFolder.Path}</OutDir>
+              </PropertyGroup>
+          
+              <ItemGroup>
+                <Compile Include="{libraryCodePath}" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        File.WriteAllText(libraryCsprojPath, libraryCsproj);
+        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
+
+        using var appFolder = new TemporaryFolder();
+        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        var appCode = """
+            var instance = new LibraryNamespace.LibraryClass();
+            _ = instance.ProtectedVirtualMethod();
+            _ = instance.PrivateMethod();
+            """;
+        File.WriteAllText(appCodePath, appCode);
+        var libraryPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.dll");
+
+        var appCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutputType>exe</OutputType>
+                <OutDir>{appFolder.Path}</OutDir>
+              </PropertyGroup>
+          
+              <ItemGroup>
+                <Compile Include="{appCodePath}" />
+                <Reference Include="LibraryAssembly" HintPath="{libraryPath}" />
+                <PackageReference Include="Krafs.Publicizer" Version="*" />
+                <Publicize Include="LibraryAssembly" IncludeVirtualMembers="false" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        File.WriteAllText(appCsprojPath, appCsproj);
+        NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
+
+        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+
+        Assert.That(buildAppProcess.ExitCode, Is.Not.Zero, buildAppProcess.Output);
+        Assert.That(buildAppProcess.Output, Does.Contain("CS0122: 'LibraryClass.ProtectedVirtualMethod()' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Not.Contain("CS0122: 'LibraryClass.PrivateMethod()' is inaccessible due to its protection level"));
+    }
 }
