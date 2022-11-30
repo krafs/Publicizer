@@ -102,7 +102,7 @@ You can avoid this by instructing Publicizer to not publicize Person.Name. You c
 </ItemGroup>
 ```
 
-However, if there is a lot of protected members you have to override, doing this for all of them can be cumbersome.
+However, if there are a lot of protected members you have to override, doing this for all of them can be cumbersome.
 For this scenario, you can instruct Publicizer to ignore all virtual members in the assembly:
 ```xml
 <ItemGroup>
