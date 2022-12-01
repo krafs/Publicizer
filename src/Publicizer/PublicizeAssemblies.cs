@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using dnlib.DotNet;
 using dnlib.DotNet.Writer;
@@ -12,7 +11,7 @@ using Microsoft.Build.Utilities;
 namespace Publicizer;
 public class PublicizeAssemblies : Task
 {
-    private static readonly string CompilerGeneratedFullName = typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).FullName;
+    internal static readonly string CompilerGeneratedFullName = typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).FullName;
 
     public ITaskItem[]? ReferencePaths { get; set; }
     public ITaskItem[]? Publicizes { get; set; }
