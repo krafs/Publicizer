@@ -682,7 +682,7 @@ public class PublicizerTests
     }
 
     [Test]
-    public void PublicizeAssembly_ExceptVirtual_FailsCompileAndPrintsErrorCodeCS0122ForVirtualMethod()
+    public void PublicizeAssembly_ExceptVirtual_FailsCompileAndPrintsErrorCodeCS0122ForVirtualProperty()
     {
         using var libraryFolder = new TemporaryFolder();
         var libraryCodePath = Path.Combine(libraryFolder.Path, "LibraryClass.cs");
@@ -690,8 +690,8 @@ public class PublicizerTests
             namespace LibraryNamespace;
             public class LibraryClass
             {
-                protected virtual string ProtectedVirtualMethod() => "foo";
-                private string PrivateMethod() => "bar";
+                protected virtual string VirtualProtectedProperty => "foo";
+                protected string ProtectedProperty => "bar";
             }
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
@@ -721,8 +721,8 @@ public class PublicizerTests
         var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
         var appCode = """
             var instance = new LibraryNamespace.LibraryClass();
-            _ = instance.ProtectedVirtualMethod();
-            _ = instance.PrivateMethod();
+            _ = instance.VirtualProtectedProperty;
+            _ = instance.ProtectedProperty;
             """;
         File.WriteAllText(appCodePath, appCode);
         var libraryPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.dll");
@@ -754,7 +754,7 @@ public class PublicizerTests
         var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Not.Zero, buildAppProcess.Output);
-        Assert.That(buildAppProcess.Output, Does.Contain("CS0122: 'LibraryClass.ProtectedVirtualMethod()' is inaccessible due to its protection level"));
-        Assert.That(buildAppProcess.Output, Does.Not.Contain("CS0122: 'LibraryClass.PrivateMethod()' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'LibraryClass.VirtualProtectedProperty' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'LibraryClass.ProtectedProperty' is inaccessible due to its protection level"));
     }
 }
