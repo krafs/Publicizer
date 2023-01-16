@@ -47,4 +47,8 @@
 
   </Target>
 
+  <Target Name="PublicizerClean" BeforeTargets="Clean" Condition="$(PublicizerClearCacheOnClean)">
+    <RemoveDir Directories="$(IntermediateOutputPath)PublicizedAssemblies" />
+  </Target>
+
 </Project>
