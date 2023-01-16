@@ -11,8 +11,6 @@ using Microsoft.Build.Utilities;
 namespace Publicizer;
 public class PublicizeAssemblies : Task
 {
-    internal static readonly string CompilerGeneratedFullName = typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).FullName;
-
     public ITaskItem[]? ReferencePaths { get; set; }
     public ITaskItem[]? Publicizes { get; set; }
     public ITaskItem[]? DoNotPublicizes { get; set; }
@@ -378,6 +376,6 @@ public class PublicizeAssemblies : Task
 
     private static bool IsCompilerGenerated(IHasCustomAttribute memberDef)
     {
-        return memberDef.CustomAttributes.Any(x => x.TypeFullName == CompilerGeneratedFullName);
+        return memberDef.CustomAttributes.Any(x => x.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
     }
 }
