@@ -121,7 +121,8 @@ public sealed class PublicizeAssemblies : Task
                 {
                     // Writing the module sometime fails without this flag due to how it was originally compiled.
                     // https://github.com/krafs/Publicizer/issues/42
-                    MetadataOptions = new MetadataOptions(MetadataFlags.KeepOldMaxStack)
+                    MetadataOptions = new MetadataOptions(MetadataFlags.KeepOldMaxStack),
+                    Logger = DummyLogger.NoThrowInstance
                 };
                 scopedLogger.Info($"Saving publicized assembly to {outputAssemblyPath}");
                 module.Write(fileStream, writerOptions);
