@@ -8,12 +8,17 @@ using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
 namespace Publicizer;
-public class PublicizeAssemblies : Task
+public sealed class PublicizeAssemblies : Task
 {
-    public ITaskItem[]? ReferencePaths { get; set; }
+    [Required]
+    public string OutputDirectory { get; set; } = null!;
+
+    [Required]
+    public ITaskItem[] ReferencePaths { get; set; } = null!;
+
     public ITaskItem[]? Publicizes { get; set; }
     public ITaskItem[]? DoNotPublicizes { get; set; }
-    public string? OutputDirectory { get; set; }
+    public string? LogFilePath { get; set; }
 
     [Output]
     public ITaskItem[]? ReferencePathsToDelete { get; set; }
@@ -21,93 +26,140 @@ public class PublicizeAssemblies : Task
     [Output]
     public ITaskItem[]? ReferencePathsToAdd { get; set; }
 
+    private Logger GetLogger()
+    {
+        Stream logStream = Stream.Null;
+        if (!string.IsNullOrWhiteSpace(LogFilePath))
+        {
+            try
+            {
+                string directory = Path.GetDirectoryName(LogFilePath);
+                Directory.CreateDirectory(directory);
+                logStream = File.Open(LogFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+
+                // Ensure log file is empty.
+                logStream.SetLength(0);
+            }
+            catch (Exception e)
+            {
+                Log.LogError($"Error creating Publicizer log file: {e.Message}");
+            }
+        }
+
+        return new Logger(Log, logStream);
+    }
+
     public override bool Execute()
     {
-        if (ReferencePaths is null)
+        using Logger logger = GetLogger();
+        logger.Info($"Initializing assembly publicization");
+
+        Publicizes ??= Array.Empty<ITaskItem>();
+        DoNotPublicizes ??= Array.Empty<ITaskItem>();
+
+        logger.Info($"Referenced assemblies: {ReferencePaths.Length}");
+
+        if (Publicizes.Length == 0)
         {
+            logger.Info("No Publicizes provided. Terminating task.");
             return true;
         }
-        else if (Publicizes is null)
+
+        try
         {
-            return true;
+            Directory.CreateDirectory(OutputDirectory);
         }
-        else if (OutputDirectory is null)
+        catch (Exception e)
         {
-            Log.LogError(nameof(OutputDirectory) + " was null!");
+            logger.Error($"{nameof(OutputDirectory)} '{OutputDirectory}' is not a valid directory path: {e.Message}");
             return false;
         }
 
-        DoNotPublicizes ??= Array.Empty<ITaskItem>();
+        Dictionary<string, PublicizerAssemblyContext> assemblyContexts = GetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes, logger);
 
-        Directory.CreateDirectory(OutputDirectory);
-
-        Dictionary<string, PublicizerAssemblyContext> assemblyContexts = GetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes);
         var referencePathsToDelete = new List<ITaskItem>();
         var referencePathsToAdd = new List<ITaskItem>();
 
         foreach (ITaskItem reference in ReferencePaths)
         {
             string assemblyName = reference.FileName();
-
             if (!assemblyContexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
             {
                 continue;
             }
 
+            ITaskLogger scopedLogger = logger.CreateScope(assemblyName);
+            scopedLogger.Info($"Assembly processing starting...");
             string assemblyPath = reference.FullPath();
+            scopedLogger.Info($"Path: {assemblyPath}");
 
             string hash = Hasher.ComputeHash(assemblyPath, assemblyContext);
+            scopedLogger.Info($"Publicization hash: {hash}");
 
             string outputAssemblyFolder = Path.Combine(OutputDirectory, $"{assemblyName}.{hash}");
             Directory.CreateDirectory(outputAssemblyFolder);
             string outputAssemblyPath = Path.Combine(outputAssemblyFolder, assemblyName + ".dll");
-            if (!File.Exists(outputAssemblyPath))
+
+            if (File.Exists(outputAssemblyPath))
+            {
+                scopedLogger.Info($"Assembly already publicized at {outputAssemblyPath}");
+            }
+            else
             {
                 using ModuleDef module = ModuleDefMD.Load(assemblyPath);
-
-                bool isAssemblyModified = PublicizeAssembly(module, assemblyContext);
+                scopedLogger.Info("Publicizing members...");
+                bool isAssemblyModified = PublicizeAssembly(module, assemblyContext, scopedLogger);
                 if (!isAssemblyModified)
                 {
+                    scopedLogger.Warning("Assembly is marked for publicization, but no members were publicized");
                     continue;
                 }
 
                 using var fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
 
-                var writerOptions = new ModuleWriterOptions(module);
-
-                // Writing the module sometime fails without this flag due to how it was originally compiled.
-                // https://github.com/krafs/Publicizer/issues/42
-                writerOptions.MetadataOptions.Flags |= MetadataFlags.KeepOldMaxStack;
-
+                var writerOptions = new ModuleWriterOptions(module)
+                {
+                    // Writing the module sometime fails without this flag due to how it was originally compiled.
+                    // https://github.com/krafs/Publicizer/issues/42
+                    MetadataOptions = new MetadataOptions(MetadataFlags.KeepOldMaxStack),
+                    Logger = DummyLogger.NoThrowInstance
+                };
+                scopedLogger.Info($"Saving publicized assembly to {outputAssemblyPath}");
                 module.Write(fileStream, writerOptions);
+
+                string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
+                string originalDocumentationFullPath = Path.Combine(assemblyDirectory, assemblyName + ".xml");
+
+                if (File.Exists(originalDocumentationFullPath))
+                {
+                    scopedLogger.Info($"Found XML documentation at {originalDocumentationFullPath}");
+                    string newDocumentationRelativePath = Path.Combine(outputAssemblyFolder, assemblyName + ".xml");
+                    string newDocumentationFullPath = Path.GetFullPath(newDocumentationRelativePath);
+                    scopedLogger.Info($"Copying XML documentation to {newDocumentationFullPath}");
+                    File.Copy(originalDocumentationFullPath, newDocumentationFullPath, overwrite: true);
+                }
             }
+
             referencePathsToDelete.Add(reference);
             ITaskItem newReference = new TaskItem(outputAssemblyPath);
             reference.CopyMetadataTo(newReference);
             reference.SetMetadata("Publicized", bool.TrueString);
-
             referencePathsToAdd.Add(newReference);
-
-            string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
-            string originalDocumentationFullPath = Path.Combine(assemblyDirectory, assemblyName + ".xml");
-
-            if (File.Exists(originalDocumentationFullPath))
-            {
-                string newDocumentationRelativePath = Path.Combine(outputAssemblyFolder, assemblyName + ".xml");
-                string newDocumentationFullPath = Path.GetFullPath(newDocumentationRelativePath);
-                File.Copy(originalDocumentationFullPath, newDocumentationFullPath, overwrite: true);
-            }
+            scopedLogger.Info("Assembly processing finished");
         }
 
         ReferencePathsToDelete = referencePathsToDelete.ToArray();
         ReferencePathsToAdd = referencePathsToAdd.ToArray();
+
+        logger.Info($"Successfully publicized {assemblyContexts.Count} assemblies. Terminating task.");
 
         return true;
     }
 
     private static Dictionary<string, PublicizerAssemblyContext> GetPublicizerAssemblyContexts(
         ITaskItem[] publicizeItems,
-        ITaskItem[] doNotPublicizeItems)
+        ITaskItem[] doNotPublicizeItems,
+        ITaskLogger logger)
     {
         var contexts = new Dictionary<string, PublicizerAssemblyContext>();
 
@@ -128,11 +180,13 @@ public class PublicizeAssemblies : Task
                 assemblyContext.IncludeCompilerGeneratedMembers = item.IncludeCompilerGeneratedMembers();
                 assemblyContext.IncludeVirtualMembers = item.IncludeVirtualMembers();
                 assemblyContext.ExplicitlyPublicizeAssembly = true;
+                logger.Info($"Publicize: {item}, virtual members: {assemblyContext.IncludeVirtualMembers}, compiler-generated members: {assemblyContext.IncludeCompilerGeneratedMembers}");
             }
             else
             {
                 string memberPattern = item.ItemSpec.Substring(index + 1);
                 assemblyContext.PublicizeMemberPatterns.Add(memberPattern);
+                logger.Info($"Publicize: {item}");
             }
         }
 
@@ -157,15 +211,22 @@ public class PublicizeAssemblies : Task
                 string memberPattern = item.ItemSpec.Substring(index + 1);
                 assemblyContext.DoNotPublicizeMemberPatterns.Add(memberPattern);
             }
+
+            logger.Info($"DoNotPublicize: {item}");
         }
 
         return contexts;
     }
 
-    private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext)
+    private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
     {
         bool publicizedAnyMemberInAssembly = false;
         var doNotPublicizePropertyMethods = new HashSet<MethodDef>();
+
+        int publicizedTypesCount = 0;
+        int publicizedPropertiesCount = 0;
+        int publicizedMethodsCount = 0;
+        int publicizedFieldsCount = 0;
 
         // TYPES
         foreach (TypeDef? typeDef in module.GetTypes())
@@ -193,13 +254,19 @@ public class PublicizeAssemblies : Task
                     {
                         doNotPublicizePropertyMethods.Add(setter);
                     }
+                    logger.Verbose($"Explicitly ignoring property: {propertyName}");
                     continue;
                 }
 
                 bool explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
                 if (explicitlyPublicizeProperty)
                 {
-                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeProperty(propertyDef);
+                    if (AssemblyEditor.PublicizeProperty(propertyDef))
+                    {
+                        publicizedAnyMemberInType = true;
+                        publicizedPropertiesCount++;
+                        logger.Verbose($"Explicitly publicizing property: {propertyName}");
+                    }
                     continue;
                 }
 
@@ -221,7 +288,11 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers);
+                    if (AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers))
+                    {
+                        publicizedAnyMemberInType = true;
+                        publicizedPropertiesCount++;
+                    }
                 }
             }
 
@@ -239,13 +310,19 @@ public class PublicizeAssemblies : Task
                 bool explicitlyDoNotPublicizeMethod = assemblyContext.DoNotPublicizeMemberPatterns.Contains(methodName);
                 if (explicitlyDoNotPublicizeMethod)
                 {
+                    logger.Verbose($"Explicitly ignoring method: {methodName}");
                     continue;
                 }
 
                 bool explicitlyPublicizeMethod = assemblyContext.PublicizeMemberPatterns.Contains(methodName);
                 if (explicitlyPublicizeMethod)
                 {
-                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeMethod(methodDef);
+                    if (AssemblyEditor.PublicizeMethod(methodDef))
+                    {
+                        publicizedAnyMemberInType = true;
+                        publicizedMethodsCount++;
+                        logger.Verbose($"Explicitly publicizing method: {methodName}");
+                    }
                     continue;
                 }
 
@@ -267,7 +344,11 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers);
+                    if (AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers))
+                    {
+                        publicizedAnyMemberInType = true;
+                        publicizedMethodsCount++;
+                    }
                 }
             }
 
@@ -279,13 +360,19 @@ public class PublicizeAssemblies : Task
                 bool explicitlyDoNotPublicizeField = assemblyContext.DoNotPublicizeMemberPatterns.Contains(fieldName);
                 if (explicitlyDoNotPublicizeField)
                 {
+                    logger.Verbose($"Explicitly ignoring field: {fieldName}");
                     continue;
                 }
 
                 bool explicitlyPublicizeField = assemblyContext.PublicizeMemberPatterns.Contains(fieldName);
                 if (explicitlyPublicizeField)
                 {
-                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeField(fieldDef);
+                    if (AssemblyEditor.PublicizeField(fieldDef))
+                    {
+                        publicizedAnyMemberInType = true;
+                        publicizedFieldsCount++;
+                        logger.Verbose($"Explicitly publicizing field: {fieldName}");
+                    }
                     continue;
                 }
 
@@ -307,26 +394,39 @@ public class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    publicizedAnyMemberInType |= AssemblyEditor.PublicizeField(fieldDef);
+                    if (AssemblyEditor.PublicizeField(fieldDef))
+                    {
+                        publicizedAnyMemberInType = true;
+                        publicizedFieldsCount++;
+                    }
                 }
             }
 
             if (publicizedAnyMemberInType)
             {
-                AssemblyEditor.PublicizeType(typeDef);
-                publicizedAnyMemberInAssembly = true;
+                if (AssemblyEditor.PublicizeType(typeDef))
+                {
+                    publicizedAnyMemberInAssembly = true;
+                    publicizedTypesCount++;
+                }
                 continue;
             }
 
             if (explicitlyDoNotPublicizeType)
             {
+                logger.Verbose($"Explicitly ignoring type: {typeName}");
                 continue;
             }
 
             bool explicitlyPublicizeType = assemblyContext.PublicizeMemberPatterns.Contains(typeName);
             if (explicitlyPublicizeType)
             {
-                publicizedAnyMemberInAssembly |= AssemblyEditor.PublicizeType(typeDef);
+                if (AssemblyEditor.PublicizeType(typeDef))
+                {
+                    publicizedAnyMemberInAssembly = true;
+                    publicizedTypesCount++;
+                    logger.Verbose($"Explicitly publicizing type: {typeName}");
+                }
                 continue;
             }
 
@@ -343,9 +443,18 @@ public class PublicizeAssemblies : Task
                     continue;
                 }
 
-                publicizedAnyMemberInAssembly |= AssemblyEditor.PublicizeType(typeDef);
+                if (AssemblyEditor.PublicizeType(typeDef))
+                {
+                    publicizedAnyMemberInAssembly = true;
+                    publicizedTypesCount++;
+                }
             }
         }
+
+        logger.Info("Publicized types: " + publicizedTypesCount);
+        logger.Info("Publicized properties: " + publicizedPropertiesCount);
+        logger.Info("Publicized methods: " + publicizedMethodsCount);
+        logger.Info("Publicized fields: " + publicizedFieldsCount);
 
         return publicizedAnyMemberInAssembly;
     }
