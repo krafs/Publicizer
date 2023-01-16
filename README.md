@@ -1,4 +1,5 @@
-# Publicizer
+# Publicizer <a href="https://www.nuget.org/packages/Krafs.Publicizer"><img alt="Version" src="https://img.shields.io/nuget/vpre/Krafs.Publicizer?label=Latest"></a>  <a href="https://www.nuget.org/packages/Krafs.Publicizer"><img alt="Downloads" src="https://img.shields.io/nuget/dt/Krafs.Publicizer?label=Downloads"></a>
+
 Publicizer is an MSBuild plugin that allows direct access to private members in .NET-assemblies.
 
 ## Installation
