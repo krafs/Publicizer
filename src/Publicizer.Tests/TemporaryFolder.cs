@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 
 namespace Publicizer.Tests;
@@ -8,7 +8,7 @@ internal sealed class TemporaryFolder : IDisposable
     private readonly DirectoryInfo _directoryInfo;
     internal TemporaryFolder()
     {
-        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString());
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString());
 
         _directoryInfo = Directory.CreateDirectory(path);
     }

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using NUnit.Framework;
 
 namespace Publicizer.Tests;
@@ -11,8 +11,8 @@ public class PublicizerTests
     public void PublicizePrivateField_CompilesAndRunsWithExitCode0AndPrintsFieldValue()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
             namespace PrivateNamespace;
             class PrivateClass
             {
@@ -21,8 +21,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -39,16 +39,16 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateField);";
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateField);";
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -68,13 +68,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -85,8 +85,8 @@ public class PublicizerTests
     public void PublicizePrivateProperty_CompilesAndRunsWithExitCode0AndPrintsPropertyValue()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
             namespace PrivateNamespace;
             class PrivateClass
             {
@@ -95,8 +95,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -113,16 +113,16 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateProperty);";
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateProperty);";
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -142,13 +142,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -159,8 +159,8 @@ public class PublicizerTests
     public void PublicizePrivateMethod_CompilesAndRunsWithExitCode0AndPrintsReturnValue()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
             namespace PrivateNamespace;
             class PrivateClass
             {
@@ -169,8 +169,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -187,16 +187,16 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateMethod());";
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateMethod());";
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -216,13 +216,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -233,8 +233,8 @@ public class PublicizerTests
     public void PublicizePrivateConstructor_CompilesAndRunsWithExitCode0()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
             namespace PrivateNamespace;
             class PrivateClass
             {
@@ -244,8 +244,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -262,19 +262,19 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = """
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
             _ = new PrivateNamespace.PrivateClass();
             System.Console.Write("foobar"); // Printing this means success, because failing the PrivateClass constructor above would throw.
             """;
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -294,13 +294,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -311,8 +311,8 @@ public class PublicizerTests
     public void PublicizeAssembly_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromAllPrivateMembersInPrivateClass()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
             namespace PrivateNamespace;
             class PrivateClass
             {
@@ -326,8 +326,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -344,12 +344,12 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = """
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
             var privateClass = new PrivateNamespace.PrivateClass();
             var result = privateClass.PrivateField;
             result += privateClass.PrivateProperty;
@@ -357,9 +357,9 @@ public class PublicizerTests
             System.Console.Write(result);
             """;
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -379,13 +379,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -396,8 +396,8 @@ public class PublicizerTests
     public void PublicizeAll_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromPrivateMembersFromTwoDifferentAssemblies()
     {
         using var library1Folder = new TemporaryFolder();
-        var library1CodePath = Path.Combine(library1Folder.Path, "PrivateClass.cs");
-        var library1Code = """
+        string library1CodePath = Path.Combine(library1Folder.Path, "PrivateClass.cs");
+        string library1Code = """
             namespace PrivateNamespace1;
             class PrivateClass
             {
@@ -411,8 +411,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(library1CodePath, library1Code);
 
-        var library1CsprojPath = Path.Combine(library1Folder.Path, "PrivateAssembly1.csproj");
-        var library1Csproj = $"""
+        string library1CsprojPath = Path.Combine(library1Folder.Path, "PrivateAssembly1.csproj");
+        string library1Csproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -429,12 +429,12 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(library1CsprojPath, library1Csproj);
-        var buildLibrary1Result = Runner.Run("dotnet", "build", library1CsprojPath);
+        ProcessResult buildLibrary1Result = Runner.Run("dotnet", "build", library1CsprojPath);
         Assert.That(buildLibrary1Result.ExitCode, Is.Zero, buildLibrary1Result.Output);
 
         using var library2Folder = new TemporaryFolder();
-        var library2CodePath = Path.Combine(library2Folder.Path, "PrivateClass.cs");
-        var library2Code = """
+        string library2CodePath = Path.Combine(library2Folder.Path, "PrivateClass.cs");
+        string library2Code = """
             namespace PrivateNamespace2;
             class PrivateClass
             {
@@ -448,8 +448,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(library2CodePath, library2Code);
 
-        var library2CsprojPath = Path.Combine(library2Folder.Path, "PrivateAssembly2.csproj");
-        var library2Csproj = $"""
+        string library2CsprojPath = Path.Combine(library2Folder.Path, "PrivateAssembly2.csproj");
+        string library2Csproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -466,12 +466,12 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(library2CsprojPath, library2Csproj);
-        var buildLibrary2Result = Runner.Run("dotnet", "build", library2CsprojPath);
+        ProcessResult buildLibrary2Result = Runner.Run("dotnet", "build", library2CsprojPath);
         Assert.That(buildLibrary2Result.ExitCode, Is.Zero, buildLibrary2Result.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = """
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
             var privateClass1 = new PrivateNamespace1.PrivateClass();
             var result1 = privateClass1.PrivateField;
             result1 += privateClass1.PrivateProperty;
@@ -485,10 +485,10 @@ public class PublicizerTests
             System.Console.Write(result1 + result2);
             """;
         File.WriteAllText(appCodePath, appCode);
-        var library1Path = Path.Combine(library1Folder.Path, "PrivateAssembly1.dll");
-        var library2Path = Path.Combine(library2Folder.Path, "PrivateAssembly2.dll");
+        string library1Path = Path.Combine(library1Folder.Path, "PrivateAssembly1.dll");
+        string library2Path = Path.Combine(library2Folder.Path, "PrivateAssembly2.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -509,13 +509,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -526,8 +526,8 @@ public class PublicizerTests
     public void PublicizeAssembly_ExceptProtectedMethod_OverridingThatMethod_CompilesAndRunsWithExitCode0()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "ProtectedClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "ProtectedClass.cs");
+        string libraryCode = """
             namespace ProtectedNamespace;
             public abstract class ProtectedClass
             {
@@ -536,8 +536,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "ProtectedAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "ProtectedAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -554,12 +554,12 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = """
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
             _ = new SubClass();
             System.Console.Write("foobar");
             class SubClass : ProtectedNamespace.ProtectedClass
@@ -568,9 +568,9 @@ public class PublicizerTests
             }
             """;
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "ProtectedAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "ProtectedAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -591,13 +591,13 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
-        var appPath = Path.Combine(appFolder.Path, "App.dll");
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        var runAppProcess = Runner.Run("dotnet", appPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
@@ -608,8 +608,8 @@ public class PublicizerTests
     public void PublicizeAssembly_ExceptCompilerGenerated_FailsCompileAndPrintsErrorCodeCS0117ForCompilerGeneratedField()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "LibraryClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "LibraryClass.cs");
+        string libraryCode = """
             namespace LibraryNamespace;
             public class LibraryClass
             {
@@ -620,8 +620,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -638,19 +638,19 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = """
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
             _ = LibraryNamespace.LibraryClass.CompilerGeneratedPrivateField;
             _ = LibraryNamespace.LibraryClass.PrivateField;
             """;
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -670,11 +670,11 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Not.Zero, buildAppProcess.Output);
         Assert.That(buildAppProcess.Output, Does.Match("CS0117: 'LibraryClass' does not contain a definition for 'CompilerGeneratedPrivateField'"));
@@ -685,8 +685,8 @@ public class PublicizerTests
     public void PublicizeAssembly_ExceptVirtual_FailsCompileAndPrintsErrorCodeCS0122ForVirtualProperty()
     {
         using var libraryFolder = new TemporaryFolder();
-        var libraryCodePath = Path.Combine(libraryFolder.Path, "LibraryClass.cs");
-        var libraryCode = """
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "LibraryClass.cs");
+        string libraryCode = """
             namespace LibraryNamespace;
             public class LibraryClass
             {
@@ -696,8 +696,8 @@ public class PublicizerTests
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
 
-        var libraryCsprojPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.csproj");
-        var libraryCsproj = $"""
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.csproj");
+        string libraryCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -714,20 +714,20 @@ public class PublicizerTests
             """;
 
         File.WriteAllText(libraryCsprojPath, libraryCsproj);
-        var buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
         Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
 
         using var appFolder = new TemporaryFolder();
-        var appCodePath = Path.Combine(appFolder.Path, "Program.cs");
-        var appCode = """
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
             var instance = new LibraryNamespace.LibraryClass();
             _ = instance.VirtualProtectedProperty;
             _ = instance.ProtectedProperty;
             """;
         File.WriteAllText(appCodePath, appCode);
-        var libraryPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.dll");
+        string libraryPath = Path.Combine(libraryFolder.Path, "LibraryAssembly.dll");
 
-        var appCsproj = $"""
+        string appCsproj = $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
@@ -747,11 +747,11 @@ public class PublicizerTests
             </Project>
             """;
 
-        var appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
-        var buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
 
         Assert.That(buildAppProcess.ExitCode, Is.Not.Zero, buildAppProcess.Output);
         Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'LibraryClass.VirtualProtectedProperty' is inaccessible due to its protection level"));

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -44,31 +44,31 @@ public class PublicizeAssemblies : Task
 
         Directory.CreateDirectory(OutputDirectory);
 
-        var assemblyContexts = GetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes);
+        Dictionary<string, PublicizerAssemblyContext> assemblyContexts = GetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes);
         var referencePathsToDelete = new List<ITaskItem>();
         var referencePathsToAdd = new List<ITaskItem>();
 
-        foreach (var reference in ReferencePaths)
+        foreach (ITaskItem reference in ReferencePaths)
         {
-            var assemblyName = reference.FileName();
+            string assemblyName = reference.FileName();
 
-            if (!assemblyContexts.TryGetValue(assemblyName, out var assemblyContext))
+            if (!assemblyContexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
             {
                 continue;
             }
 
-            var assemblyPath = reference.FullPath();
+            string assemblyPath = reference.FullPath();
 
-            var hash = ComputeHash(assemblyPath, assemblyContext);
+            string hash = ComputeHash(assemblyPath, assemblyContext);
 
-            var outputAssemblyFolder = Path.Combine(OutputDirectory, $"{assemblyName}.{hash}");
+            string outputAssemblyFolder = Path.Combine(OutputDirectory, $"{assemblyName}.{hash}");
             Directory.CreateDirectory(outputAssemblyFolder);
-            var outputAssemblyPath = Path.Combine(outputAssemblyFolder, assemblyName + ".dll");
+            string outputAssemblyPath = Path.Combine(outputAssemblyFolder, assemblyName + ".dll");
             if (!File.Exists(outputAssemblyPath))
             {
                 using ModuleDef module = ModuleDefMD.Load(assemblyPath);
 
-                var isAssemblyModified = PublicizeAssembly(module, assemblyContext);
+                bool isAssemblyModified = PublicizeAssembly(module, assemblyContext);
                 if (!isAssemblyModified)
                 {
                     continue;
@@ -91,13 +91,13 @@ public class PublicizeAssemblies : Task
 
             referencePathsToAdd.Add(newReference);
 
-            var assemblyDirectory = Path.GetDirectoryName(assemblyPath);
-            var originalDocumentationFullPath = Path.Combine(assemblyDirectory, assemblyName + ".xml");
+            string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
+            string originalDocumentationFullPath = Path.Combine(assemblyDirectory, assemblyName + ".xml");
 
             if (File.Exists(originalDocumentationFullPath))
             {
-                var newDocumentationRelativePath = Path.Combine(outputAssemblyFolder, assemblyName + ".xml");
-                var newDocumentationFullPath = Path.GetFullPath(newDocumentationRelativePath);
+                string newDocumentationRelativePath = Path.Combine(outputAssemblyFolder, assemblyName + ".xml");
+                string newDocumentationFullPath = Path.GetFullPath(newDocumentationRelativePath);
                 File.Copy(originalDocumentationFullPath, newDocumentationFullPath, overwrite: true);
             }
         }
@@ -114,13 +114,13 @@ public class PublicizeAssemblies : Task
     {
         var contexts = new Dictionary<string, PublicizerAssemblyContext>();
 
-        foreach (var item in publicizeItems)
+        foreach (ITaskItem item in publicizeItems)
         {
-            var index = item.ItemSpec.IndexOf(':');
-            var isAssemblyPattern = index == -1;
-            var assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
+            int index = item.ItemSpec.IndexOf(':');
+            bool isAssemblyPattern = index == -1;
+            string assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
 
-            if (!contexts.TryGetValue(assemblyName, out var assemblyContext))
+            if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
             {
                 assemblyContext = new PublicizerAssemblyContext(assemblyName);
                 contexts.Add(assemblyName, assemblyContext);
@@ -134,18 +134,18 @@ public class PublicizeAssemblies : Task
             }
             else
             {
-                var memberPattern = item.ItemSpec.Substring(index + 1);
+                string memberPattern = item.ItemSpec.Substring(index + 1);
                 assemblyContext.PublicizeMemberPatterns.Add(memberPattern);
             }
         }
 
-        foreach (var item in doNotPublicizeItems)
+        foreach (ITaskItem item in doNotPublicizeItems)
         {
-            var index = item.ItemSpec.IndexOf(':');
-            var isAssemblyPattern = index == -1;
-            var assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
+            int index = item.ItemSpec.IndexOf(':');
+            bool isAssemblyPattern = index == -1;
+            string assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
 
-            if (!contexts.TryGetValue(assemblyName, out var assemblyContext))
+            if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
             {
                 assemblyContext = new PublicizerAssemblyContext(assemblyName);
                 contexts.Add(assemblyName, assemblyContext);
@@ -157,7 +157,7 @@ public class PublicizeAssemblies : Task
             }
             else
             {
-                var memberPattern = item.ItemSpec.Substring(index + 1);
+                string memberPattern = item.ItemSpec.Substring(index + 1);
                 assemblyContext.DoNotPublicizeMemberPatterns.Add(memberPattern);
             }
         }
@@ -172,43 +172,43 @@ public class PublicizeAssemblies : Task
         sb.Append(assemblyContext.IncludeVirtualMembers);
         sb.Append(assemblyContext.ExplicitlyPublicizeAssembly);
         sb.Append(assemblyContext.ExplicitlyDoNotPublicizeAssembly);
-        foreach (var publicizePattern in assemblyContext.PublicizeMemberPatterns)
+        foreach (string publicizePattern in assemblyContext.PublicizeMemberPatterns)
         {
             sb.Append(publicizePattern);
         }
-        foreach (var doNotPublicizePattern in assemblyContext.DoNotPublicizeMemberPatterns)
+        foreach (string doNotPublicizePattern in assemblyContext.DoNotPublicizeMemberPatterns)
         {
             sb.Append(doNotPublicizePattern);
         }
 
-        var patternbytes = Encoding.UTF8.GetBytes(sb.ToString());
-        var assemblyBytes = File.ReadAllBytes(assemblyPath);
-        var allBytes = assemblyBytes.Concat(patternbytes).ToArray();
+        byte[] patternbytes = Encoding.UTF8.GetBytes(sb.ToString());
+        byte[] assemblyBytes = File.ReadAllBytes(assemblyPath);
+        byte[] allBytes = assemblyBytes.Concat(patternbytes).ToArray();
 
         return Hasher.ComputeHash(allBytes);
     }
 
     private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext)
     {
-        var publicizedAnyMemberInAssembly = false;
+        bool publicizedAnyMemberInAssembly = false;
         var doNotPublicizePropertyMethods = new HashSet<MethodDef>();
 
         // TYPES
-        foreach (var typeDef in module.GetTypes())
+        foreach (TypeDef? typeDef in module.GetTypes())
         {
             doNotPublicizePropertyMethods.Clear();
 
-            var publicizedAnyMemberInType = false;
-            var typeName = typeDef.ReflectionFullName;
+            bool publicizedAnyMemberInType = false;
+            string typeName = typeDef.ReflectionFullName;
 
-            var explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
+            bool explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
 
             // PROPERTIES
-            foreach (var propertyDef in typeDef.Properties)
+            foreach (PropertyDef? propertyDef in typeDef.Properties)
             {
-                var propertyName = $"{typeName}.{propertyDef.Name}";
+                string propertyName = $"{typeName}.{propertyDef.Name}";
 
-                var explicitlyDoNotPublicizeProperty = assemblyContext.DoNotPublicizeMemberPatterns.Contains(propertyName);
+                bool explicitlyDoNotPublicizeProperty = assemblyContext.DoNotPublicizeMemberPatterns.Contains(propertyName);
                 if (explicitlyDoNotPublicizeProperty)
                 {
                     if (propertyDef.GetMethod is MethodDef getter)
@@ -222,7 +222,7 @@ public class PublicizeAssemblies : Task
                     continue;
                 }
 
-                var explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
+                bool explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
                 if (explicitlyPublicizeProperty)
                 {
                     publicizedAnyMemberInType |= AssemblyEditor.PublicizeProperty(propertyDef);
@@ -241,7 +241,7 @@ public class PublicizeAssemblies : Task
 
                 if (assemblyContext.ExplicitlyPublicizeAssembly)
                 {
-                    var isCompilerGeneratedProperty = IsCompilerGenerated(propertyDef);
+                    bool isCompilerGeneratedProperty = IsCompilerGenerated(propertyDef);
                     if (isCompilerGeneratedProperty && !assemblyContext.IncludeCompilerGeneratedMembers)
                     {
                         continue;
@@ -252,23 +252,23 @@ public class PublicizeAssemblies : Task
             }
 
             // METHODS
-            foreach (var methodDef in typeDef.Methods)
+            foreach (MethodDef? methodDef in typeDef.Methods)
             {
-                var methodName = $"{typeName}.{methodDef.Name}";
+                string methodName = $"{typeName}.{methodDef.Name}";
 
-                var isMethodOfNonPublicizedProperty = doNotPublicizePropertyMethods.Contains(methodDef);
+                bool isMethodOfNonPublicizedProperty = doNotPublicizePropertyMethods.Contains(methodDef);
                 if (isMethodOfNonPublicizedProperty)
                 {
                     continue;
                 }
 
-                var explicitlyDoNotPublicizeMethod = assemblyContext.DoNotPublicizeMemberPatterns.Contains(methodName);
+                bool explicitlyDoNotPublicizeMethod = assemblyContext.DoNotPublicizeMemberPatterns.Contains(methodName);
                 if (explicitlyDoNotPublicizeMethod)
                 {
                     continue;
                 }
 
-                var explicitlyPublicizeMethod = assemblyContext.PublicizeMemberPatterns.Contains(methodName);
+                bool explicitlyPublicizeMethod = assemblyContext.PublicizeMemberPatterns.Contains(methodName);
                 if (explicitlyPublicizeMethod)
                 {
                     publicizedAnyMemberInType |= AssemblyEditor.PublicizeMethod(methodDef);
@@ -287,7 +287,7 @@ public class PublicizeAssemblies : Task
 
                 if (assemblyContext.ExplicitlyPublicizeAssembly)
                 {
-                    var isCompilerGeneratedMethod = IsCompilerGenerated(methodDef);
+                    bool isCompilerGeneratedMethod = IsCompilerGenerated(methodDef);
                     if (isCompilerGeneratedMethod && !assemblyContext.IncludeCompilerGeneratedMembers)
                     {
                         continue;
@@ -298,17 +298,17 @@ public class PublicizeAssemblies : Task
             }
 
             // FIELDS
-            foreach (var fieldDef in typeDef.Fields)
+            foreach (FieldDef? fieldDef in typeDef.Fields)
             {
-                var fieldName = $"{typeName}.{fieldDef.Name}";
+                string fieldName = $"{typeName}.{fieldDef.Name}";
 
-                var explicitlyDoNotPublicizeField = assemblyContext.DoNotPublicizeMemberPatterns.Contains(fieldName);
+                bool explicitlyDoNotPublicizeField = assemblyContext.DoNotPublicizeMemberPatterns.Contains(fieldName);
                 if (explicitlyDoNotPublicizeField)
                 {
                     continue;
                 }
 
-                var explicitlyPublicizeField = assemblyContext.PublicizeMemberPatterns.Contains(fieldName);
+                bool explicitlyPublicizeField = assemblyContext.PublicizeMemberPatterns.Contains(fieldName);
                 if (explicitlyPublicizeField)
                 {
                     publicizedAnyMemberInType |= AssemblyEditor.PublicizeField(fieldDef);
@@ -327,7 +327,7 @@ public class PublicizeAssemblies : Task
 
                 if (assemblyContext.ExplicitlyPublicizeAssembly)
                 {
-                    var isCompilerGeneratedField = IsCompilerGenerated(fieldDef);
+                    bool isCompilerGeneratedField = IsCompilerGenerated(fieldDef);
                     if (isCompilerGeneratedField && !assemblyContext.IncludeCompilerGeneratedMembers)
                     {
                         continue;
@@ -349,7 +349,7 @@ public class PublicizeAssemblies : Task
                 continue;
             }
 
-            var explicitlyPublicizeType = assemblyContext.PublicizeMemberPatterns.Contains(typeName);
+            bool explicitlyPublicizeType = assemblyContext.PublicizeMemberPatterns.Contains(typeName);
             if (explicitlyPublicizeType)
             {
                 publicizedAnyMemberInAssembly |= AssemblyEditor.PublicizeType(typeDef);
@@ -363,7 +363,7 @@ public class PublicizeAssemblies : Task
 
             if (assemblyContext.ExplicitlyPublicizeAssembly)
             {
-                var isCompilerGeneratedType = IsCompilerGenerated(typeDef);
+                bool isCompilerGeneratedType = IsCompilerGenerated(typeDef);
                 if (isCompilerGeneratedType && !assemblyContext.IncludeCompilerGeneratedMembers)
                 {
                     continue;

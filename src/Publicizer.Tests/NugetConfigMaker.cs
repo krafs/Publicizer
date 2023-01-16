@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Reflection;
 
 namespace Publicizer.Tests;
@@ -8,11 +8,11 @@ internal static class NugetConfigMaker
     internal static void CreateConfigThatRestoresPublicizerLocally(string root)
     {
         // Given the built Krafs.Publicizer nuget package is located next to the Publicizer assembly.
-        var publicizerPackagesFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        string? publicizerPackagesFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-        var globalPackagesFolder = Directory.CreateDirectory(Path.Combine(root, ".nuget", "packages"));
+        DirectoryInfo globalPackagesFolder = Directory.CreateDirectory(Path.Combine(root, ".nuget", "packages"));
 
-        var nugetConfig = $"""
+        string nugetConfig = $"""
         <?xml version="1.0" encoding="utf-8"?>
         <configuration>
           <config>
@@ -36,7 +36,7 @@ internal static class NugetConfigMaker
         </configuration>
         """;
 
-        var nugetConfigPath = Path.Combine(root, "nuget.config");
+        string nugetConfigPath = Path.Combine(root, "nuget.config");
         File.WriteAllText(nugetConfigPath, nugetConfig);
     }
 }

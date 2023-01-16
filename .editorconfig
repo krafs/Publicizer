@@ -8,37 +8,18 @@ root = true
 # Don't use tabs for indentation.
 [*]
 indent_style = space
-# (Please don't specify an indent_size here; that has too many unintended consequences.)
 
-# Code files
-[*.{cs,csx,vb,vbx}]
-indent_size = 4
-insert_final_newline = true
-charset = utf-8-bom
-
-# XML project files
-[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
-indent_size = 2
-
-# XML config files
-[*.{props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
-indent_size = 2
-
-# JSON files
-[*.json]
-indent_size = 2
-
-# Powershell files
-[*.ps1]
-indent_size = 2
-
-# Shell script files
-[*.sh]
-end_of_line = lf
+# XML files
+[*.{csproj,props,targets}]
 indent_size = 2
 
 # Dotnet code style settings:
-[*.{cs,vb}]
+[*.cs]
+indent_size = 4
+insert_final_newline = true
+charset = utf-8
+
+dotnet_analyzer_diagnostic.severity = warning
 
 # IDE0055: Fix formatting
 dotnet_diagnostic.IDE0055.severity = warning
@@ -46,6 +27,7 @@ dotnet_diagnostic.IDE0055.severity = warning
 # Sort using and Import directives with System.* appearing first
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
+
 # Avoid "this." and "Me." if not necessary
 dotnet_style_qualification_for_field = false:refactoring
 dotnet_style_qualification_for_property = false:refactoring
@@ -146,13 +128,6 @@ dotnet_naming_symbols.all_members.applicable_kinds = *
 
 dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 
-# error RS2008: Enable analyzer release tracking for the analyzer project containing rule '{0}'
-dotnet_diagnostic.RS2008.severity = none
-
-# IDE0073: File header
-#dotnet_diagnostic.IDE0073.severity = warning
-#file_header_template = Licensed to the .NET Foundation under one or more agreements.\nThe .NET Foundation licenses this file to you under the MIT #license.\nSee the LICENSE file in the project root for more information.
-
 # IDE0035: Remove unreachable code
 dotnet_diagnostic.IDE0035.severity = warning
 
@@ -165,18 +140,12 @@ dotnet_diagnostic.IDE0043.severity = warning
 # IDE0044: Make field readonly
 dotnet_diagnostic.IDE0044.severity = warning
 
-# CONSIDER: Are IDE0051 and IDE0052 too noisy to be warnings for IDE editing scenarios? Should they be made build-only warnings?
 # IDE0051: Remove unused private member
 dotnet_diagnostic.IDE0051.severity = warning
 
 # IDE0170: Prefer extended property pattern
 dotnet_diagnostic.IDE0170.severity = warning
 
-# RS0016: Only enable if API files are present
-#dotnet_public_api_analyzer.require_api_files = true
-
-# CSharp code style settings:
-[*.cs]
 # Newline settings
 csharp_new_line_before_open_brace = all
 csharp_new_line_before_else = true
@@ -198,11 +167,6 @@ csharp_indent_labels = flush_left
 csharp_style_allow_embedded_statements_on_same_line_experimental = false
 csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false
 csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = false
-
-# Prefer "var" everywhere
-csharp_style_var_for_built_in_types = true:suggestion
-csharp_style_var_when_type_is_apparent = true:suggestion
-csharp_style_var_elsewhere = true:suggestion
 
 # Prefer method-like constructs to have a block body
 csharp_style_expression_bodied_methods = false:none
@@ -247,19 +211,12 @@ csharp_space_between_parentheses = false
 csharp_space_between_square_brackets = false
 
 # Blocks are allowed
-csharp_prefer_braces = true:silent
+csharp_prefer_braces = true:warning
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
 
 # IDE0160: Convert to file-scoped namespace
 csharp_style_namespace_declarations = file_scoped:warning
-
-[src/{Analyzers,CodeStyle,Features,Workspaces,EditorFeatures,VisualStudio}/**/*.{cs,vb}]
-
-# IDE0011: Add braces
-csharp_prefer_braces = when_multiline:warning
-# NOTE: We need the below severity entry for Add Braces due to https://github.com/dotnet/roslyn/issues/44201
-dotnet_diagnostic.IDE0011.severity = warning
 
 # IDE0040: Add accessibility modifiers
 dotnet_diagnostic.IDE0040.severity = warning
@@ -281,9 +238,9 @@ dotnet_diagnostic.CA1822.severity = warning
 
 # Prefer "var" everywhere
 dotnet_diagnostic.IDE0007.severity = warning
-csharp_style_var_for_built_in_types = true:warning
+csharp_style_var_for_built_in_types = false:warning
 csharp_style_var_when_type_is_apparent = true:warning
-csharp_style_var_elsewhere = true:warning
+csharp_style_var_elsewhere = false:warning
 
 # dotnet_style_allow_multiple_blank_lines_experimental
 dotnet_diagnostic.IDE2000.severity = warning
@@ -300,7 +257,11 @@ dotnet_diagnostic.IDE2003.severity = warning
 # csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental
 dotnet_diagnostic.IDE2004.severity = warning
 
-[src/{VisualStudio}/**/*.{cs,vb}]
-# CA1822: Make member static
-# There is a risk of accidentally breaking an internal API that partners rely on though IVT.
-#dotnet_code_quality.CA1822.api_surface = private
+# CA1707: Identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+
+# IDE0058: Expression value is never used
+dotnet_diagnostic.IDE0058.severity = none
+
+# IDE0046: Convert to conditional expression
+dotnet_diagnostic.IDE0046.severity = silent

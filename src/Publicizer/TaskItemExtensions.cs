@@ -1,4 +1,4 @@
-﻿using Microsoft.Build.Framework;
+using Microsoft.Build.Framework;
 
 namespace Publicizer;
 
@@ -16,7 +16,7 @@ internal static class TaskItemExtensions
 
     internal static bool IncludeCompilerGeneratedMembers(this ITaskItem item)
     {
-        if (bool.TryParse(item.GetMetadata("IncludeCompilerGeneratedMembers"), out var includeCompilerGeneratedMembers))
+        if (bool.TryParse(item.GetMetadata("IncludeCompilerGeneratedMembers"), out bool includeCompilerGeneratedMembers))
         {
             return includeCompilerGeneratedMembers;
         }
@@ -26,7 +26,7 @@ internal static class TaskItemExtensions
 
     internal static bool IncludeVirtualMembers(this ITaskItem item)
     {
-        if (bool.TryParse(item.GetMetadata("IncludeVirtualMembers"), out var includeVirtualMembers))
+        if (bool.TryParse(item.GetMetadata("IncludeVirtualMembers"), out bool includeVirtualMembers))
         {
             return includeVirtualMembers;
         }

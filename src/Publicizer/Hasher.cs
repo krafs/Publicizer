@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Publicizer;
@@ -12,13 +12,13 @@ internal static class Hasher
     {
         using var algorithm = MD5.Create();
 
-        var computedHash = algorithm.ComputeHash(bytes);
+        byte[] computedHash = algorithm.ComputeHash(bytes);
         var sb = new StringBuilder();
-        foreach (var b in computedHash)
+        foreach (byte b in computedHash)
         {
             sb.Append($"{b:X2}");
         }
-        var hexadecimalHash = sb.ToString();
+        string hexadecimalHash = sb.ToString();
 
         return hexadecimalHash;
     }

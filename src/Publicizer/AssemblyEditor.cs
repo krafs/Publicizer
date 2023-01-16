@@ -1,5 +1,4 @@
-﻿using dnlib.DotNet;
-using dnlib.DotNet.Emit;
+using dnlib.DotNet;
 
 namespace Publicizer;
 
@@ -10,7 +9,7 @@ internal static class AssemblyEditor
 {
     internal static bool PublicizeType(TypeDef type)
     {
-        var oldAttributes = type.Attributes;
+        TypeAttributes oldAttributes = type.Attributes;
         type.Attributes &= ~TypeAttributes.VisibilityMask;
 
         if (type.IsNested)
@@ -26,7 +25,7 @@ internal static class AssemblyEditor
 
     internal static bool PublicizeProperty(PropertyDef property, bool includeVirtual = true)
     {
-        var publicized = false;
+        bool publicized = false;
 
         if (property.GetMethod is MethodDef getMethod)
         {
@@ -45,7 +44,7 @@ internal static class AssemblyEditor
     {
         if (includeVirtual || !method.IsVirtual)
         {
-            var oldAttributes = method.Attributes;
+            MethodAttributes oldAttributes = method.Attributes;
             method.Attributes &= ~MethodAttributes.MemberAccessMask;
             method.Attributes |= MethodAttributes.Public;
             return method.Attributes != oldAttributes;
@@ -55,7 +54,7 @@ internal static class AssemblyEditor
 
     internal static bool PublicizeField(FieldDef field)
     {
-        var oldAttributes = field.Attributes;
+        FieldAttributes oldAttributes = field.Attributes;
         field.Attributes &= ~FieldAttributes.FieldAccessMask;
         field.Attributes |= FieldAttributes.Public;
         return field.Attributes != oldAttributes;

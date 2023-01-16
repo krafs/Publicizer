@@ -1,2 +1,2 @@
-﻿namespace Publicizer.Tests;
-internal record ProcessResult(int ExitCode, string Output, string Error);
+namespace Publicizer.Tests;
+internal sealed record ProcessResult(int ExitCode, string Output, string Error);

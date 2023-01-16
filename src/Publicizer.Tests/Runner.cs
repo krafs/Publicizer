@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 namespace Publicizer.Tests;
 
@@ -12,11 +12,11 @@ internal static class Runner
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        foreach (var argument in arguments)
+        foreach (string argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
         }
-        using var process = Process.Start(startInfo)!;
+        using Process process = Process.Start(startInfo)!;
         process.WaitForExit();
 
         var result = new ProcessResult(
