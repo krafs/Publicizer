@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using dnlib.DotNet;
 using dnlib.DotNet.Writer;
 using Microsoft.Build.Framework;
@@ -57,7 +56,7 @@ public class PublicizeAssemblies : Task
 
             string assemblyPath = reference.FullPath();
 
-            string hash = ComputeHash(assemblyPath, assemblyContext);
+            string hash = Hasher.ComputeHash(assemblyPath, assemblyContext);
 
             string outputAssemblyFolder = Path.Combine(OutputDirectory, $"{assemblyName}.{hash}");
             Directory.CreateDirectory(outputAssemblyFolder);
@@ -161,29 +160,6 @@ public class PublicizeAssemblies : Task
         }
 
         return contexts;
-    }
-    private static string ComputeHash(string assemblyPath, PublicizerAssemblyContext assemblyContext)
-    {
-        var sb = new StringBuilder();
-        sb.Append(assemblyContext.AssemblyName);
-        sb.Append(assemblyContext.IncludeCompilerGeneratedMembers);
-        sb.Append(assemblyContext.IncludeVirtualMembers);
-        sb.Append(assemblyContext.ExplicitlyPublicizeAssembly);
-        sb.Append(assemblyContext.ExplicitlyDoNotPublicizeAssembly);
-        foreach (string publicizePattern in assemblyContext.PublicizeMemberPatterns)
-        {
-            sb.Append(publicizePattern);
-        }
-        foreach (string doNotPublicizePattern in assemblyContext.DoNotPublicizeMemberPatterns)
-        {
-            sb.Append(doNotPublicizePattern);
-        }
-
-        byte[] patternbytes = Encoding.UTF8.GetBytes(sb.ToString());
-        byte[] assemblyBytes = File.ReadAllBytes(assemblyPath);
-        byte[] allBytes = assemblyBytes.Concat(patternbytes).ToArray();
-
-        return Hasher.ComputeHash(allBytes);
     }
 
     private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext)

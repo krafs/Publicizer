@@ -1,3 +1,5 @@
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,7 +10,31 @@ namespace Publicizer;
 /// </summary>
 internal static class Hasher
 {
-    internal static string ComputeHash(byte[] bytes)
+    internal static string ComputeHash(string assemblyPath, PublicizerAssemblyContext assemblyContext)
+    {
+        var sb = new StringBuilder();
+        sb.Append(assemblyContext.AssemblyName);
+        sb.Append(assemblyContext.IncludeCompilerGeneratedMembers);
+        sb.Append(assemblyContext.IncludeVirtualMembers);
+        sb.Append(assemblyContext.ExplicitlyPublicizeAssembly);
+        sb.Append(assemblyContext.ExplicitlyDoNotPublicizeAssembly);
+        foreach (string publicizePattern in assemblyContext.PublicizeMemberPatterns)
+        {
+            sb.Append(publicizePattern);
+        }
+        foreach (string doNotPublicizePattern in assemblyContext.DoNotPublicizeMemberPatterns)
+        {
+            sb.Append(doNotPublicizePattern);
+        }
+
+        byte[] patternbytes = Encoding.UTF8.GetBytes(sb.ToString());
+        byte[] assemblyBytes = File.ReadAllBytes(assemblyPath);
+        byte[] allBytes = assemblyBytes.Concat(patternbytes).ToArray();
+
+        return ComputeHash(allBytes);
+    }
+
+    private static string ComputeHash(byte[] bytes)
     {
         using var algorithm = MD5.Create();
 
