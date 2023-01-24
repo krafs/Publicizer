@@ -264,6 +264,7 @@ public sealed class PublicizeAssemblies : Task
                     if (AssemblyEditor.PublicizeProperty(propertyDef))
                     {
                         publicizedAnyMemberInType = true;
+                        publicizedAnyMemberInAssembly = true;
                         publicizedPropertiesCount++;
                         logger.Verbose($"Explicitly publicizing property: {propertyName}");
                     }
@@ -291,6 +292,7 @@ public sealed class PublicizeAssemblies : Task
                     if (AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers))
                     {
                         publicizedAnyMemberInType = true;
+                        publicizedAnyMemberInAssembly = true;
                         publicizedPropertiesCount++;
                     }
                 }
@@ -320,6 +322,7 @@ public sealed class PublicizeAssemblies : Task
                     if (AssemblyEditor.PublicizeMethod(methodDef))
                     {
                         publicizedAnyMemberInType = true;
+                        publicizedAnyMemberInAssembly = true;
                         publicizedMethodsCount++;
                         logger.Verbose($"Explicitly publicizing method: {methodName}");
                     }
@@ -347,6 +350,7 @@ public sealed class PublicizeAssemblies : Task
                     if (AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers))
                     {
                         publicizedAnyMemberInType = true;
+                        publicizedAnyMemberInAssembly = true;
                         publicizedMethodsCount++;
                     }
                 }
@@ -370,6 +374,7 @@ public sealed class PublicizeAssemblies : Task
                     if (AssemblyEditor.PublicizeField(fieldDef))
                     {
                         publicizedAnyMemberInType = true;
+                        publicizedAnyMemberInAssembly = true;
                         publicizedFieldsCount++;
                         logger.Verbose($"Explicitly publicizing field: {fieldName}");
                     }
@@ -397,6 +402,7 @@ public sealed class PublicizeAssemblies : Task
                     if (AssemblyEditor.PublicizeField(fieldDef))
                     {
                         publicizedAnyMemberInType = true;
+                        publicizedAnyMemberInAssembly = true;
                         publicizedFieldsCount++;
                     }
                 }
