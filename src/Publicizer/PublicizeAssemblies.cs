@@ -151,7 +151,7 @@ public sealed class PublicizeAssemblies : Task
         ReferencePathsToDelete = referencePathsToDelete.ToArray();
         ReferencePathsToAdd = referencePathsToAdd.ToArray();
 
-        logger.Info($"Successfully publicized {assemblyContexts.Count} assemblies. Terminating task.");
+        logger.Info($"Finished processing {assemblyContexts.Count} assemblies. Terminating task.");
 
         return true;
     }
