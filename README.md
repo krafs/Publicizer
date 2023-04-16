@@ -13,24 +13,38 @@ dotnet add package Krafs.Publicizer
 ## Usage
 Publicizer needs to be told what private members you want access to. You do this by defining _Publicize_-items in your project file.
 
-### All members in specific assemblies:
 ```xml
 <ItemGroup>
-    <Publicize Include="AssemblyOne" />
-    <Publicize Include="AssemblyTwo;AssemblyThree" />
+    // All members in an assembly
+    <Publicize Include="MyAssemblyFileName" />
+
+    // Field
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.myField" />
+
+    // Property
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.MyProperty" />
+
+    // Method
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.MyMethod" />
+
+    // Field in nested type
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType+MyNestedType.myField" />
+
+    // Constructor
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType..ctor" />
+
+    // Static constructor
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType..cctor" />
 </ItemGroup>
 ```
 
-### Specific members:
-```xml
-<ItemGroup>
-    <Publicize Include="AssemblyOne:MyNamespace.MyType._myPrivateField" />
-    <Publicize Include="AssemblyOne:MyNamespace.MyOtherType._myOtherPrivateField" />
-</ItemGroup>
-```
+Notes:
+- Assemblies are referenced by their file name, excluding file extension.
+So, given an assembly called `MyAssemblyFileName.dll`, you reference it as `MyAssemblyFileName`.
+- There is no way to publicize a specific method overload. Specifying a method will publicize all its overloads.
 
 ### Publicize assemblies from a PackageReference
-PackageReferences, like other kinds of References, point towards one or more underlying assemblies. Publicizing these assemblies is just a matter of finding out what the underlying assemblies are called, and then specify them as explained above.
+PackageReferences, like other kinds of References, point towards one or more underlying assemblies. Publicizing these assemblies is just a matter of finding out the file names of the underlying assemblies, and then specify them as explained above.
 
 ### Publicize All
 You can use this shorthand property to publicize **all** assemblies referenced by your project:
