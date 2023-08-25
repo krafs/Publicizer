@@ -32,7 +32,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="dnlib" Version="3.6.0" />
+    <PackageReference Include="dnlib" Version="4.0.0" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.7.2" PrivateAssets="all" />
   </ItemGroup>
 
