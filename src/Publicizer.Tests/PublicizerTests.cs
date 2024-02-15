@@ -5,7 +5,7 @@ namespace Publicizer.Tests;
 
 public class PublicizerTests
 {
-    private const string TestTargetFramework = "net7.0";
+    private const string TestTargetFramework = "net8.0";
 
     [Test]
     public void PublicizePrivateField_CompilesAndRunsWithExitCode0AndPrintsFieldValue()
