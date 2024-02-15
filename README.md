@@ -15,26 +15,23 @@ Publicizer needs to be told what private members you want access to. You do this
 
 ```xml
 <ItemGroup>
-    // All members in an assembly
+    <!-- All members in an assembly -->
     <Publicize Include="MyAssemblyFileName" />
 
-    // Field
+    <!-- Field -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.myField" />
 
-    // Property
+    <!-- Property -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.MyProperty" />
 
-    // Method
+    <!-- Method -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.MyMethod" />
 
-    // Field in nested type
+    <!-- Field in nested type -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType+MyNestedType.myField" />
 
-    // Constructor
+    <!-- Constructor -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType..ctor" />
-
-    // Static constructor
-    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType..cctor" />
 </ItemGroup>
 ```
 
