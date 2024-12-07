@@ -757,4 +757,87 @@ public class PublicizerTests
         Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'LibraryClass.VirtualProtectedProperty' is inaccessible due to its protection level"));
         Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'LibraryClass.ProtectedProperty' is inaccessible due to its protection level"));
     }
+    
+    [Test]
+    public void PublicizePrivateMembersWithMemberPattern_CompilesAndRunsWithExitCode0AndPrintsExpectedValues()
+    {
+        using var libraryFolder = new TemporaryFolder();
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
+            namespace PrivateNamespace;
+            class PrivateClass
+            {
+                private static string PrivateFooField = "foo";
+                private static string PrivateBarField = "bar";
+                private static string PrivateFooProperty = { get; } = "foo";
+            }
+            """;
+        File.WriteAllText(libraryCodePath, libraryCode);
+
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutDir>{libraryFolder.Path}</OutDir>
+              </PropertyGroup>
+          
+              <ItemGroup>
+                <Compile Include="{libraryCodePath}" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        File.WriteAllText(libraryCsprojPath, libraryCsproj);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
+
+        using var appFolder = new TemporaryFolder();
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = """
+                         _ = PrivateNamespace.PrivateClass.PrivateFooField;
+                         _ = PrivateNamespace.PrivateClass.PrivateBarField;
+                         _ = PrivateNamespace.PrivateClass.PrivateFooProperty;
+                         """;
+        File.WriteAllText(appCodePath, appCode);
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+
+        string appCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutputType>exe</OutputType>
+                <OutDir>{appFolder.Path}</OutDir>
+              </PropertyGroup>
+          
+              <ItemGroup>
+                <Compile Include="{appCodePath}" />
+                <Reference Include="PrivateAssembly" HintPath="{libraryPath}" />
+                <PackageReference Include="Krafs.Publicizer" Version="*" />
+                <Publicize Include="PrivateAssembly" MemberPattern=".*Foo.*" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        File.WriteAllText(appCsprojPath, appCsproj);
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
+        NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
+
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
+
+        Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
+        Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
+        
+        Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateBarField' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateFooField' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateFooProperty' is inaccessible due to its protection level"));
+    }
 }
