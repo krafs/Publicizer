@@ -5,8 +5,6 @@ namespace Publicizer;
 
 internal static class TaskItemExtensions
 {
-    private static readonly Regex s_matchAll =  new(".*", RegexOptions.Compiled);
-    
     internal static string FileName(this ITaskItem item)
     {
         return item.GetMetadata("Filename");
@@ -37,12 +35,12 @@ internal static class TaskItemExtensions
         return true;
     }
     
-    internal static Regex MemberPattern(this ITaskItem item)
+    internal static Regex? MemberPattern(this ITaskItem item)
     {
         string? memberPattern = item.GetMetadata("MemberPattern");
         if (string.IsNullOrWhiteSpace(memberPattern))
         {
-            return s_matchAll;
+            return null;
         }
 
         return new Regex(memberPattern, RegexOptions.Compiled);

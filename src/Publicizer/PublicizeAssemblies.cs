@@ -238,7 +238,6 @@ public sealed class PublicizeAssemblies : Task
             string typeName = typeDef.ReflectionFullName;
 
             bool explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
-            explicitlyDoNotPublicizeType |= assemblyContext.PublicizeMemberRegexPattern.IsMatch(typeName);
             
             // PROPERTIES
             foreach (PropertyDef? propertyDef in typeDef.Properties)
@@ -261,7 +260,6 @@ public sealed class PublicizeAssemblies : Task
                 }
 
                 bool explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
-                explicitlyPublicizeProperty |= assemblyContext.PublicizeMemberRegexPattern.IsMatch(propertyName);
                 if (explicitlyPublicizeProperty)
                 {
                     if (AssemblyEditor.PublicizeProperty(propertyDef))
@@ -292,7 +290,7 @@ public sealed class PublicizeAssemblies : Task
                         continue;
                     }
                     
-                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern.IsMatch(propertyName);
+                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(propertyName) ?? true;
                     if (!isRegexPatternMatch)
                     {
                         continue;
@@ -356,7 +354,7 @@ public sealed class PublicizeAssemblies : Task
                         continue;
                     }
                     
-                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern.IsMatch(methodName);
+                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(methodName) ?? true;
                     if (!isRegexPatternMatch)
                     {
                         continue;
@@ -414,7 +412,7 @@ public sealed class PublicizeAssemblies : Task
                         continue;
                     }
                     
-                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern.IsMatch(fieldName);
+                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(fieldName) ?? true;
                     if (!isRegexPatternMatch)
                     {
                         continue;
@@ -470,7 +468,7 @@ public sealed class PublicizeAssemblies : Task
                     continue;
                 }
 
-                bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern.IsMatch(typeName);
+                bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(typeName) ?? true;
                 if (!isRegexPatternMatch)
                 {
                     continue;
