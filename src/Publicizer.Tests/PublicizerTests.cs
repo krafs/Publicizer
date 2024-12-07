@@ -769,7 +769,7 @@ public class PublicizerTests
             {
                 private static string PrivateFooField = "foo";
                 private static string PrivateBarField = "bar";
-                private static string PrivateFooProperty = { get; } = "foo";
+                private static string PrivateFooProperty { get; } = "foo";
             }
             """;
         File.WriteAllText(libraryCodePath, libraryCode);
