@@ -18,6 +18,13 @@ Publicizer needs to be told what private members you want access to. You do this
     <!-- All members in an assembly -->
     <Publicize Include="MyAssemblyFileName" />
 
+    <!-- Type -->
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType" />
+
+    <!-- Generic Type -->
+    <!-- The number represents the arity/number of generic type arguments -->
+    <Publicize Include="MyAssemblyFileName:MyNamespace.MyType`2" />
+    
     <!-- Field -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.myField" />
 
@@ -26,12 +33,21 @@ Publicizer needs to be told what private members you want access to. You do this
 
     <!-- Method -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType.MyMethod" />
-
+    
     <!-- Field in nested type -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType+MyNestedType.myField" />
 
     <!-- Constructor -->
     <Publicize Include="MyAssemblyFileName:MyNamespace.MyType..ctor" />
+</ItemGroup>
+```
+
+### Regular expressions
+Regular expressions are supported with the `MemberPattern` attribute.
+```xml
+<ItemGroup>
+    <!-- All members in a type -->
+    <Publicize Include="MyAssemblyFileName" MemberPattern="^MyNamespace\.MyType\..*" />
 </ItemGroup>
 ```
 
