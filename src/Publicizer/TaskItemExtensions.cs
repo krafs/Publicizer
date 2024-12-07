@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Build.Framework;
 
 namespace Publicizer;
@@ -32,5 +33,16 @@ internal static class TaskItemExtensions
         }
 
         return true;
+    }
+    
+    internal static Regex? MemberPattern(this ITaskItem item)
+    {
+        string? memberPattern = item.GetMetadata("MemberPattern");
+        if (string.IsNullOrWhiteSpace(memberPattern))
+        {
+            return null;
+        }
+
+        return new Regex(memberPattern, RegexOptions.Compiled);
     }
 }

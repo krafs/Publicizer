@@ -20,7 +20,7 @@
     <Title>Publicizer</Title>
     <PackageId>Krafs.Publicizer</PackageId>
     <Authors>Krafs</Authors>
-    <Copyright>© Krafs 2023</Copyright>
+    <Copyright>© Krafs 2024</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/krafs/Publicizer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/krafs/Publicizer.git</RepositoryUrl>
@@ -28,7 +28,7 @@
     <PackageTags>msbuild accesschecks public publicizer</PackageTags>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>2.2.1</Version>
+    <Version>2.3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

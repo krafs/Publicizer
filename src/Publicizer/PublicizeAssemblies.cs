@@ -180,7 +180,8 @@ public sealed class PublicizeAssemblies : Task
                 assemblyContext.IncludeCompilerGeneratedMembers = item.IncludeCompilerGeneratedMembers();
                 assemblyContext.IncludeVirtualMembers = item.IncludeVirtualMembers();
                 assemblyContext.ExplicitlyPublicizeAssembly = true;
-                logger.Info($"Publicize: {item}, virtual members: {assemblyContext.IncludeVirtualMembers}, compiler-generated members: {assemblyContext.IncludeCompilerGeneratedMembers}");
+                assemblyContext.PublicizeMemberRegexPattern = item.MemberPattern();
+                logger.Info($"Publicize: {item}, virtual members: {assemblyContext.IncludeVirtualMembers}, compiler-generated members: {assemblyContext.IncludeCompilerGeneratedMembers}, member pattern: {assemblyContext.PublicizeMemberRegexPattern}");
             }
             else
             {
@@ -237,7 +238,7 @@ public sealed class PublicizeAssemblies : Task
             string typeName = typeDef.ReflectionFullName;
 
             bool explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
-
+            
             // PROPERTIES
             foreach (PropertyDef? propertyDef in typeDef.Properties)
             {
@@ -285,6 +286,12 @@ public sealed class PublicizeAssemblies : Task
                 {
                     bool isCompilerGeneratedProperty = IsCompilerGenerated(propertyDef);
                     if (isCompilerGeneratedProperty && !assemblyContext.IncludeCompilerGeneratedMembers)
+                    {
+                        continue;
+                    }
+                    
+                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(propertyName) ?? true;
+                    if (!isRegexPatternMatch)
                     {
                         continue;
                     }
@@ -346,6 +353,12 @@ public sealed class PublicizeAssemblies : Task
                     {
                         continue;
                     }
+                    
+                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(methodName) ?? true;
+                    if (!isRegexPatternMatch)
+                    {
+                        continue;
+                    }
 
                     if (AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers))
                     {
@@ -398,6 +411,12 @@ public sealed class PublicizeAssemblies : Task
                     {
                         continue;
                     }
+                    
+                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(fieldName) ?? true;
+                    if (!isRegexPatternMatch)
+                    {
+                        continue;
+                    }
 
                     if (AssemblyEditor.PublicizeField(fieldDef))
                     {
@@ -445,6 +464,12 @@ public sealed class PublicizeAssemblies : Task
             {
                 bool isCompilerGeneratedType = IsCompilerGenerated(typeDef);
                 if (isCompilerGeneratedType && !assemblyContext.IncludeCompilerGeneratedMembers)
+                {
+                    continue;
+                }
+
+                bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(typeName) ?? true;
+                if (!isRegexPatternMatch)
                 {
                     continue;
                 }

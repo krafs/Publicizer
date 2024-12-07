@@ -26,10 +26,14 @@ internal static class Hasher
         {
             sb.Append(doNotPublicizePattern);
         }
+        if (assemblyContext.PublicizeMemberRegexPattern is not null)
+        {
+            sb.Append(assemblyContext.PublicizeMemberRegexPattern.ToString());
+        }
 
-        byte[] patternbytes = Encoding.UTF8.GetBytes(sb.ToString());
+        byte[] patternBytes = Encoding.UTF8.GetBytes(sb.ToString());
         byte[] assemblyBytes = File.ReadAllBytes(assemblyPath);
-        byte[] allBytes = assemblyBytes.Concat(patternbytes).ToArray();
+        byte[] allBytes = assemblyBytes.Concat(patternBytes).ToArray();
 
         return ComputeHash(allBytes);
     }
