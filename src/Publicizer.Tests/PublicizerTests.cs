@@ -833,8 +833,8 @@ public class PublicizerTests
 
         ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
         Assert.That(buildAppProcess.ExitCode, Is.Not.Zero, buildAppProcess.Output);
-        Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateBarField' is inaccessible due to its protection level"));
-        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateFooField' is inaccessible due to its protection level"));
-        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateFooProperty' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'PrivateClass.PrivateBarField' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateClass.PrivateFooField' is inaccessible due to its protection level"));
+        Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateClass.PrivateFooProperty' is inaccessible due to its protection level"));
     }
 }
