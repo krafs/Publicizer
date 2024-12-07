@@ -767,9 +767,9 @@ public class PublicizerTests
             namespace PrivateNamespace;
             class PrivateClass
             {
-                private string PrivateFooField = "foo";
-                private string PrivateBarField = "bar";
-                private string PrivateFooProperty { get; } = "foo";
+                protected string PrivateFooField = "foo";
+                protected string PrivateBarField = "bar";
+                protected string PrivateFooProperty { get; } = "foo";
             }
             """";
         File.WriteAllText(libraryCodePath, libraryCode);
