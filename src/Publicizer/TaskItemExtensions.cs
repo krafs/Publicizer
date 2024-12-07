@@ -1,9 +1,12 @@
+using System.Text.RegularExpressions;
 using Microsoft.Build.Framework;
 
 namespace Publicizer;
 
 internal static class TaskItemExtensions
 {
+    private static readonly Regex s_matchAll =  new(".*", RegexOptions.Compiled);
+    
     internal static string FileName(this ITaskItem item)
     {
         return item.GetMetadata("Filename");
@@ -32,5 +35,16 @@ internal static class TaskItemExtensions
         }
 
         return true;
+    }
+    
+    internal static Regex MemberPattern(this ITaskItem item)
+    {
+        string? memberPattern = item.GetMetadata("MemberPattern");
+        if (string.IsNullOrWhiteSpace(memberPattern))
+        {
+            return s_matchAll;
+        }
+
+        return new Regex(memberPattern, RegexOptions.Compiled);
     }
 }
