@@ -831,11 +831,7 @@ public class PublicizerTests
         NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
 
         ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
-        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
-
-        Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
-        Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
-        
+        Assert.That(buildAppProcess.ExitCode, Is.Not.Zero, buildAppProcess.Output);
         Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateBarField' is inaccessible due to its protection level"));
         Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateFooField' is inaccessible due to its protection level"));
         Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateNamespace.PrivateClass.PrivateFooProperty' is inaccessible due to its protection level"));
