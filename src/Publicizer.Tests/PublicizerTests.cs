@@ -763,15 +763,15 @@ public class PublicizerTests
     {
         using var libraryFolder = new TemporaryFolder();
         string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
-        string libraryCode = """
+        string libraryCode = """"
             namespace PrivateNamespace;
             class PrivateClass
             {
-                private static string PrivateFooField = "foo";
-                private static string PrivateBarField = "bar";
-                private static string PrivateFooProperty { get; } = "foo";
+                private string PrivateFooField = "foo";
+                private string PrivateBarField = "bar";
+                private string PrivateFooProperty { get; } = "foo";
             }
-            """;
+            """";
         File.WriteAllText(libraryCodePath, libraryCode);
 
         string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
@@ -798,9 +798,10 @@ public class PublicizerTests
         using var appFolder = new TemporaryFolder();
         string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
         string appCode = """
-                         _ = PrivateNamespace.PrivateClass.PrivateFooField;
-                         _ = PrivateNamespace.PrivateClass.PrivateBarField;
-                         _ = PrivateNamespace.PrivateClass.PrivateFooProperty;
+                         var instance = new PrivateNamespace.PrivateClass();
+                         _ = instance.PrivateFooField;
+                         _ = instance.PrivateBarField;
+                         _ = instance.PrivateFooProperty;
                          """;
         File.WriteAllText(appCodePath, appCode);
         string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
@@ -824,7 +825,7 @@ public class PublicizerTests
 
             </Project>
             """;
-
+    
         string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
         File.WriteAllText(appCsprojPath, appCsproj);
         string appPath = Path.Combine(appFolder.Path, "App.dll");
