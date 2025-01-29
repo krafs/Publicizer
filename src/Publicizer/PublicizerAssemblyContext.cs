@@ -14,6 +14,7 @@ internal sealed class PublicizerAssemblyContext
     internal bool ExplicitlyPublicizeAssembly { get; set; } = false;
     internal bool IncludeCompilerGeneratedMembers { get; set; } = true;
     internal bool IncludeVirtualMembers { get; set; } = true;
+    internal bool AddOriginalAccessModifierAttribute { get; set; } = true;
     internal bool ExplicitlyDoNotPublicizeAssembly { get; set; } = false;
     internal HashSet<string> PublicizeMemberPatterns { get; } = new HashSet<string>();
     internal Regex? PublicizeMemberRegexPattern { get; set; }
