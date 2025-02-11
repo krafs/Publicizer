@@ -13,11 +13,14 @@ namespace Publicizer;
 internal class AssemblyEditor
 {
     private readonly ModuleDef _module;
-    private readonly bool _addOriginalAccessModifierAttribute;
+    private readonly MethodDef? _attributeConstructor;
     internal AssemblyEditor(ModuleDef module, bool addOriginalAccessModifierAttribute)
     {
         _module = module;
-        _addOriginalAccessModifierAttribute = addOriginalAccessModifierAttribute;
+        if (addOriginalAccessModifierAttribute)
+        {
+            _attributeConstructor = CreateAccessModifierAttributeType(module).FindConstructors().First();
+        }
     }
 
     internal bool publicizedAnyMemberInAssembly;
@@ -103,38 +106,43 @@ internal class AssemblyEditor
         return false;
     }
 
-    private MethodDef? _attributeConstructor;
     private void AddOriginalAccessModifierAttribute(IHasCustomAttribute item, AccessModifier original)
     {
-        if (!_addOriginalAccessModifierAttribute)
-        {
-            return;
-        }
         if (_attributeConstructor == null)
         {
-            string @namespace = new UTF8String(nameof(Publicizer));
-            string name = new UTF8String("OriginalAccessModifierAttribute");
-            TypeDef? attributeTypeDef = _module.Types.FirstOrDefault(t => t.Namespace == @namespace && t.Name == name);
-            if (attributeTypeDef == null)
-            {
-                ITypeDefOrRef attributeBaseTypeRef = _module.Import(typeof(Attribute))!;
-                attributeTypeDef = new TypeDefUser(@namespace, name, attributeBaseTypeRef);
-                attributeTypeDef.Attributes = TypeAttributes.NotPublic | TypeAttributes.Sealed;
-
-                var methodSig = MethodSig.CreateInstance(
-                    _module.CorLibTypes.Void,
-                    _module.CorLibTypes.String
-                );
-                var methodDef = new MethodDefUser(".ctor", methodSig);
-
-                attributeTypeDef.Methods.Add(methodDef);
-            }
-            _attributeConstructor = attributeTypeDef.FindConstructors().First();
+            return;
         }
         var attribute = new CustomAttribute(_attributeConstructor);
         var caArgument = new CAArgument(_module.CorLibTypes.String, AccessModifierToString(original));
         attribute.ConstructorArguments.Add(caArgument);
         item.CustomAttributes.Add(attribute);
+    }
+
+    private static TypeDef CreateAccessModifierAttributeType(ModuleDef module)
+    {
+        string @namespace = new UTF8String(nameof(Publicizer));
+        string name = new UTF8String("OriginalAccessModifierAttribute");
+        TypeDef? attributeTypeDef = module.Types.FirstOrDefault(t => t.Namespace == @namespace && t.Name == name);
+        if (attributeTypeDef == null)
+        {
+            ITypeDefOrRef attributeBaseTypeRef = module.Import(typeof(Attribute))!;
+            attributeTypeDef = new TypeDefUser(@namespace, name, attributeBaseTypeRef);
+            attributeTypeDef.Attributes = TypeAttributes.NestedAssembly | TypeAttributes.Sealed;
+
+            var methodSig = MethodSig.CreateInstance(
+                module.CorLibTypes.Void,
+                module.CorLibTypes.String
+            );
+            var methodDef = new MethodDefUser(
+                ".ctor",
+                methodSig,
+                MethodAttributes.Assembly | MethodAttributes.RTSpecialName
+            );
+            attributeTypeDef.Methods.Add(methodDef);
+
+            module.Types.Add(attributeTypeDef);
+        }
+        return attributeTypeDef;
     }
 
     private static AccessModifier ConvertAttributes(TypeAttributes attributes)
