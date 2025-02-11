@@ -125,7 +125,7 @@ internal class AssemblyEditor
         TypeDef? attributeTypeDef = module.Types.FirstOrDefault(t => t.Namespace == @namespace && t.Name == name);
         if (attributeTypeDef == null)
         {
-            ITypeDefOrRef attributeBaseTypeRef = module.Import(typeof(Attribute))!;
+            ITypeDefOrRef attributeBaseTypeRef = module.CorLibTypes.GetTypeRef("System", "Attribute");
             attributeTypeDef = new TypeDefUser(@namespace, name, attributeBaseTypeRef);
             attributeTypeDef.Attributes = TypeAttributes.NestedAssembly | TypeAttributes.Sealed;
 
