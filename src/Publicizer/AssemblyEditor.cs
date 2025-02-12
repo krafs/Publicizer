@@ -13,14 +13,24 @@ namespace Publicizer;
 internal class AssemblyEditor
 {
     private readonly ModuleDef _module;
-    private readonly MethodDef? _attributeConstructor;
+    private readonly TypeDef? _accessAttributeType;
+    private readonly MethodDef? _accessAttributeConstructor;
     internal AssemblyEditor(ModuleDef module, bool addOriginalAccessModifierAttribute)
     {
         _module = module;
-        if (addOriginalAccessModifierAttribute)
+
+        // workaround for custom attributes not being supported in, at least some, core libs
+        bool isCoreLib = module.IsCoreLibraryModule ?? false;
+        if (!isCoreLib && addOriginalAccessModifierAttribute)
         {
-            _attributeConstructor = CreateAccessModifierAttributeType(module).FindConstructors().First();
+            _accessAttributeType = GetOrCreateAccessAttributeType(module);
+            _accessAttributeConstructor = _accessAttributeType.FindConstructors().First();
         }
+    }
+
+    internal bool IsAccessAttribute(ITypeDefOrRef typeRef)
+    {
+        return typeRef == _accessAttributeType;
     }
 
     internal bool publicizedAnyMemberInAssembly;
@@ -108,25 +118,25 @@ internal class AssemblyEditor
 
     private void AddOriginalAccessModifierAttribute(IHasCustomAttribute item, AccessModifier original)
     {
-        if (_attributeConstructor == null)
+        if (_accessAttributeConstructor == null)
         {
             return;
         }
-        var attribute = new CustomAttribute(_attributeConstructor);
+        var attribute = new CustomAttribute(_accessAttributeConstructor);
         var caArgument = new CAArgument(_module.CorLibTypes.String, AccessModifierToString(original));
         attribute.ConstructorArguments.Add(caArgument);
         item.CustomAttributes.Add(attribute);
     }
 
-    private static TypeDef CreateAccessModifierAttributeType(ModuleDef module)
+    private static readonly string s_accessAttributeNamespace = new UTF8String(nameof(Publicizer));
+    private static readonly string s_accessAttributeName = new UTF8String("OriginalAccessModifierAttribute");
+    private static TypeDef GetOrCreateAccessAttributeType(ModuleDef module)
     {
-        string @namespace = new UTF8String(nameof(Publicizer));
-        string name = new UTF8String("OriginalAccessModifierAttribute");
-        TypeDef? attributeTypeDef = module.Types.FirstOrDefault(t => t.Namespace == @namespace && t.Name == name);
+        TypeDef? attributeTypeDef = module.Types.FirstOrDefault(t => t.Namespace == s_accessAttributeNamespace && t.Name == s_accessAttributeName);
         if (attributeTypeDef == null)
         {
             ITypeDefOrRef attributeBaseTypeRef = module.CorLibTypes.GetTypeRef("System", "Attribute");
-            attributeTypeDef = new TypeDefUser(@namespace, name, attributeBaseTypeRef);
+            attributeTypeDef = new TypeDefUser(s_accessAttributeNamespace, s_accessAttributeName, attributeBaseTypeRef);
             attributeTypeDef.Attributes = TypeAttributes.NestedAssembly | TypeAttributes.Sealed;
 
             var methodSig = MethodSig.CreateInstance(
@@ -136,7 +146,7 @@ internal class AssemblyEditor
             var methodDef = new MethodDefUser(
                 ".ctor",
                 methodSig,
-                MethodAttributes.Assembly | MethodAttributes.RTSpecialName
+                MethodAttributes.Assembly | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName | MethodAttributes.HideBySig
             );
             attributeTypeDef.Methods.Add(methodDef);
 

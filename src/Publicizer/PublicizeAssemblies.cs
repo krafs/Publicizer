@@ -226,8 +226,15 @@ public sealed class PublicizeAssemblies : Task
         var assemblyEditor = new AssemblyEditor(module, assemblyContext.AddOriginalAccessModifierAttribute);
 
         // TYPES
-        foreach (TypeDef? typeDef in module.GetTypes())
+        foreach (TypeDef typeDef in module.GetTypes())
         {
+            if (assemblyEditor.IsAccessAttribute(typeDef))
+            {
+                // do not publicize the access attribute itself, keep it internal
+                // also avoids the attribute attributing itself
+                continue;
+            }
+
             doNotPublicizePropertyMethods.Clear();
 
             bool publicizedAnyMemberInType = false;
