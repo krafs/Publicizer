@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using dnlib.DotNet;
+using dnlib.DotNet.Emit;
 using FieldAttributes = dnlib.DotNet.FieldAttributes;
 using MethodAttributes = dnlib.DotNet.MethodAttributes;
 using TypeAttributes = dnlib.DotNet.TypeAttributes;
@@ -135,7 +136,13 @@ internal class AssemblyEditor
         TypeDef? attributeTypeDef = module.Types.FirstOrDefault(t => t.Namespace == s_accessAttributeNamespace && t.Name == s_accessAttributeName);
         if (attributeTypeDef == null)
         {
-            ITypeDefOrRef attributeBaseTypeRef = module.CorLibTypes.GetTypeRef("System", "Attribute");
+            TypeRef attributeBaseTypeRef = module.CorLibTypes.GetTypeRef("System", "Attribute");
+            MemberRef attributeBaseConstructorMethodRef = new MemberRefUser(
+                module,
+                ".ctor",
+                MethodSig.CreateInstance(module.CorLibTypes.Void),
+                attributeBaseTypeRef
+            );
             attributeTypeDef = new TypeDefUser(s_accessAttributeNamespace, s_accessAttributeName, attributeBaseTypeRef);
             attributeTypeDef.Attributes = TypeAttributes.NestedAssembly | TypeAttributes.Sealed;
 
@@ -148,6 +155,12 @@ internal class AssemblyEditor
                 methodSig,
                 MethodAttributes.Assembly | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName | MethodAttributes.HideBySig
             );
+
+            CilBody body = methodDef.Body = new CilBody();
+            body.Instructions.Add(new Instruction(OpCodes.Ldarg_0));
+            body.Instructions.Add(new Instruction(OpCodes.Call, attributeBaseConstructorMethodRef));
+            body.Instructions.Add(new Instruction(OpCodes.Ret));
+
             attributeTypeDef.Methods.Add(methodDef);
 
             module.Types.Add(attributeTypeDef);
