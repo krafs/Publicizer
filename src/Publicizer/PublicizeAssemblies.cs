@@ -221,17 +221,20 @@ public sealed class PublicizeAssemblies : Task
 
     private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
     {
-        bool publicizedAnyMemberInAssembly = false;
         var doNotPublicizePropertyMethods = new HashSet<MethodDef>();
 
-        int publicizedTypesCount = 0;
-        int publicizedPropertiesCount = 0;
-        int publicizedMethodsCount = 0;
-        int publicizedFieldsCount = 0;
+        var assemblyEditor = new AssemblyEditor(module, assemblyContext.AddOriginalAccessModifierAttribute);
 
         // TYPES
-        foreach (TypeDef? typeDef in module.GetTypes())
+        foreach (TypeDef typeDef in module.GetTypes())
         {
+            if (assemblyEditor.IsAccessAttribute(typeDef))
+            {
+                // do not publicize the access attribute itself, keep it internal
+                // also avoids the attribute attributing itself
+                continue;
+            }
+
             doNotPublicizePropertyMethods.Clear();
 
             bool publicizedAnyMemberInType = false;
@@ -262,11 +265,9 @@ public sealed class PublicizeAssemblies : Task
                 bool explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
                 if (explicitlyPublicizeProperty)
                 {
-                    if (AssemblyEditor.PublicizeProperty(propertyDef))
+                    if (assemblyEditor.PublicizeProperty(propertyDef))
                     {
                         publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedPropertiesCount++;
                         logger.Verbose($"Explicitly publicizing property: {propertyName}");
                     }
                     continue;
@@ -296,11 +297,9 @@ public sealed class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    if (AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers))
+                    if (assemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers))
                     {
                         publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedPropertiesCount++;
                     }
                 }
             }
@@ -326,11 +325,9 @@ public sealed class PublicizeAssemblies : Task
                 bool explicitlyPublicizeMethod = assemblyContext.PublicizeMemberPatterns.Contains(methodName);
                 if (explicitlyPublicizeMethod)
                 {
-                    if (AssemblyEditor.PublicizeMethod(methodDef))
+                    if (assemblyEditor.PublicizeMethod(methodDef))
                     {
                         publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedMethodsCount++;
                         logger.Verbose($"Explicitly publicizing method: {methodName}");
                     }
                     continue;
@@ -360,11 +357,9 @@ public sealed class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    if (AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers))
+                    if (assemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers))
                     {
                         publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedMethodsCount++;
                     }
                 }
             }
@@ -384,11 +379,9 @@ public sealed class PublicizeAssemblies : Task
                 bool explicitlyPublicizeField = assemblyContext.PublicizeMemberPatterns.Contains(fieldName);
                 if (explicitlyPublicizeField)
                 {
-                    if (AssemblyEditor.PublicizeField(fieldDef))
+                    if (assemblyEditor.PublicizeField(fieldDef))
                     {
                         publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedFieldsCount++;
                         logger.Verbose($"Explicitly publicizing field: {fieldName}");
                     }
                     continue;
@@ -418,22 +411,16 @@ public sealed class PublicizeAssemblies : Task
                         continue;
                     }
 
-                    if (AssemblyEditor.PublicizeField(fieldDef))
+                    if (assemblyEditor.PublicizeField(fieldDef))
                     {
                         publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedFieldsCount++;
                     }
                 }
             }
 
             if (publicizedAnyMemberInType)
             {
-                if (AssemblyEditor.PublicizeType(typeDef))
-                {
-                    publicizedAnyMemberInAssembly = true;
-                    publicizedTypesCount++;
-                }
+                assemblyEditor.PublicizeType(typeDef);
                 continue;
             }
 
@@ -446,10 +433,8 @@ public sealed class PublicizeAssemblies : Task
             bool explicitlyPublicizeType = assemblyContext.PublicizeMemberPatterns.Contains(typeName);
             if (explicitlyPublicizeType)
             {
-                if (AssemblyEditor.PublicizeType(typeDef))
+                if (assemblyEditor.PublicizeType(typeDef))
                 {
-                    publicizedAnyMemberInAssembly = true;
-                    publicizedTypesCount++;
                     logger.Verbose($"Explicitly publicizing type: {typeName}");
                 }
                 continue;
@@ -474,20 +459,16 @@ public sealed class PublicizeAssemblies : Task
                     continue;
                 }
 
-                if (AssemblyEditor.PublicizeType(typeDef))
-                {
-                    publicizedAnyMemberInAssembly = true;
-                    publicizedTypesCount++;
-                }
+                assemblyEditor.PublicizeType(typeDef);
             }
         }
 
-        logger.Info("Publicized types: " + publicizedTypesCount);
-        logger.Info("Publicized properties: " + publicizedPropertiesCount);
-        logger.Info("Publicized methods: " + publicizedMethodsCount);
-        logger.Info("Publicized fields: " + publicizedFieldsCount);
+        logger.Info("Publicized types: " + assemblyEditor.publicizedTypesCount);
+        logger.Info("Publicized properties: " + assemblyEditor.publicizedPropertiesCount);
+        logger.Info("Publicized methods: " + assemblyEditor.publicizedMethodsCount);
+        logger.Info("Publicized fields: " + assemblyEditor.publicizedFieldsCount);
 
-        return publicizedAnyMemberInAssembly;
+        return assemblyEditor.publicizedAnyMemberInAssembly;
     }
 
     private static bool IsCompilerGenerated(IHasCustomAttribute memberDef)
