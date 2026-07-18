@@ -1,0 +1,11 @@
+changelog:
+  categories:
+    - title: Breaking Changes
+      labels:
+        - "SemVer:Major"
+    - title: Features
+      labels:
+        - "SemVer:Minor"
+    - title: Fixes & Improvements
+      labels:
+        - "SemVer:Patch"
