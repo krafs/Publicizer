@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without leading v (e.g. 2.4.0)'
+        required: true
+        type: string
+      dry-run:
+        description: 'Build and pack only. Skip nuget push, tag, and GitHub Release.'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v6
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v5.2.0
+      env:
+        DOTNET_NOLOGO: true
+        DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build -c Release --no-restore -warnaserror -p:Version=${{ inputs.version }}
+
+    - name: Test
+      run: dotnet test -c Release --no-build --no-restore
+
+    - name: Pack
+      run: dotnet pack src/Publicizer/Publicizer.csproj -c Release --no-build -p:Version=${{ inputs.version }} -o artifacts
+
+    - name: NuGet login
+      if: ${{ !inputs.dry-run }}
+      id: login
+      uses: NuGet/login@v1
+      with:
+        user: krafs
+
+    - name: Push to NuGet.org
+      if: ${{ !inputs.dry-run }}
+      run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+    - name: Tag and create GitHub Release
+      if: ${{ !inputs.dry-run }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        git tag "v${{ inputs.version }}"
+        git push origin "v${{ inputs.version }}"
+        gh release create "v${{ inputs.version }}" --title "v${{ inputs.version }}" --generate-notes
