@@ -2,10 +2,10 @@ changelog:
   categories:
     - title: Breaking Changes
       labels:
-        - "SemVer:Major"
+        - "semver:major"
     - title: Features
       labels:
-        - "SemVer:Minor"
+        - "semver:minor"
     - title: Fixes & Improvements
       labels:
-        - "SemVer:Patch"
+        - "semver:patch"
