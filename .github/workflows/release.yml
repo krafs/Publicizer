@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override, without leading v (e.g. 2.4.0). Leave blank to auto-resolve from semver labels.'
+        required: false
+        type: string
+      dry-run:
+        description: 'Build and pack only. Skip nuget push, tag, and GitHub Release.'
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: read
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+
+    - uses: actions/checkout@v7.0.0
+      with:
+        fetch-depth: 0
+
+    - name: Resolve version
+      id: resolve
+      env:
+        GH_TOKEN: ${{ github.token }}
+        OVERRIDE: ${{ inputs.version }}
+      run: node scripts/resolve-version.mjs
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v6.0.0
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build -c Release --no-restore -p:Version=${{ steps.resolve.outputs.version }}
+
+    - name: Test
+      run: dotnet test -c Release --no-build --no-restore
+
+    - name: Pack
+      run: dotnet pack src/Publicizer/Publicizer.csproj -c Release --no-build -p:Version=${{ steps.resolve.outputs.version }} -o artifacts
+
+    - name: NuGet login
+      if: ${{ !inputs.dry-run }}
+      id: login
+      uses: NuGet/login@v1
+      with:
+        user: krafs
+
+    - name: Push to NuGet.org
+      if: ${{ !inputs.dry-run }}
+      env:
+        NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+      run: dotnet nuget push "artifacts/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+    - name: Tag and create GitHub Release
+      if: ${{ !inputs.dry-run }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: |
+        git tag "v$VERSION"
+        git push origin "v$VERSION"
+        gh release create "v$VERSION" --title "v$VERSION" --generate-notes
