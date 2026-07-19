@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: "daily"
     labels:
-      - "enhancement"
+      - "semver:patch"
     assignees:
       - "krafs"
 
@@ -14,6 +14,6 @@ updates:
     schedule:
       interval: "daily"
     labels:
-      - "enhancement"
+      - "semver:patch"
     assignees:
       - "krafs"

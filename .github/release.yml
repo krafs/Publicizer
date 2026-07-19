@@ -1,0 +1,16 @@
+changelog:
+  exclude:
+    authors:
+      - dependabot
+    labels:
+      - documentation
+  categories:
+    - title: Breaking Changes
+      labels:
+        - "semver:major"
+    - title: Features
+      labels:
+        - "semver:minor"
+    - title: Fixes & Improvements
+      labels:
+        - "semver:patch"
