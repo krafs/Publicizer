@@ -143,7 +143,6 @@ public sealed class PublicizeAssemblies : Task
             referencePathsToDelete.Add(reference);
             ITaskItem newReference = new TaskItem(outputAssemblyPath);
             reference.CopyMetadataTo(newReference);
-            reference.SetMetadata("Publicized", bool.TrueString);
             referencePathsToAdd.Add(newReference);
             scopedLogger.Info("Assembly processing finished");
         }
