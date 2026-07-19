@@ -1,0 +1,36 @@
+name: PR Title
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    name: Conventional title
+    runs-on: ubuntu-latest
+    steps:
+      # The PR title becomes the squash-merge commit subject, which is what
+      # release-please parses to decide the next version. Enforce that it is a
+      # valid Conventional Commit so releases are never missed or mis-bumped.
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            deps
+            build
+            ci
+            docs
+            refactor
+            test
+            chore
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" must start with a lowercase letter.

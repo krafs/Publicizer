@@ -1,0 +1,66 @@
+name: Release Please
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v5.0.0
+        id: release
+
+  publish:
+    name: Publish
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+
+    - uses: actions/checkout@v6
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v5.2.0
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build -c Release --no-restore -warnaserror
+
+    - name: Test
+      run: dotnet test -c Release --no-build --no-restore
+
+    - name: Pack
+      run: dotnet pack src/Publicizer/Publicizer.csproj -c Release --no-build -o artifacts
+
+    - name: NuGet login
+      id: login
+      uses: NuGet/login@v1
+      with:
+        user: krafs
+
+    - name: Push to NuGet.org
+      env:
+        NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+      run: dotnet nuget push "artifacts/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
