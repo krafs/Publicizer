@@ -1,6 +1,3 @@
-# Auto-applied labels. Semver labels are intentionally NOT set here -- the PR
-# Labels gate requires exactly one, so the bump stays a deliberate per-PR
-# choice. This only tags docs-only PRs so release.yml can exclude them.
 documentation:
   - changed-files:
       - any-glob-to-all-files:

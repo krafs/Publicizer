@@ -13,4 +13,4 @@ jobs:
     name: Label
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@v6.2.0
