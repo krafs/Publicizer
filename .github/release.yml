@@ -4,6 +4,7 @@ changelog:
       - dependabot
     labels:
       - documentation
+      - skip-changelog
   categories:
     - title: Breaking Changes
       labels:
