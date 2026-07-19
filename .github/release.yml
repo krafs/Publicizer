@@ -1,4 +1,9 @@
 changelog:
+  exclude:
+    authors:
+      - dependabot
+    labels:
+      - documentation
   categories:
     - title: Breaking Changes
       labels:

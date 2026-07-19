@@ -38,7 +38,7 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
         OVERRIDE: ${{ inputs.version }}
-      run: ./scripts/resolve-version.sh
+      run: node scripts/resolve-version.mjs
 
     - name: Set up .NET
       uses: actions/setup-dotnet@v5.2.0

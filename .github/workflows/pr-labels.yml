@@ -15,7 +15,7 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
-            const valid = ['semver:major', 'semver:minor', 'semver:patch', 'semver:none'];
+            const valid = ['semver:major', 'semver:minor', 'semver:patch'];
             const found = context.payload.pull_request.labels
               .map(l => l.name)
               .filter(l => valid.includes(l));
