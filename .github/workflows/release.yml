@@ -16,6 +16,9 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   release:
     name: Release
@@ -47,13 +50,17 @@ jobs:
       run: dotnet restore
 
     - name: Build
-      run: dotnet build -c Release --no-restore -p:Version=${{ steps.resolve.outputs.version }}
+      env:
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: dotnet build -c Release --no-restore -p:Version="$VERSION"
 
     - name: Test
       run: dotnet test -c Release --no-build --no-restore
 
     - name: Pack
-      run: dotnet pack src/Publicizer/Publicizer.csproj -c Release --no-build -p:Version=${{ steps.resolve.outputs.version }} -o artifacts
+      env:
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: dotnet pack src/Publicizer/Publicizer.csproj -c Release --no-build -p:Version="$VERSION" -o artifacts
 
     - name: NuGet login
       if: ${{ !inputs.dry-run }}
