@@ -29,7 +29,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
 
-    - uses: actions/checkout@v7.0.0
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -41,7 +41,7 @@ jobs:
       run: node scripts/resolve-version.mjs
 
     - name: Set up .NET
-      uses: actions/setup-dotnet@v6.0.0
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
 
     - name: Restore
       run: dotnet restore
@@ -58,7 +58,7 @@ jobs:
     - name: NuGet login
       if: ${{ !inputs.dry-run }}
       id: login
-      uses: NuGet/login@v1
+      uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
       with:
         user: krafs
 
