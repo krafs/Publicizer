@@ -35,6 +35,9 @@
     <PackageReference Include="dnlib" Version="4.5.0" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.8.2" PrivateAssets="all" />
     <PackageReference Include="DotNet.ReproducibleBuilds" Version="2.0.5" PrivateAssets="all" />
+    <!-- Referenced explicitly (not just implicitly on non-Windows) so the net472
+         dependency graph, and thus packages.lock.json, is identical across OSes. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
