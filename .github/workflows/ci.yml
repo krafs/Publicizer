@@ -48,3 +48,32 @@ jobs:
       with:
         name: coverage-${{ matrix.os }}
         path: coverage/**/coverage.cobertura.xml
+
+  coverage:
+    name: Coverage report
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+
+    - name: Download coverage
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: coverage-ubuntu-latest
+        path: coverage
+
+    - name: Summarize coverage
+      run: node scripts/coverage-summary.mjs coverage
+
+    - name: Comment on PR
+      if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: gh pr comment "$PR" --edit-last --create-if-none --body-file coverage-summary.md
