@@ -1,1 +1,10 @@
 blank_issues_enabled: false
+contact_links:
+  - name: 💡 Ideas & feature requests
+    url: https://github.com/krafs/Publicizer/discussions/categories/ideas
+    about: >
+      Start a discussion so we can agree on the approach. Once it's ready,
+      it gets promoted to a tracked issue.
+  - name: ❓ Questions & help
+    url: https://github.com/krafs/Publicizer/discussions/categories/q-a
+    about: Ask usage questions in Discussions.
