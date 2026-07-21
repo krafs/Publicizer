@@ -1,0 +1,33 @@
+name: Bug report
+description: Report incorrect or unexpected behavior
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you observe, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro
+      description: >
+        The assembly/member being publicized, your `Publicize` item
+        configuration, and the steps to reproduce.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Publicizer version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, .NET SDK version, and target framework.
+    validations:
+      required: false
