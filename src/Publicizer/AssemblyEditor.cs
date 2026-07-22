@@ -9,18 +9,28 @@ internal static class AssemblyEditor
 {
     internal static bool PublicizeType(TypeDef type)
     {
-        TypeAttributes oldAttributes = type.Attributes;
-        type.Attributes &= ~TypeAttributes.VisibilityMask;
+        bool modified = false;
 
-        if (type.IsNested)
+        // A nested type is only reachable if every enclosing type is accessible too,
+        // so walk up the declaring-type chain and publicize each one.
+        for (TypeDef? current = type; current is not null; current = current.DeclaringType)
         {
-            type.Attributes |= TypeAttributes.NestedPublic;
+            TypeAttributes oldAttributes = current.Attributes;
+            current.Attributes &= ~TypeAttributes.VisibilityMask;
+
+            if (current.IsNested)
+            {
+                current.Attributes |= TypeAttributes.NestedPublic;
+            }
+            else
+            {
+                current.Attributes |= TypeAttributes.Public;
+            }
+
+            modified |= current.Attributes != oldAttributes;
         }
-        else
-        {
-            type.Attributes |= TypeAttributes.Public;
-        }
-        return type.Attributes != oldAttributes;
+
+        return modified;
     }
 
     internal static bool PublicizeProperty(PropertyDef property, bool includeVirtual = true)

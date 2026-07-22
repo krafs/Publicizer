@@ -916,4 +916,82 @@ public class PublicizerTests
         Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
         Assert.That(File.Exists(logFilePath), Is.True, buildAppProcess.Output);
     }
+
+    [Test]
+    public void PublicizeNestedTypeMember_AlsoPublicizesEnclosingType_CompilesAndRunsWithExitCode0()
+    {
+        using var libraryFolder = new TemporaryFolder();
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "Outer.cs");
+        string libraryCode = """
+            namespace PrivateNamespace;
+            class Outer
+            {
+                class Inner
+                {
+                    private static string PrivateField = "foobar";
+                }
+            }
+            """;
+        File.WriteAllText(libraryCodePath, libraryCode);
+
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutDir>{libraryFolder.Path}</OutDir>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <Compile Include="{libraryCodePath}" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        File.WriteAllText(libraryCsprojPath, libraryCsproj);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
+
+        using var appFolder = new TemporaryFolder();
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        // Reachable only if both Inner and its enclosing Outer are made accessible.
+        string appCode = "System.Console.Write(PrivateNamespace.Outer.Inner.PrivateField);";
+        File.WriteAllText(appCodePath, appCode);
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+
+        string appCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutputType>exe</OutputType>
+                <OutDir>{appFolder.Path}</OutDir>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <Compile Include="{appCodePath}" />
+                <Reference Include="PrivateAssembly" HintPath="{libraryPath}" />
+                <PackageReference Include="Krafs.Publicizer" Version="*" />
+                <Publicize Include="PrivateAssembly:PrivateNamespace.Outer+Inner.PrivateField" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        File.WriteAllText(appCsprojPath, appCsproj);
+        string appPath = Path.Combine(appFolder.Path, "App.dll");
+        NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
+
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+        ProcessResult runAppProcess = Runner.Run("dotnet", appPath);
+
+        Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
+        Assert.That(runAppProcess.ExitCode, Is.Zero, runAppProcess.Output);
+        Assert.That(runAppProcess.Output, Is.EqualTo("foobar"), runAppProcess.Output);
+    }
 }
