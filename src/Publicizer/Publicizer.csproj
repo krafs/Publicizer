@@ -55,4 +55,14 @@
     </ItemGroup>
   </Target>
 
+  <!-- Remove stale nupkgs so the output folder holds only the freshly built one.
+       The tests resolve Krafs.Publicizer via Version="*"; a leftover higher-versioned
+       package (e.g. a previous release) would otherwise shadow this build. -->
+  <Target Name="CleanStalePackages" BeforeTargets="GenerateNuspec">
+    <ItemGroup>
+      <_StalePackage Include="$([MSBuild]::EnsureTrailingSlash($(PackageOutputPath)))Krafs.Publicizer.*.nupkg" />
+    </ItemGroup>
+    <Delete Files="@(_StalePackage)" />
+  </Target>
+
 </Project>
