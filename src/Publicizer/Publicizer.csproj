@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <DevelopmentDependency>true</DevelopmentDependency>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <BuildOutputTargetFolder>build</BuildOutputTargetFolder>
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
