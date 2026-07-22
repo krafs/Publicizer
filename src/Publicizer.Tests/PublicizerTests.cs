@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using NUnit.Framework;
 
@@ -836,5 +837,83 @@ public class PublicizerTests
         Assert.That(buildAppProcess.Output, Does.Match("CS0122: 'PrivateClass.PrivateBarField' is inaccessible due to its protection level"));
         Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateClass.PrivateFooField' is inaccessible due to its protection level"));
         Assert.That(buildAppProcess.Output, Does.Not.Match("CS0122: 'PrivateClass.PrivateFooProperty' is inaccessible due to its protection level"));
+    }
+
+    [Test]
+    public void BareFilenameLogFilePath_BuildSucceedsAndWritesLog()
+    {
+        using var libraryFolder = new TemporaryFolder();
+        string libraryCodePath = Path.Combine(libraryFolder.Path, "PrivateClass.cs");
+        string libraryCode = """
+            namespace PrivateNamespace;
+            class PrivateClass
+            {
+                private static string PrivateField = "foobar";
+            }
+            """;
+        File.WriteAllText(libraryCodePath, libraryCode);
+
+        string libraryCsprojPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.csproj");
+        string libraryCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutDir>{libraryFolder.Path}</OutDir>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <Compile Include="{libraryCodePath}" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        File.WriteAllText(libraryCsprojPath, libraryCsproj);
+        ProcessResult buildLibraryResult = Runner.Run("dotnet", "build", libraryCsprojPath);
+        Assert.That(buildLibraryResult.ExitCode, Is.Zero, buildLibraryResult.Output);
+
+        using var appFolder = new TemporaryFolder();
+        string appCodePath = Path.Combine(appFolder.Path, "Program.cs");
+        string appCode = "System.Console.Write(PrivateNamespace.PrivateClass.PrivateField);";
+        File.WriteAllText(appCodePath, appCode);
+        string libraryPath = Path.Combine(libraryFolder.Path, "PrivateAssembly.dll");
+
+        // A bare filename with no directory portion: Path.GetDirectoryName returns "",
+        // which used to make Directory.CreateDirectory throw and fail the build.
+        string logFileName = $"publicizer-{Guid.NewGuid():N}.log";
+
+        string appCsproj = $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>{TestTargetFramework}</TargetFramework>
+                <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+                <OutputType>exe</OutputType>
+                <OutDir>{appFolder.Path}</OutDir>
+                <PublicizerLogFilePath>{logFileName}</PublicizerLogFilePath>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <Compile Include="{appCodePath}" />
+                <Reference Include="PrivateAssembly" HintPath="{libraryPath}" />
+                <PackageReference Include="Krafs.Publicizer" Version="*" />
+                <Publicize Include="PrivateAssembly:PrivateNamespace.PrivateClass.PrivateField" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        string appCsprojPath = Path.Combine(appFolder.Path, "App.csproj");
+        File.WriteAllText(appCsprojPath, appCsproj);
+        NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(appFolder.Path);
+
+        ProcessResult buildAppProcess = Runner.Run("dotnet", "build", appCsprojPath);
+
+        // The bare log filename resolves against the project directory, MSBuild's task cwd.
+        string logFilePath = Path.Combine(appFolder.Path, logFileName);
+        Assert.That(buildAppProcess.ExitCode, Is.Zero, buildAppProcess.Output);
+        Assert.That(File.Exists(logFilePath), Is.True, buildAppProcess.Output);
     }
 }
