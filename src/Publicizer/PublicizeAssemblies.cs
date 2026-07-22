@@ -33,8 +33,11 @@ public sealed class PublicizeAssemblies : Task
         {
             try
             {
-                string directory = Path.GetDirectoryName(LogFilePath);
-                Directory.CreateDirectory(directory);
+                string? directory = Path.GetDirectoryName(LogFilePath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
                 logStream = File.Open(LogFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
 
                 // Ensure log file is empty.
