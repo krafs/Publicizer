@@ -19,7 +19,9 @@
   <Target Name="CopyNugetPackage" AfterTargets="AfterBuild">
     <ItemGroup>
       <PublicizerNuget Include="..\Publicizer\bin\Krafs.Publicizer.*.nupkg"  />
+      <StaleNuget Include="$(OutputPath)Krafs.Publicizer.*.nupkg" />
     </ItemGroup>
+    <Delete Files="@(StaleNuget)" />
     <Copy SourceFiles="@(PublicizerNuget)" DestinationFolder="$(OutputPath)" />
   </Target>
 
