@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -10,9 +11,19 @@ namespace Publicizer;
 /// </summary>
 internal static class Hasher
 {
+    // Includes the commit hash via SourceLink, so it changes on every build.
+    // Feeding it into the cache key invalidates assemblies publicized by an
+    // older Publicizer whose publicization logic may have differed.
+    private static readonly string PublicizerVersion =
+        typeof(Hasher).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? "unknown";
+
     internal static string ComputeHash(string assemblyPath, PublicizerAssemblyContext assemblyContext)
     {
         var sb = new StringBuilder();
+        sb.Append(PublicizerVersion);
         sb.Append(assemblyContext.AssemblyName);
         sb.Append(assemblyContext.IncludeCompilerGeneratedMembers);
         sb.Append(assemblyContext.IncludeVirtualMembers);
