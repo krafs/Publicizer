@@ -1,0 +1,29 @@
+TYPE Fixture.NoPrivateMembers : Public
+  FIELD AlreadyPublicField : Public
+  METHOD .ctor : Public
+  METHOD AlreadyPublicMethod : Public
+TYPE Fixture.Shapes : Public
+  FIELD <GetOnlyProp>k__BackingField : Public
+  FIELD <PrivateAutoProp>k__BackingField : Public
+  FIELD InternalField : Public
+  FIELD MarkedCompilerGeneratedField : Public
+  FIELD PrivateField : Public
+  FIELD PrivateProtectedField : Public
+  FIELD ProtectedField : Public
+  FIELD ProtectedInternalField : Public
+  FIELD PublicField : Public
+  FIELD StaticPrivateField : Public
+  METHOD .cctor : Public
+  METHOD .ctor : Public
+  METHOD InternalStaticMethod : Public
+  METHOD PrivateMethod : Public
+  METHOD ProtectedAbstractMethod : Public
+  METHOD ProtectedVirtualMethod : Public
+  METHOD PublicMethod : Public
+  METHOD get_GetOnlyProp : Public
+  METHOD get_PrivateAutoProp : Public
+  METHOD get_ProtectedExprProp : Public
+  METHOD set_PrivateAutoProp : Public
+TYPE Fixture.Shapes/Inner : NestedPublic
+  FIELD InnerPrivateField : Public
+  METHOD .ctor : Public

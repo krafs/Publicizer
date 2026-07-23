@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Fixture</AssemblyName>
+    <RootNamespace>Fixture</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Fixture code deliberately holds unused/never-assigned private members to
+         exercise the publicization branches; don't let that fail the build. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS0169;CS0414;CS0649;CS0067;CS8618;CA1051;CA1822;CA1852</NoWarn>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+</Project>

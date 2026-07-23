@@ -3,16 +3,25 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
+    <!-- Tests build ad-hoc Regex instances; source-generated regex isn't warranted here. -->
+    <NoWarn>$(NoWarn);SYSLIB1045</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.8.2" />
     <PackageReference Include="NUnit" Version="4.6.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Publicizer\Publicizer.csproj" />
+    <!-- Fixture is test data, not a code dependency: build it and drop Fixture.dll
+         into the test output for the characterization tests to load via dnlib. -->
+    <ProjectReference Include="..\Publicizer.Tests.Fixture\Publicizer.Tests.Fixture.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Content"
+                      CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="CopyNugetPackage" AfterTargets="AfterBuild">

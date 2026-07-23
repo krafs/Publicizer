@@ -158,7 +158,7 @@ public sealed class PublicizeAssemblies : Task
         return true;
     }
 
-    private static Dictionary<string, PublicizerAssemblyContext> GetPublicizerAssemblyContexts(
+    internal static Dictionary<string, PublicizerAssemblyContext> GetPublicizerAssemblyContexts(
         ITaskItem[] publicizeItems,
         ITaskItem[] doNotPublicizeItems,
         ITaskLogger logger)
@@ -221,7 +221,7 @@ public sealed class PublicizeAssemblies : Task
         return contexts;
     }
 
-    private static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
+    internal static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
     {
         bool publicizedAnyMemberInAssembly = false;
         var doNotPublicizePropertyMethods = new HashSet<MethodDef>();
