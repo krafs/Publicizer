@@ -3,8 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <!-- Tests build ad-hoc Regex instances; source-generated regex isn't warranted here. -->
-    <NoWarn>$(NoWarn);SYSLIB1045</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

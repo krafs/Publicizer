@@ -11,10 +11,12 @@ namespace Publicizer.Tests;
 /// each scenario. These snapshots freeze current behavior so the tree can be refactored
 /// safely: any change to a member's resulting visibility surfaces as a snapshot diff.
 /// </summary>
-public class PublicizeAssemblyCharacterizationTests
+public partial class PublicizeAssemblyCharacterizationTests
 {
-    private static bool Publicize(ModuleDef module, PublicizerAssemblyContext context) =>
-        PublicizeAssemblies.PublicizeAssembly(module, context, NullTaskLogger.Instance);
+    [GeneratedRegex("Protected")]
+    private static partial Regex ProtectedPattern();
+
+    private static bool Publicize(ModuleDef module, PublicizerAssemblyContext context) => PublicizeAssemblies.PublicizeAssembly(module, context, NullTaskLogger.Instance);
 
     private static FieldDef Field(ModuleDef module, string typeReflectionName, string fieldName) =>
         module.Find(typeReflectionName, isReflectionName: true).Fields.Single(f => f.Name == fieldName);
@@ -68,7 +70,7 @@ public class PublicizeAssemblyCharacterizationTests
         var context = new PublicizerAssemblyContext("Fixture")
         {
             ExplicitlyPublicizeAssembly = true,
-            PublicizeMemberRegexPattern = new Regex("Protected"),
+            PublicizeMemberRegexPattern = ProtectedPattern(),
         };
 
         Publicize(module, context);

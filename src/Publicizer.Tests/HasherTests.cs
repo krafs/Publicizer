@@ -8,10 +8,12 @@ namespace Publicizer.Tests;
 /// stable for equal inputs and must change when any input that affects
 /// publicization output changes.
 /// </summary>
-public class HasherTests
+public partial class HasherTests
 {
-    private static string Hash(PublicizerAssemblyContext context) =>
-        Hasher.ComputeHash(Fixtures.ShapesPath(), context);
+    [GeneratedRegex(".*Foo.*")]
+    private static partial Regex FooPattern();
+
+    private static string Hash(PublicizerAssemblyContext context) => Hasher.ComputeHash(Fixtures.ShapesPath(), context);
 
     [Test]
     public void ComputeHash_SameInputs_IsStable()
@@ -91,7 +93,7 @@ public class HasherTests
     public void ComputeHash_SettingMemberRegexPattern_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
-        var context = new PublicizerAssemblyContext("Fixture") { PublicizeMemberRegexPattern = new Regex(".*Foo.*") };
+        var context = new PublicizerAssemblyContext("Fixture") { PublicizeMemberRegexPattern = FooPattern() };
 
         Assert.That(Hash(context), Is.Not.EqualTo(baseline));
     }

@@ -24,16 +24,28 @@ internal static class AccessibilityManifest
 
         foreach (TypeDef type in types)
         {
-            builder.Append("TYPE ").Append(type.FullName).Append(" : ").AppendLine(Access(type));
+            builder
+                .Append("TYPE ")
+                .Append(type.FullName)
+                .Append(" : ")
+                .AppendLine(Access(type));
 
             foreach (FieldDef field in type.Fields.OrderBy(f => f.Name.String, StringComparer.Ordinal))
             {
-                builder.Append("  FIELD ").Append(field.Name).Append(" : ").AppendLine(Access(field));
+                builder
+                    .Append("  FIELD ")
+                    .Append(field.Name)
+                    .Append(" : ")
+                    .AppendLine(Access(field));
             }
 
             foreach (MethodDef method in type.Methods.OrderBy(m => m.Name.String, StringComparer.Ordinal))
             {
-                builder.Append("  METHOD ").Append(method.Name).Append(" : ").AppendLine(Access(method));
+                builder
+                    .Append("  METHOD ")
+                    .Append(method.Name)
+                    .Append(" : ")
+                    .AppendLine(Access(method));
             }
         }
 

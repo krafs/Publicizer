@@ -10,14 +10,9 @@ namespace Publicizer.Tests;
 /// </summary>
 public class AssemblyEditorTests
 {
-    private static TypeDef ShapesType(ModuleDef module) =>
-        module.Find("Fixture.Shapes", isReflectionName: true);
-
-    private static FieldDef Field(ModuleDef module, string name) =>
-        ShapesType(module).Fields.Single(f => f.Name == name);
-
-    private static MethodDef Method(ModuleDef module, string name) =>
-        ShapesType(module).Methods.Single(m => m.Name == name);
+    private static TypeDef ShapesType(ModuleDef module) => module.Find("Fixture.Shapes", isReflectionName: true);
+    private static FieldDef Field(ModuleDef module, string name) => ShapesType(module).Fields.Single(f => f.Name == name);
+    private static MethodDef Method(ModuleDef module, string name) => ShapesType(module).Methods.Single(m => m.Name == name);
 
     [Test]
     public void PublicizeField_PrivateField_BecomesPublicAndReturnsTrue()
