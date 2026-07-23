@@ -12,10 +12,8 @@ namespace Publicizer.Tests;
 /// </summary>
 public class GetPublicizerAssemblyContextsTests
 {
-    private static Dictionary<string, PublicizerAssemblyContext> Build(
-        ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null) =>
-        PublicizeAssemblies.GetPublicizerAssemblyContexts(
-            publicizes, doNotPublicizes ?? System.Array.Empty<ITaskItem>(), NullTaskLogger.Instance);
+    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null) =>
+        PublicizeAssemblies.GetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? System.Array.Empty<ITaskItem>(), NullTaskLogger.Instance);
 
     [Test]
     public void AssemblyWidePublicize_SetsExplicitlyPublicizeAssemblyWithDefaults()
@@ -86,9 +84,7 @@ public class GetPublicizerAssemblyContextsTests
     [Test]
     public void SameAssemblyInPublicizeAndDoNotPublicize_MergesIntoOneContext()
     {
-        Dictionary<string, PublicizerAssemblyContext> contexts = Build(
-            new ITaskItem[] { new TaskItem("Asm") },
-            new ITaskItem[] { new TaskItem("Asm:Ns.Type.Member") });
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build(new ITaskItem[] { new TaskItem("Asm") }, new ITaskItem[] { new TaskItem("Asm:Ns.Type.Member") });
 
         Assert.That(contexts, Has.Count.EqualTo(1));
         PublicizerAssemblyContext context = contexts["Asm"];

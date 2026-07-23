@@ -19,8 +19,7 @@ internal sealed class FakeBuildEngine : IBuildEngine
     public void LogMessageEvent(BuildMessageEventArgs e) => Messages.Add(e.Message ?? string.Empty);
     public void LogCustomEvent(CustomBuildEventArgs e) { }
 
-    public bool BuildProjectFile(
-        string projectFileName, string[] targetNames, IDictionary globalProperties, IDictionary targetOutputs) => true;
+    public bool BuildProjectFile(string projectFileName, string[] targetNames, IDictionary globalProperties, IDictionary targetOutputs) => true;
 
     public bool ContinueOnError => false;
     public int LineNumberOfTaskNode => 0;

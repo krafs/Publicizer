@@ -20,9 +20,7 @@ internal static class AccessibilityManifest
     {
         var builder = new StringBuilder();
 
-        IEnumerable<TypeDef> types = module.GetTypes()
-            .Where(type => type.Name != "<Module>")
-            .OrderBy(type => type.FullName, StringComparer.Ordinal);
+        IEnumerable<TypeDef> types = module.GetTypes().Where(type => type.Name != "<Module>").OrderBy(type => type.FullName, StringComparer.Ordinal);
 
         foreach (TypeDef type in types)
         {
@@ -42,41 +40,37 @@ internal static class AccessibilityManifest
         return builder.ToString();
     }
 
-    private static string Access(TypeDef type)
+    private static string Access(TypeDef type) => type switch
     {
-        if (!type.IsNested)
-        {
-            return type.IsPublic ? "Public" : "NotPublic";
-        }
+        { IsNested: false } => type.IsPublic ? "Public" : "NotPublic",
+        { IsNestedPublic: true } => "NestedPublic",
+        { IsNestedPrivate: true } => "NestedPrivate",
+        { IsNestedFamily: true } => "NestedFamily",
+        { IsNestedAssembly: true } => "NestedAssembly",
+        { IsNestedFamilyOrAssembly: true } => "NestedFamilyOrAssembly",
+        { IsNestedFamilyAndAssembly: true } => "NestedFamilyAndAssembly",
+        _ => "NestedUnknown",
+    };
 
-        if (type.IsNestedPublic) return "NestedPublic";
-        if (type.IsNestedPrivate) return "NestedPrivate";
-        if (type.IsNestedFamily) return "NestedFamily";
-        if (type.IsNestedAssembly) return "NestedAssembly";
-        if (type.IsNestedFamilyOrAssembly) return "NestedFamilyOrAssembly";
-        if (type.IsNestedFamilyAndAssembly) return "NestedFamilyAndAssembly";
-        return "NestedUnknown";
-    }
-
-    private static string Access(FieldDef field)
+    private static string Access(FieldDef field) => field switch
     {
-        if (field.IsPublic) return "Public";
-        if (field.IsPrivate) return "Private";
-        if (field.IsFamily) return "Family";
-        if (field.IsAssembly) return "Assembly";
-        if (field.IsFamilyOrAssembly) return "FamilyOrAssembly";
-        if (field.IsFamilyAndAssembly) return "FamilyAndAssembly";
-        return "CompilerControlled";
-    }
+        { IsPublic: true } => "Public",
+        { IsPrivate: true } => "Private",
+        { IsFamily: true } => "Family",
+        { IsAssembly: true } => "Assembly",
+        { IsFamilyOrAssembly: true } => "FamilyOrAssembly",
+        { IsFamilyAndAssembly: true } => "FamilyAndAssembly",
+        _ => "CompilerControlled",
+    };
 
-    private static string Access(MethodDef method)
+    private static string Access(MethodDef method) => method switch
     {
-        if (method.IsPublic) return "Public";
-        if (method.IsPrivate) return "Private";
-        if (method.IsFamily) return "Family";
-        if (method.IsAssembly) return "Assembly";
-        if (method.IsFamilyOrAssembly) return "FamilyOrAssembly";
-        if (method.IsFamilyAndAssembly) return "FamilyAndAssembly";
-        return "CompilerControlled";
-    }
+        { IsPublic: true } => "Public",
+        { IsPrivate: true } => "Private",
+        { IsFamily: true } => "Family",
+        { IsAssembly: true } => "Assembly",
+        { IsFamilyOrAssembly: true } => "FamilyOrAssembly",
+        { IsFamilyAndAssembly: true } => "FamilyAndAssembly",
+        _ => "CompilerControlled",
+    };
 }

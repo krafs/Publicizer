@@ -17,10 +17,7 @@ namespace Publicizer.Tests;
 /// </summary>
 internal static class Approvals
 {
-    internal static void Verify(
-        string received,
-        [CallerFilePath] string testFilePath = "",
-        [CallerMemberName] string testName = "")
+    internal static void Verify(string received, [CallerFilePath] string testFilePath = "", [CallerMemberName] string testName = "")
     {
         string sourceFileName = Path.GetFileNameWithoutExtension(testFilePath);
         string snapshotDirectory = Path.Combine(Path.GetDirectoryName(testFilePath)!, "Snapshots");
@@ -46,10 +43,7 @@ internal static class Approvals
         if (!File.Exists(approvedPath))
         {
             File.WriteAllText(receivedPath, received);
-            Assert.Fail(
-                $"No approved snapshot at {approvedPath}. " +
-                $"Reviewed the received output at {receivedPath} and rename it to *.verified.txt, " +
-                $"or re-run with VERIFY_APPROVE=1.");
+            Assert.Fail($"No approved snapshot at {approvedPath}. Reviewed the received output at {receivedPath} and rename it to *.verified.txt, or re-run with VERIFY_APPROVE=1.");
         }
 
         string approved = File.ReadAllText(approvedPath).Replace("\r\n", "\n");
@@ -63,7 +57,6 @@ internal static class Approvals
         }
 
         File.WriteAllText(receivedPath, received);
-        Assert.That(received, Is.EqualTo(approved),
-            $"Snapshot mismatch. Received written to {receivedPath}.");
+        Assert.That(received, Is.EqualTo(approved), $"Snapshot mismatch. Received written to {receivedPath}.");
     }
 }
