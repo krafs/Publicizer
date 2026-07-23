@@ -239,4 +239,53 @@ public class PublicizeAssemblyCharacterizationTests
 
         Assert.That(Field(module, "Fixture.GenericHolder`1", "GenericField").IsPublic, Is.True);
     }
+
+    [Test]
+    public void PublicizeTarget_MatchesNothing_PublicizesNothingAndReturnsFalse()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture");
+        context.PublicizeMemberPatterns.Add("Fixture.Shapes.NoSuchMember");
+
+        // Silent no-match: nothing is publicized and no per-target diagnostic is raised here
+        // (the assembly-level warning lives in the task; see ExecuteTests). The rewrite's strict
+        // mode intends to change this deliberately.
+        bool modified = Publicize(module, context);
+
+        Assert.That(modified, Is.False);
+        Assert.That(Field(module, "Fixture.Shapes", "PrivateField").IsPrivate, Is.True);
+    }
+
+    [Test]
+    public void ExplicitMemberPublicize_BeatsDoNotPublicizeType()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture");
+        context.DoNotPublicizeMemberPatterns.Add("Fixture.Shapes");
+        context.PublicizeMemberPatterns.Add("Fixture.Shapes.PrivateField");
+
+        Publicize(module, context);
+
+        // The explicit member wins over the type-wide exclusion...
+        Assert.That(Field(module, "Fixture.Shapes", "PrivateField").IsPublic, Is.True);
+        // ...but other members of the excluded type stay untouched.
+        Assert.That(Field(module, "Fixture.Shapes", "ProtectedField").IsFamily, Is.True);
+    }
+
+    [Test]
+    public void DoNotPublicizeEvent_ByName_ExcludesBackingField()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
+        context.DoNotPublicizeMemberPatterns.Add("Fixture.Shapes.FieldLikeEvent");
+
+        Publicize(module, context);
+
+        // Events aren't matched as first-class members, but the documented workaround (issue #141)
+        // works by coincidence: the backing field shares the event's name, so DoNotPublicize-ing the
+        // event name excludes the field and avoids the CS0229 collision.
+        Assert.That(Field(module, "Fixture.Shapes", "FieldLikeEvent").IsPrivate, Is.True);
+        // The rest of the assembly is still publicized.
+        Assert.That(Field(module, "Fixture.Shapes", "PrivateField").IsPublic, Is.True);
+    }
 }

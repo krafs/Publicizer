@@ -78,6 +78,27 @@ public class ExecuteTests
     }
 
     [Test]
+    public void Execute_PublicizeTargetMatchesNothing_WarnsAndDoesNotSwapReference()
+    {
+        using var output = new TemporaryFolder();
+        var engine = new FakeBuildEngine();
+        var task = new PublicizeAssemblies
+        {
+            BuildEngine = engine,
+            OutputDirectory = output.Path,
+            ReferencePaths = new ITaskItem[] { new TaskItem(Fixtures.ShapesPath()) },
+            Publicizes = new ITaskItem[] { new TaskItem("Fixture:Fixture.Shapes.NoSuchMember") },
+        };
+
+        bool result = task.Execute();
+
+        Assert.That(result, Is.True);
+        Assert.That(task.ReferencePathsToAdd, Is.Empty);
+        Assert.That(task.ReferencePathsToDelete, Is.Empty);
+        Assert.That(engine.Warnings, Has.Some.Contains("no members were publicized"));
+    }
+
+    [Test]
     public void Execute_WithLogFilePath_WritesLogFile()
     {
         using var output = new TemporaryFolder();
