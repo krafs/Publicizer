@@ -35,6 +35,12 @@ public abstract class Shapes
     [System.Runtime.CompilerServices.CompilerGenerated]
     private int MarkedCompilerGeneratedField;
 
+    // Field-like event: the compiler emits a [CompilerGenerated] private backing field
+    // named the same as the event ("FieldLikeEvent"). Publicizing that field collides
+    // with the public event by name (CS0229) — the original reason for the
+    // IncludeCompilerGeneratedMembers filter (issue #9).
+    public event System.Action FieldLikeEvent;
+
     // Nested type with a private member: publicizing the member must also walk up
     // and publicize the enclosing type.
     private class Inner
@@ -48,4 +54,12 @@ public class NoPrivateMembers
 {
     public int AlreadyPublicField;
     public void AlreadyPublicMethod() { }
+}
+
+// Generic type: pins how member matching handles arity-mangled reflection names
+// (e.g. "Fixture.GenericHolder`1.GenericField").
+public class GenericHolder<T>
+{
+    private T GenericField;
+    private T GenericMethod(T value) => value;
 }

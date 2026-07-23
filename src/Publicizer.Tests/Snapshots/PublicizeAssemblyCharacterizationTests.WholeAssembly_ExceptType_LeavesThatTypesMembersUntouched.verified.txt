@@ -1,7 +1,7 @@
 TYPE Fixture.GenericHolder`1 : Public
-  FIELD GenericField : Private
+  FIELD GenericField : Public
   METHOD .ctor : Public
-  METHOD GenericMethod : Private
+  METHOD GenericMethod : Public
 TYPE Fixture.NoPrivateMembers : Public
   FIELD AlreadyPublicField : Public
   METHOD .ctor : Public
@@ -21,7 +21,7 @@ TYPE Fixture.Shapes : Public
   METHOD .cctor : Private
   METHOD .ctor : Private
   METHOD InternalStaticMethod : Assembly
-  METHOD PrivateMethod : Public
+  METHOD PrivateMethod : Private
   METHOD ProtectedAbstractMethod : Family
   METHOD ProtectedVirtualMethod : Family
   METHOD PublicMethod : Public
@@ -31,6 +31,6 @@ TYPE Fixture.Shapes : Public
   METHOD get_ProtectedExprProp : Family
   METHOD remove_FieldLikeEvent : Public
   METHOD set_PrivateAutoProp : Private
-TYPE Fixture.Shapes/Inner : NestedPrivate
-  FIELD InnerPrivateField : Private
+TYPE Fixture.Shapes/Inner : NestedPublic
+  FIELD InnerPrivateField : Public
   METHOD .ctor : Public

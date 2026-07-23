@@ -1,3 +1,7 @@
+TYPE Fixture.GenericHolder`1 : Public
+  FIELD GenericField : Private
+  METHOD .ctor : Public
+  METHOD GenericMethod : Private
 TYPE Fixture.NoPrivateMembers : Public
   FIELD AlreadyPublicField : Public
   METHOD .ctor : Public
@@ -5,6 +9,7 @@ TYPE Fixture.NoPrivateMembers : Public
 TYPE Fixture.Shapes : Public
   FIELD <GetOnlyProp>k__BackingField : Private
   FIELD <PrivateAutoProp>k__BackingField : Private
+  FIELD FieldLikeEvent : Private
   FIELD InternalField : Assembly
   FIELD MarkedCompilerGeneratedField : Private
   FIELD PrivateField : Private
@@ -20,9 +25,11 @@ TYPE Fixture.Shapes : Public
   METHOD ProtectedAbstractMethod : Family
   METHOD ProtectedVirtualMethod : Family
   METHOD PublicMethod : Public
+  METHOD add_FieldLikeEvent : Public
   METHOD get_GetOnlyProp : Private
   METHOD get_PrivateAutoProp : Private
   METHOD get_ProtectedExprProp : Family
+  METHOD remove_FieldLikeEvent : Public
   METHOD set_PrivateAutoProp : Private
 TYPE Fixture.Shapes/Inner : NestedPublic
   FIELD InnerPrivateField : Public

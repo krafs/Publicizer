@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.RegularExpressions;
 using dnlib.DotNet;
 using NUnit.Framework;
@@ -14,6 +15,9 @@ public class PublicizeAssemblyCharacterizationTests
 {
     private static bool Publicize(ModuleDef module, PublicizerAssemblyContext context) =>
         PublicizeAssemblies.PublicizeAssembly(module, context, NullTaskLogger.Instance);
+
+    private static FieldDef Field(ModuleDef module, string typeReflectionName, string fieldName) =>
+        module.Find(typeReflectionName, isReflectionName: true).Fields.Single(f => f.Name == fieldName);
 
     [Test]
     public void WholeAssembly_Defaults()
@@ -154,5 +158,85 @@ public class PublicizeAssemblyCharacterizationTests
         Publicize(module, context);
 
         Approvals.Verify(AccessibilityManifest.Of(module));
+    }
+
+    [Test]
+    public void PublicizeType_ByName_PublicizesTypeAndWalksUp()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture");
+        context.PublicizeMemberPatterns.Add("Fixture.Shapes+Inner");
+
+        Publicize(module, context);
+
+        Approvals.Verify(AccessibilityManifest.Of(module));
+    }
+
+    [Test]
+    public void WholeAssembly_ExceptType_LeavesThatTypesMembersUntouched()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
+        context.DoNotPublicizeMemberPatterns.Add("Fixture.Shapes");
+
+        Publicize(module, context);
+
+        Approvals.Verify(AccessibilityManifest.Of(module));
+    }
+
+    // --- Event backing field: the original reason for the compiler-generated filter (issue #9). ---
+
+    [Test]
+    public void EventBackingField_WholeAssemblyDefault_BecomesPublic_TheCollision()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
+
+        Publicize(module, context);
+
+        // Backing field goes public alongside the public event of the same name — the CS0229 case.
+        Assert.That(Field(module, "Fixture.Shapes", "FieldLikeEvent").IsPublic, Is.True);
+    }
+
+    [Test]
+    public void EventBackingField_ExcludingCompilerGenerated_StaysPrivate()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture")
+        {
+            ExplicitlyPublicizeAssembly = true,
+            IncludeCompilerGeneratedMembers = false,
+        };
+
+        Publicize(module, context);
+
+        Assert.That(Field(module, "Fixture.Shapes", "FieldLikeEvent").IsPrivate, Is.True);
+    }
+
+    // --- Precedence and generics. ---
+
+    [Test]
+    public void MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture");
+        context.PublicizeMemberPatterns.Add("Fixture.Shapes.PrivateField");
+        context.DoNotPublicizeMemberPatterns.Add("Fixture.Shapes.PrivateField");
+
+        Publicize(module, context);
+
+        Assert.That(Field(module, "Fixture.Shapes", "PrivateField").IsPrivate, Is.True);
+    }
+
+    [Test]
+    public void SingleMember_GenericField_MatchesArityMangledName()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture");
+        context.PublicizeMemberPatterns.Add("Fixture.GenericHolder`1.GenericField");
+
+        Publicize(module, context);
+
+        Assert.That(Field(module, "Fixture.GenericHolder`1", "GenericField").IsPublic, Is.True);
     }
 }

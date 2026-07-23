@@ -21,7 +21,7 @@ TYPE Fixture.Shapes : Public
   METHOD .cctor : Private
   METHOD .ctor : Private
   METHOD InternalStaticMethod : Assembly
-  METHOD PrivateMethod : Public
+  METHOD PrivateMethod : Private
   METHOD ProtectedAbstractMethod : Family
   METHOD ProtectedVirtualMethod : Family
   METHOD PublicMethod : Public
@@ -31,6 +31,6 @@ TYPE Fixture.Shapes : Public
   METHOD get_ProtectedExprProp : Family
   METHOD remove_FieldLikeEvent : Public
   METHOD set_PrivateAutoProp : Private
-TYPE Fixture.Shapes/Inner : NestedPrivate
+TYPE Fixture.Shapes/Inner : NestedPublic
   FIELD InnerPrivateField : Private
   METHOD .ctor : Public
