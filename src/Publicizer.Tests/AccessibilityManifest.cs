@@ -20,7 +20,9 @@ internal static class AccessibilityManifest
     {
         var builder = new StringBuilder();
 
-        IEnumerable<TypeDef> types = module.GetTypes().Where(type => type.Name != "<Module>").OrderBy(type => type.FullName, StringComparer.Ordinal);
+        IEnumerable<TypeDef> types = module.GetTypes()
+            .Where(type => type.Name != "<Module>")
+            .OrderBy(type => type.FullName, StringComparer.Ordinal);
 
         foreach (TypeDef type in types)
         {

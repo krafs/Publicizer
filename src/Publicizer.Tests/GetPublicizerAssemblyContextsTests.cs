@@ -12,13 +12,15 @@ namespace Publicizer.Tests;
 /// </summary>
 public class GetPublicizerAssemblyContextsTests
 {
-    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null) =>
-        PublicizeAssemblies.GetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? System.Array.Empty<ITaskItem>(), NullTaskLogger.Instance);
+    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null)
+    {
+        return PublicizeAssemblies.GetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? [], NullTaskLogger.Instance);
+    }
 
     [Test]
     public void AssemblyWidePublicize_SetsExplicitlyPublicizeAssemblyWithDefaults()
     {
-        Dictionary<string, PublicizerAssemblyContext> contexts = Build(new ITaskItem[] { new TaskItem("Asm") });
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build([new TaskItem("Asm")]);
 
         Assert.That(contexts.ContainsKey("Asm"), Is.True);
         PublicizerAssemblyContext context = contexts["Asm"];
@@ -32,7 +34,7 @@ public class GetPublicizerAssemblyContextsTests
     public void MemberPublicize_AddsMemberPatternAndDoesNotPublicizeWholeAssembly()
     {
         Dictionary<string, PublicizerAssemblyContext> contexts =
-            Build(new ITaskItem[] { new TaskItem("Asm:Ns.Type.Member") });
+            Build([new TaskItem("Asm:Ns.Type.Member")]);
 
         PublicizerAssemblyContext context = contexts["Asm"];
         Assert.That(context.ExplicitlyPublicizeAssembly, Is.False);
@@ -46,7 +48,7 @@ public class GetPublicizerAssemblyContextsTests
         item.SetMetadata("IncludeVirtualMembers", "false");
         item.SetMetadata("IncludeCompilerGeneratedMembers", "false");
 
-        PublicizerAssemblyContext context = Build(new ITaskItem[] { item })["Asm"];
+        PublicizerAssemblyContext context = Build([item])["Asm"];
 
         Assert.That(context.IncludeVirtualMembers, Is.False);
         Assert.That(context.IncludeCompilerGeneratedMembers, Is.False);
@@ -58,7 +60,7 @@ public class GetPublicizerAssemblyContextsTests
         var item = new TaskItem("Asm");
         item.SetMetadata("MemberPattern", ".*Foo.*");
 
-        PublicizerAssemblyContext context = Build(new ITaskItem[] { item })["Asm"];
+        PublicizerAssemblyContext context = Build([item])["Asm"];
 
         Assert.That(context.PublicizeMemberRegexPattern, Is.Not.Null);
     }
@@ -66,8 +68,7 @@ public class GetPublicizerAssemblyContextsTests
     [Test]
     public void DoNotPublicizeAssembly_SetsExplicitlyDoNotPublicizeAssembly()
     {
-        Dictionary<string, PublicizerAssemblyContext> contexts =
-            Build(System.Array.Empty<ITaskItem>(), new ITaskItem[] { new TaskItem("Asm") });
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build([], [new TaskItem("Asm")]);
 
         Assert.That(contexts["Asm"].ExplicitlyDoNotPublicizeAssembly, Is.True);
     }
@@ -75,8 +76,7 @@ public class GetPublicizerAssemblyContextsTests
     [Test]
     public void DoNotPublicizeMember_AddsDoNotPublicizeMemberPattern()
     {
-        Dictionary<string, PublicizerAssemblyContext> contexts =
-            Build(System.Array.Empty<ITaskItem>(), new ITaskItem[] { new TaskItem("Asm:Ns.Type.Member") });
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build([], [new TaskItem("Asm:Ns.Type.Member")]);
 
         Assert.That(contexts["Asm"].DoNotPublicizeMemberPatterns, Does.Contain("Ns.Type.Member"));
     }
@@ -84,7 +84,7 @@ public class GetPublicizerAssemblyContextsTests
     [Test]
     public void SameAssemblyInPublicizeAndDoNotPublicize_MergesIntoOneContext()
     {
-        Dictionary<string, PublicizerAssemblyContext> contexts = Build(new ITaskItem[] { new TaskItem("Asm") }, new ITaskItem[] { new TaskItem("Asm:Ns.Type.Member") });
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build([new TaskItem("Asm")], [new TaskItem("Asm:Ns.Type.Member")]);
 
         Assert.That(contexts, Has.Count.EqualTo(1));
         PublicizerAssemblyContext context = contexts["Asm"];

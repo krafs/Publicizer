@@ -71,20 +71,20 @@ internal static class Fixtures
         }
         """;
 
-    private static readonly byte[] ShapesAssembly = Compiler.Compile(ShapesSource);
-    private static readonly Lazy<string> ShapesFilePath = new(WriteShapesToDisk);
+    private static readonly byte[] s_shapesAssembly = Compiler.Compile(ShapesSource);
+    private static readonly Lazy<string> s_shapesFilePath = new(WriteShapesToDisk);
 
-    internal static ModuleDefMD LoadShapesModule() => ModuleDefMD.Load(ShapesAssembly);
+    internal static ModuleDefMD LoadShapesModule() => ModuleDefMD.Load(s_shapesAssembly);
 
     // The task and the hasher work off a file path, so materialize the compiled bytes once as "Fixture.dll".
     // The filename (minus extension) is the assembly name the Publicize items match against.
-    internal static string ShapesPath() => ShapesFilePath.Value;
+    internal static string ShapesPath() => s_shapesFilePath.Value;
 
     private static string WriteShapesToDisk()
     {
         string directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "PublicizerFixtures")).FullName;
         string path = Path.Combine(directory, "Fixture.dll");
-        File.WriteAllBytes(path, ShapesAssembly);
+        File.WriteAllBytes(path, s_shapesAssembly);
         return path;
     }
 }

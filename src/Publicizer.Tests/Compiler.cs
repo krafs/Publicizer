@@ -15,26 +15,36 @@ namespace Publicizer.Tests;
 /// </summary>
 internal static class Compiler
 {
-    private static readonly List<MetadataReference> References = BuildReferences();
+    private static readonly List<MetadataReference> s_references = BuildReferences();
 
     internal static byte[] Compile(string code, string assemblyName = "Fixture")
     {
-        CSharpCompilation compilation = CSharpCompilation.Create(assemblyName, [CSharpSyntaxTree.ParseText(code)], References, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, deterministic: true));
+        var compilation = CSharpCompilation.Create(
+            assemblyName,
+            [CSharpSyntaxTree.ParseText(code)],
+            s_references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, deterministic: true));
 
         using var stream = new MemoryStream();
         EmitResult result = compilation.Emit(stream);
-        if (!result.Success)
+        if (result.Success)
         {
-            string errors = string.Join(Environment.NewLine, result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-            throw new InvalidOperationException($"Fixture compilation failed:{Environment.NewLine}{errors}");
+            return stream.ToArray();
         }
 
-        return stream.ToArray();
+        string errors = string.Join(Environment.NewLine, result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        throw new InvalidOperationException($"Fixture compilation failed:{Environment.NewLine}{errors}");
     }
 
     private static List<MetadataReference> BuildReferences()
     {
-        string trustedPlatformAssemblies = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
-        return trustedPlatformAssemblies.Split(Path.PathSeparator).Where(path => path.Length > 0).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path)).ToList();
+        return
+        [
+            .. AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!
+                .ToString()!
+                .Split(Path.PathSeparator)
+                .Where(path => path.Length > 0)
+                .Select(MetadataReference (path) => MetadataReference.CreateFromFile(path))
+        ];
     }
 }

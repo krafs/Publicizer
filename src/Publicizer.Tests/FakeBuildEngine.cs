@@ -10,9 +10,9 @@ namespace Publicizer.Tests;
 /// </summary>
 internal sealed class FakeBuildEngine : IBuildEngine
 {
-    internal List<string> Errors { get; } = new();
-    internal List<string> Warnings { get; } = new();
-    internal List<string> Messages { get; } = new();
+    internal List<string> Errors { get; } = [];
+    internal List<string> Warnings { get; } = [];
+    internal List<string> Messages { get; } = [];
 
     public void LogErrorEvent(BuildErrorEventArgs e) => Errors.Add(e.Message ?? string.Empty);
     public void LogWarningEvent(BuildWarningEventArgs e) => Warnings.Add(e.Message ?? string.Empty);

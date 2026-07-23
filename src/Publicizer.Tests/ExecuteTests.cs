@@ -21,8 +21,8 @@ public class ExecuteTests
         {
             BuildEngine = engine,
             OutputDirectory = outputDirectory,
-            ReferencePaths = new ITaskItem[] { new TaskItem(Fixtures.ShapesPath()) },
-            Publicizes = new ITaskItem[] { new TaskItem("Fixture") },
+            ReferencePaths = [new TaskItem(Fixtures.ShapesPath())],
+            Publicizes = [new TaskItem("Fixture")],
         };
     }
 
@@ -67,8 +67,8 @@ public class ExecuteTests
         {
             BuildEngine = new FakeBuildEngine(),
             OutputDirectory = output.Path,
-            ReferencePaths = new ITaskItem[] { new TaskItem(Fixtures.ShapesPath()) },
-            Publicizes = System.Array.Empty<ITaskItem>(),
+            ReferencePaths = [new TaskItem(Fixtures.ShapesPath())],
+            Publicizes = [],
         };
 
         bool result = task.Execute();
@@ -86,8 +86,8 @@ public class ExecuteTests
         {
             BuildEngine = engine,
             OutputDirectory = output.Path,
-            ReferencePaths = new ITaskItem[] { new TaskItem(Fixtures.ShapesPath()) },
-            Publicizes = new ITaskItem[] { new TaskItem("Fixture:Fixture.Shapes.NoSuchMember") },
+            ReferencePaths = [new TaskItem(Fixtures.ShapesPath())],
+            Publicizes = [new TaskItem("Fixture:Fixture.Shapes.NoSuchMember")],
         };
 
         bool result = task.Execute();
