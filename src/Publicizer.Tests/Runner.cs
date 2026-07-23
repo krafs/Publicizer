@@ -16,7 +16,7 @@ internal static class Runner
         {
             startInfo.ArgumentList.Add(argument);
         }
-        using Process process = Process.Start(startInfo)!;
+        using var process = Process.Start(startInfo)!;
         process.WaitForExit();
 
         var result = new ProcessResult(

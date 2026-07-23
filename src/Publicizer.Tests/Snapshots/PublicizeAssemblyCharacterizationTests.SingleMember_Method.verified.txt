@@ -1,0 +1,36 @@
+TYPE Fixture.GenericHolder`1 : Public
+  FIELD GenericField : Private
+  METHOD .ctor : Public
+  METHOD GenericMethod : Private
+TYPE Fixture.NoPrivateMembers : Public
+  FIELD AlreadyPublicField : Public
+  METHOD .ctor : Public
+  METHOD AlreadyPublicMethod : Public
+TYPE Fixture.Shapes : Public
+  FIELD <GetOnlyProp>k__BackingField : Private
+  FIELD <PrivateAutoProp>k__BackingField : Private
+  FIELD FieldLikeEvent : Private
+  FIELD InternalField : Assembly
+  FIELD MarkedCompilerGeneratedField : Private
+  FIELD PrivateField : Private
+  FIELD PrivateProtectedField : FamilyAndAssembly
+  FIELD ProtectedField : Family
+  FIELD ProtectedInternalField : FamilyOrAssembly
+  FIELD PublicField : Public
+  FIELD StaticPrivateField : Private
+  METHOD .cctor : Private
+  METHOD .ctor : Private
+  METHOD InternalStaticMethod : Assembly
+  METHOD PrivateMethod : Public
+  METHOD ProtectedAbstractMethod : Family
+  METHOD ProtectedVirtualMethod : Family
+  METHOD PublicMethod : Public
+  METHOD add_FieldLikeEvent : Public
+  METHOD get_GetOnlyProp : Private
+  METHOD get_PrivateAutoProp : Private
+  METHOD get_ProtectedExprProp : Family
+  METHOD remove_FieldLikeEvent : Public
+  METHOD set_PrivateAutoProp : Private
+TYPE Fixture.Shapes/Inner : NestedPrivate
+  FIELD InnerPrivateField : Private
+  METHOD .ctor : Public
