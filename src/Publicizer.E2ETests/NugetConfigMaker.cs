@@ -1,7 +1,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace Publicizer.Tests;
+namespace Publicizer.E2ETests;
 
 internal static class NugetConfigMaker
 {
