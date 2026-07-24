@@ -11,13 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build & Test
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-latest ]
-    runs-on: ${{ matrix.os }}
+  test:
+    name: Test
+    runs-on: ubuntu-latest
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -34,10 +30,47 @@ jobs:
         cache-dependency-path: '**/packages.lock.json'
 
     - name: Restore
-      run: dotnet restore --locked-mode
-      
-    - name: Build
-      run: dotnet build -c Release --no-restore
-      
+      run: dotnet restore src/Publicizer.Tests/Publicizer.Tests.csproj --locked-mode
+
     - name: Test
-      run: dotnet test -c Release --no-build
+      run: dotnet test src/Publicizer.Tests/Publicizer.Tests.csproj -c Release --no-restore
+
+  e2e:
+    # End-to-end tests build a real consumer and exercise the task under an MSBuild host.
+    # dotnet = Core MSBuild; msbuild = desktop MSBuild.exe (.NET Framework), the Visual
+    # Studio host. The builder is selected per leg via PUBLICIZER_TEST_BUILDER.
+    name: E2E (${{ matrix.os }}, ${{ matrix.builder }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            builder: dotnet
+          - os: windows-latest
+            builder: msbuild
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      PUBLICIZER_TEST_BUILDER: ${{ matrix.builder }}
+    steps:
+
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
+
+    - name: Set up MSBuild
+      if: matrix.builder == 'msbuild'
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2.0.0
+
+    - name: Restore
+      run: dotnet restore src/Publicizer.E2ETests/Publicizer.E2ETests.csproj --locked-mode
+
+    - name: Test
+      run: dotnet test src/Publicizer.E2ETests/Publicizer.E2ETests.csproj -c Release --no-restore

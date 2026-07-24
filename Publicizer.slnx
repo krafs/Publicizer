@@ -7,5 +7,6 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="src/Publicizer.Tests/Publicizer.Tests.csproj" />
+  <Project Path="src/Publicizer.E2ETests/Publicizer.E2ETests.csproj" />
   <Project Path="src/Publicizer/Publicizer.csproj" />
 </Solution>
