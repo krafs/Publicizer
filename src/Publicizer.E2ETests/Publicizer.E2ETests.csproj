@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="NUnit" Version="4.6.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
+  </ItemGroup>
+
+  <!-- Black-box: consume the packed nupkg, not the internals. The ProjectReference only
+       forces Publicizer to build (and pack, via GeneratePackageOnBuild) before these run. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Publicizer\Publicizer.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopyNugetPackage" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <PublicizerNuget Include="..\Publicizer\bin\Krafs.Publicizer.*.nupkg" />
+      <StaleNuget Include="$(OutputPath)Krafs.Publicizer.*.nupkg" />
+    </ItemGroup>
+    <Delete Files="@(StaleNuget)" />
+    <Copy SourceFiles="@(PublicizerNuget)" DestinationFolder="$(OutputPath)" />
+  </Target>
+
+</Project>
