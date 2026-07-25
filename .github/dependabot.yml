@@ -1,4 +1,9 @@
 version: 2
+
+# Bumps are kept out of the release notes by default: almost all of them are
+# test, CI, or build-time-only dependencies a consumer never sees. Drop
+# skip-changelog by hand for the exception -- dnlib is packed into the nupkg, so
+# users run it and a bump belongs in the notes.
 updates:
   - package-ecosystem: "nuget"
     directory: "/"
@@ -6,6 +11,7 @@ updates:
       interval: "weekly"
     labels:
       - "semver:patch"
+      - "skip-changelog"
     cooldown:
       default-days: 7
     groups:
@@ -20,6 +26,7 @@ updates:
       interval: "weekly"
     labels:
       - "semver:patch"
+      - "skip-changelog"
     cooldown:
       default-days: 7
 
@@ -29,6 +36,7 @@ updates:
       interval: "weekly"
     labels:
       - "semver:patch"
+      - "skip-changelog"
     cooldown:
       default-days: 7
     groups:

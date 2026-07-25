@@ -1,6 +1,7 @@
 changelog:
-  # Whether a PR earns a line is a per-PR call, not one an author or path glob
-  # can make: a dependabot bump of dnlib ships to users, a test-only bump doesn't.
+  # Whether a PR earns a line is a per-PR call, not one an author can make.
+  # Dependabot labels its own PRs skip-changelog, so bumps are hidden unless the
+  # label is removed -- see .github/dependabot.yml for the dnlib exception.
   exclude:
     labels:
       - skip-changelog
