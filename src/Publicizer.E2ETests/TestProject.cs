@@ -33,7 +33,13 @@ internal sealed class TestProject : IDisposable
 
     internal string Folder => _folder.Path;
 
-    internal string AssemblyPath => Path.Combine(_folder.Path, $"{_name}.dll");
+    // Output goes to a subfolder, not the project directory: with the two the same, a
+    // consumer's copy-local of a reference lands next to its own project and gets resolved
+    // in preference to the HintPath on the next build — stale, and nothing to do with the
+    // code under test.
+    private string OutputFolder => Path.Combine(_folder.Path, "bin");
+
+    internal string AssemblyPath => Path.Combine(OutputFolder, $"{_name}.dll");
 
     internal string ProjectPath => Path.Combine(_folder.Path, $"{_name}.csproj");
 
@@ -71,6 +77,19 @@ internal sealed class TestProject : IDisposable
         return Runner.Build(ProjectPath, extraArguments);
     }
 
+    // Builds through a node that stays alive afterwards, as a Visual Studio session does.
+    internal ProcessResult BuildReusingNodes()
+    {
+        File.WriteAllText(ProjectPath, ToCsproj());
+        return Runner.Build(ProjectPath, reuseNodes: true, []);
+    }
+
+    internal TestProject Rewrite(string sourceCode)
+    {
+        File.WriteAllText(_sourcePath, sourceCode);
+        return this;
+    }
+
     // For the setup steps a test isn't itself about: a failure here is a broken fixture, not a finding.
     internal TestProject BuildOrFail()
     {
@@ -97,7 +116,7 @@ internal sealed class TestProject : IDisposable
                 <TargetFramework>{DefaultTargetFramework}</TargetFramework>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <OutputType>{_outputType}</OutputType>
-                <OutDir>{_folder.Path}</OutDir>
+                <OutDir>{OutputFolder}</OutDir>
                 {properties}
               </PropertyGroup>
 
