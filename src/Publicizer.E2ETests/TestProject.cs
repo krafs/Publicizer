@@ -18,6 +18,7 @@ internal sealed class TestProject : IDisposable
     private readonly List<string> _properties = [];
     private readonly List<string> _items = [];
     private readonly List<string> _rawXml = [];
+    private string _targetFramework = DefaultTargetFramework;
 
     private TestProject(string name, string outputType, string sourceCode)
     {
@@ -39,9 +40,19 @@ internal sealed class TestProject : IDisposable
     // code under test.
     private string OutputFolder => Path.Combine(_folder.Path, "bin");
 
+    private bool TargetsNetFramework => _targetFramework.StartsWith("net4", StringComparison.Ordinal);
+
     internal string AssemblyPath => Path.Combine(OutputFolder, $"{_name}.dll");
 
     internal string ProjectPath => Path.Combine(_folder.Path, $"{_name}.csproj");
+
+    // .NET Framework consumers resolve references through a different set of search paths
+    // and reference assemblies than .NET ones.
+    internal TestProject TargetingFramework(string targetFramework)
+    {
+        _targetFramework = targetFramework;
+        return this;
+    }
 
     internal TestProject Property(string name, string value)
     {
@@ -101,7 +112,10 @@ internal sealed class TestProject : IDisposable
         return this;
     }
 
-    internal ProcessResult Run() => Runner.Run("dotnet", AssemblyPath);
+    // .NET Framework apps produce a runnable .exe; .NET apps are launched through the host.
+    internal ProcessResult Run() => TargetsNetFramework
+        ? Runner.Run(Path.Combine(OutputFolder, $"{_name}.exe"))
+        : Runner.Run("dotnet", AssemblyPath);
 
     private string ToCsproj()
     {
@@ -113,7 +127,7 @@ internal sealed class TestProject : IDisposable
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
-                <TargetFramework>{DefaultTargetFramework}</TargetFramework>
+                <TargetFramework>{_targetFramework}</TargetFramework>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <OutputType>{_outputType}</OutputType>
                 <OutDir>{OutputFolder}</OutDir>
