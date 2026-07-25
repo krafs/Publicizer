@@ -5,11 +5,12 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 permissions:
   contents: read
 
+# Job names below are matched by main's required status checks. Renaming a job
+# blocks every PR until branch protection is updated to match.
 jobs:
   test:
     name: Test
