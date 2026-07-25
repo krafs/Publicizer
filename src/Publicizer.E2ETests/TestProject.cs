@@ -11,6 +11,10 @@ internal sealed class TestProject : IDisposable
 {
     internal const string DefaultTargetFramework = "net10.0";
 
+    // Fixed: each consumer restores into its own globally-isolated packages folder, so
+    // nothing collides across tests and the reference can be pinned exactly.
+    private const string PackageVersion = "1.0.0";
+
     private readonly TemporaryFolder _folder = new();
     private readonly string _name;
     private readonly string _outputType;
@@ -18,6 +22,7 @@ internal sealed class TestProject : IDisposable
     private readonly List<string> _properties = [];
     private readonly List<string> _items = [];
     private readonly List<string> _rawXml = [];
+    private readonly List<LocalPackageSource> _packageSources = [];
     private string _targetFramework = DefaultTargetFramework;
 
     private TestProject(string name, string outputType, string sourceCode)
@@ -41,6 +46,8 @@ internal sealed class TestProject : IDisposable
     private string OutputFolder => Path.Combine(_folder.Path, "bin");
 
     private bool TargetsNetFramework => _targetFramework.StartsWith("net4", StringComparison.Ordinal);
+
+    private string PackageFolder => Path.Combine(_folder.Path, "package");
 
     internal string AssemblyPath => Path.Combine(OutputFolder, $"{_name}.dll");
 
@@ -68,11 +75,20 @@ internal sealed class TestProject : IDisposable
 
     internal TestProject Referencing(TestProject other) => Item("Reference", other._name, $"""HintPath="{other.AssemblyPath}" """);
 
-    // The PackageReference plus the nuget.config that resolves it from the locally packed nupkg.
+    // The PackageReference plus the local source that resolves it from the locally packed nupkg.
     internal TestProject ConsumingPublicizer()
     {
-        NugetConfigMaker.CreateConfigThatRestoresPublicizerLocally(_folder.Path);
+        _packageSources.Add(new LocalPackageSource("publicizer", NugetConfigMaker.PublicizerPackagesFolder, "Krafs.Publicizer"));
         return Item("PackageReference", "Krafs.Publicizer", """Version="*" """);
+    }
+
+    // Consume another test project the way most real consumers do: as a package, so its
+    // assembly arrives on ReferencePath through NuGet rather than a HintPath. Requires the
+    // other project to have been packed.
+    internal TestProject ReferencingPackage(TestProject other)
+    {
+        _packageSources.Add(new LocalPackageSource(other._name, other.PackageFolder, other._name));
+        return Item("PackageReference", other._name, $"""Version="{PackageVersion}" """);
     }
 
     // Raw XML appended inside the project, for the odd test that needs a target of its own.
@@ -84,15 +100,41 @@ internal sealed class TestProject : IDisposable
 
     internal ProcessResult Build(params string[] extraArguments)
     {
-        File.WriteAllText(ProjectPath, ToCsproj());
+        Materialize();
         return Runner.Build(ProjectPath, extraArguments);
+    }
+
+    // Packs the project so another one can consume it as a PackageReference.
+    internal TestProject PackOrFail()
+    {
+        Property("PackageVersion", PackageVersion);
+        Property("PackageOutputPath", PackageFolder);
+        Materialize();
+
+        ProcessResult result = Runner.Pack(ProjectPath);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Packing {_name} failed with exit code {result.ExitCode}:{Environment.NewLine}{result.Output}{result.Error}");
+        }
+        return this;
     }
 
     // Builds through a node that stays alive afterwards, as a Visual Studio session does.
     internal ProcessResult BuildReusingNodes()
     {
-        File.WriteAllText(ProjectPath, ToCsproj());
+        Materialize();
         return Runner.Build(ProjectPath, reuseNodes: true, []);
+    }
+
+    // Written late rather than as each call comes in: the nuget.config has to list every
+    // local source at once, and sources are added one builder call at a time.
+    private void Materialize()
+    {
+        File.WriteAllText(ProjectPath, ToCsproj());
+        if (_packageSources.Count > 0)
+        {
+            NugetConfigMaker.CreateConfig(_folder.Path, _packageSources);
+        }
     }
 
     internal TestProject Rewrite(string sourceCode)
