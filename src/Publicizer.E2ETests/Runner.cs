@@ -10,15 +10,21 @@ internal static class Runner
     // Selected by CI per matrix leg; defaults to dotnet so the suite runs anywhere.
     internal static string Builder => Environment.GetEnvironmentVariable("PUBLICIZER_TEST_BUILDER") ?? "dotnet";
 
-    internal static ProcessResult Build(string projectPath)
+    internal static bool UsesDesktopMSBuild => Builder.Equals("msbuild", StringComparison.OrdinalIgnoreCase);
+
+    // Extra arguments go to the host verbatim, so use only spellings both accept (-p:, -t:).
+    internal static ProcessResult Build(string projectPath, params string[] extraArguments)
     {
-        return Builder.ToLowerInvariant() switch
-        {
-            // -restore (not -t:restore,build): restore in a separate evaluation so the build
-            // sees the NuGet-generated imports that pull in Publicizer's props/targets.
-            "msbuild" => Run("msbuild", projectPath, "-restore"),
-            _ => Run("dotnet", "build", projectPath),
-        };
+        // -restore (not -t:restore,build): restore in a separate evaluation so the build
+        // sees the NuGet-generated imports that pull in Publicizer's props/targets.
+        // -nodeReuse:false: desktop MSBuild keeps nodes alive by default, which would let one
+        // test's node serve another with a task assembly already loaded. Core MSBuild under
+        // `dotnet build` already defaults to no reuse.
+        string[] arguments = UsesDesktopMSBuild
+            ? ["-nologo", "-v:m", "-nodeReuse:false", projectPath, "-restore", .. extraArguments]
+            : ["build", "-nologo", "-v:m", projectPath, .. extraArguments];
+
+        return Run(UsesDesktopMSBuild ? "msbuild" : "dotnet", arguments);
     }
 
     internal static ProcessResult Run(string command, params string[] arguments)

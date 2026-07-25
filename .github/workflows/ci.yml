@@ -39,6 +39,9 @@ jobs:
     # End-to-end tests build a real consumer and exercise the task under an MSBuild host.
     # dotnet = Core MSBuild; msbuild = desktop MSBuild.exe (.NET Framework), the Visual
     # Studio host. The builder is selected per leg via PUBLICIZER_TEST_BUILDER.
+    # The msbuild leg leans on MSBuild.exe's SDK resolver finding the .NET SDK that
+    # setup-dotnet puts on PATH — the consumer projects target a version VS doesn't ship.
+    # If that pairing drifts, the leg fails with an opaque SDK-resolution error.
     name: E2E (${{ matrix.os }}, ${{ matrix.builder }})
     runs-on: ${{ matrix.os }}
     strategy:

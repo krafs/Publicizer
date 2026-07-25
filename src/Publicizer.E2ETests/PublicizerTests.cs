@@ -13,12 +13,15 @@ public class PublicizerTests
 {
     private const string TestTargetFramework = "net10.0";
 
+    // Fail rather than skip: the builder is set explicitly per CI leg, so a mismatch is a
+    // misconfiguration, and a silent skip would let the desktop MSBuild leg stop running
+    // without anyone noticing.
     [OneTimeSetUp]
     public void RequireWindowsForDesktopMSBuild()
     {
-        if (Runner.Builder.Equals("msbuild", StringComparison.OrdinalIgnoreCase) && !OperatingSystem.IsWindows())
+        if (Runner.UsesDesktopMSBuild && !OperatingSystem.IsWindows())
         {
-            Assume.That(false, "Desktop MSBuild.exe builder runs on Windows only.");
+            Assert.Fail($"PUBLICIZER_TEST_BUILDER={Runner.Builder} requires Windows; desktop MSBuild.exe does not run on this OS.");
         }
     }
 
