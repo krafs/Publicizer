@@ -1,9 +1,11 @@
 version: 2
 
-# Bumps are kept out of the release notes by default: almost all of them are
-# test, CI, or build-time-only dependencies a consumer never sees. Drop
-# skip-changelog by hand for the exception -- dnlib is packed into the nupkg, so
-# users run it and a bump belongs in the notes.
+# Bumps stay out of the release notes: every dependency here is test, CI, or
+# build-time only, so a version number tells a consumer nothing. dnlib is no
+# exception -- it is packed into the package, but runs inside the MSBuild task
+# and never reaches the consumer's app. If a bump does change what Publicizer
+# does to an assembly, write that up as its own note rather than surfacing the
+# bump line.
 updates:
   - package-ecosystem: "nuget"
     directory: "/"
