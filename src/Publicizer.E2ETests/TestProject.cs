@@ -23,7 +23,7 @@ internal sealed class TestProject : IDisposable
     private readonly List<string> _items = [];
     private readonly List<string> _rawXml = [];
     private readonly List<LocalPackageSource> _packageSources = [];
-    private string _targetFramework = DefaultTargetFramework;
+    private List<string> _targetFrameworks = [DefaultTargetFramework];
 
     private TestProject(string name, string outputType, string sourceCode)
     {
@@ -45,19 +45,29 @@ internal sealed class TestProject : IDisposable
     // code under test.
     private string OutputFolder => Path.Combine(_folder.Path, "bin");
 
-    private bool TargetsNetFramework => _targetFramework.StartsWith("net4", StringComparison.Ordinal);
+    private bool IsMultiTargeted => _targetFrameworks.Count > 1;
+
+    private bool TargetsNetFramework => _targetFrameworks[0].StartsWith("net4", StringComparison.Ordinal);
 
     private string PackageFolder => Path.Combine(_folder.Path, "package");
 
-    internal string AssemblyPath => Path.Combine(OutputFolder, $"{_name}.dll");
+    internal string AssemblyPath => AssemblyPathFor(_targetFrameworks[0]);
 
     internal string ProjectPath => Path.Combine(_folder.Path, $"{_name}.csproj");
 
+    // Multi-targeted builds give each inner build its own OutDir, so an assembly is only
+    // addressable per target framework.
+    internal string AssemblyPathFor(string targetFramework) => Path.Combine(IsMultiTargeted ? Path.Combine(OutputFolder, targetFramework) : OutputFolder, $"{_name}.dll");
+
     // .NET Framework consumers resolve references through a different set of search paths
     // and reference assemblies than .NET ones.
-    internal TestProject TargetingFramework(string targetFramework)
+    internal TestProject TargetingFramework(string targetFramework) => TargetingFrameworks(targetFramework);
+
+    // More than one framework makes MSBuild run an inner build per framework, each with its
+    // own IntermediateOutputPath and its own pass over the references.
+    internal TestProject TargetingFrameworks(params string[] targetFrameworks)
     {
-        _targetFramework = targetFramework;
+        _targetFrameworks = [.. targetFrameworks];
         return this;
     }
 
@@ -165,14 +175,23 @@ internal sealed class TestProject : IDisposable
         string items = string.Join(Environment.NewLine + "    ", _items);
         string rawXml = string.Join(Environment.NewLine, _rawXml);
 
+        string targetFrameworks = IsMultiTargeted
+            ? $"<TargetFrameworks>{string.Join(";", _targetFrameworks)}</TargetFrameworks>"
+            : $"<TargetFramework>{_targetFrameworks[0]}</TargetFramework>";
+
+        // Inner builds would otherwise all write to the same OutDir and overwrite each other.
+        string outDir = IsMultiTargeted
+            ? Path.Combine(OutputFolder, "$(TargetFramework)")
+            : OutputFolder;
+
         return $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
-                <TargetFramework>{_targetFramework}</TargetFramework>
+                {targetFrameworks}
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <OutputType>{_outputType}</OutputType>
-                <OutDir>{OutputFolder}</OutDir>
+                <OutDir>{outDir}</OutDir>
                 {properties}
               </PropertyGroup>
 
