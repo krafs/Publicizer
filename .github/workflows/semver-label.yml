@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   semver-label:
@@ -16,12 +17,34 @@ jobs:
         with:
           script: |
             const valid = ['semver:major', 'semver:minor', 'semver:patch'];
-            const found = context.payload.pull_request.labels
-              .map(l => l.name)
-              .filter(l => valid.includes(l));
-            if (found.length !== 1) {
-              core.setFailed(
-                `PR must have exactly one SemVer label (${valid.join(', ')}). ` +
-                `Found: ${found.length ? found.join(', ') : 'none'}.`
-              );
+            const attempts = 6;
+            const delayMs = 10000;
+
+            // Labels come from the API, not context.payload: the payload is a snapshot of
+            // the triggering event, so it is empty on 'opened' (the label lands seconds
+            // later) and a rerun replays that same stale snapshot, which can never pass.
+            const read = async () => {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number
+              });
+              return data.labels.map(l => l.name).filter(l => valid.includes(l));
+            };
+
+            let found = [];
+            for (let attempt = 1; attempt <= attempts; attempt++) {
+              found = await read();
+              if (found.length === 1) {
+                return;
+              }
+              // Give a just-opened PR time to be labelled before calling it a failure.
+              if (attempt < attempts) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+              }
             }
+
+            core.setFailed(
+              `PR must have exactly one SemVer label (${valid.join(', ')}). ` +
+              `Found: ${found.length ? found.join(', ') : 'none'}.`
+            );
