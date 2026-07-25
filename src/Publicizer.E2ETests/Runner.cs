@@ -30,6 +30,15 @@ internal static class Runner
         return Run(UsesDesktopMSBuild ? "msbuild" : "dotnet", arguments);
     }
 
+    internal static ProcessResult Pack(string projectPath)
+    {
+        string[] arguments = UsesDesktopMSBuild
+            ? ["-nologo", "-v:m", "-nodeReuse:false", projectPath, "-restore", "-t:pack"]
+            : ["pack", "-nologo", "-v:m", "-nodeReuse:false", projectPath];
+
+        return Run(UsesDesktopMSBuild ? "msbuild" : "dotnet", arguments);
+    }
+
     internal static ProcessResult Run(string command, params string[] arguments)
     {
         var startInfo = new ProcessStartInfo
