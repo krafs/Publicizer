@@ -17,6 +17,7 @@ internal sealed class TestProject : IDisposable
     private readonly string _sourcePath;
     private readonly List<string> _properties = [];
     private readonly List<string> _items = [];
+    private readonly List<string> _rawXml = [];
 
     private TestProject(string name, string outputType, string sourceCode)
     {
@@ -57,6 +58,13 @@ internal sealed class TestProject : IDisposable
         return Item("PackageReference", "Krafs.Publicizer", """Version="*" """);
     }
 
+    // Raw XML appended inside the project, for the odd test that needs a target of its own.
+    internal TestProject RawXml(string xml)
+    {
+        _rawXml.Add(xml);
+        return this;
+    }
+
     internal ProcessResult Build(params string[] extraArguments)
     {
         File.WriteAllText(ProjectPath, ToCsproj());
@@ -80,6 +88,7 @@ internal sealed class TestProject : IDisposable
     {
         string properties = string.Join(Environment.NewLine + "    ", _properties);
         string items = string.Join(Environment.NewLine + "    ", _items);
+        string rawXml = string.Join(Environment.NewLine, _rawXml);
 
         return $"""
             <Project Sdk="Microsoft.NET.Sdk">
@@ -96,6 +105,8 @@ internal sealed class TestProject : IDisposable
                 <Compile Include="{_sourcePath}" />
                 {items}
               </ItemGroup>
+
+              {rawXml}
 
             </Project>
             """;
