@@ -13,16 +13,19 @@ internal static class Runner
     internal static bool UsesDesktopMSBuild => Builder.Equals("msbuild", StringComparison.OrdinalIgnoreCase);
 
     // Extra arguments go to the host verbatim, so use only spellings both accept (-p:, -t:).
-    internal static ProcessResult Build(string projectPath, params string[] extraArguments)
+    internal static ProcessResult Build(string projectPath, params string[] extraArguments) => Build(projectPath, reuseNodes: false, extraArguments);
+
+    // reuseNodes leaves the build node alive afterwards, holding the task assembly loaded —
+    // what a Visual Studio session does between builds. Off by default so tests don't serve
+    // each other stale nodes; on for the case that is about exactly that.
+    internal static ProcessResult Build(string projectPath, bool reuseNodes, string[] extraArguments)
     {
         // -restore (not -t:restore,build): restore in a separate evaluation so the build
         // sees the NuGet-generated imports that pull in Publicizer's props/targets.
-        // -nodeReuse:false: desktop MSBuild keeps nodes alive by default, which would let one
-        // test's node serve another with a task assembly already loaded. Core MSBuild under
-        // `dotnet build` already defaults to no reuse.
+        string nodeReuse = $"-nodeReuse:{(reuseNodes ? "true" : "false")}";
         string[] arguments = UsesDesktopMSBuild
-            ? ["-nologo", "-v:m", "-nodeReuse:false", projectPath, "-restore", .. extraArguments]
-            : ["build", "-nologo", "-v:m", projectPath, .. extraArguments];
+            ? ["-nologo", "-v:m", nodeReuse, projectPath, "-restore", .. extraArguments]
+            : ["build", "-nologo", "-v:m", nodeReuse, projectPath, .. extraArguments];
 
         return Run(UsesDesktopMSBuild ? "msbuild" : "dotnet", arguments);
     }
