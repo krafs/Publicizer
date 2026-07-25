@@ -6,8 +6,11 @@
 // latest stable vX.Y.Z tag, lists the PRs merged into main since that tag,
 // reads each PR's semver:{major,minor,patch} label, and bumps from the highest.
 //
-// Every merged PR is expected to carry exactly one semver label -- the PR
-// Labels gate enforces this, so this script trusts it rather than re-checking.
+// Every merged PR must carry a semver label, and this is the only place that is
+// enforced. A PR-time gate can't work: labels are applied after the PR opens, so
+// the check races the labeller, and outside contributors can't set labels at all.
+// Here the whole release window is settled and visible at once, so an unlabeled
+// PR fails the release by name -- label it and re-run the workflow.
 // Release-note noise (dependabot, docs) is filtered separately in
 // .github/release.yml, not here, so bumps and notes stay decoupled.
 //
@@ -60,15 +63,19 @@ if (override) {
       "--base", "main",
       "--search", `merged:>=${since}`,
       "--limit", "500",
-      "--json", "labels"),
+      "--json", "number,title,labels"),
   );
   if (prs.length === 0) die(`No merged PRs since ${baseTag}. Nothing to release.`);
 
-  const rank = Math.max(
-    0,
-    ...prs.flatMap((pr) => pr.labels.map((l) => RANKS[l.name] ?? 0)),
-  );
-  if (rank === 0) die(`No semver-labeled PRs since ${baseTag}.`);
+  const rankOf = (pr) => Math.max(0, ...pr.labels.map((l) => RANKS[l.name] ?? 0));
+
+  const unlabeled = prs.filter((pr) => rankOf(pr) === 0);
+  if (unlabeled.length > 0) {
+    for (const pr of unlabeled) console.error(`  #${pr.number} ${pr.title}`);
+    die(`${unlabeled.length} merged PR(s) since ${baseTag} lack a semver label (listed above). Label them and re-run.`);
+  }
+
+  const rank = Math.max(...prs.map(rankOf));
 
   const bump = BUMPS[rank];
   const [major, minor, patch] = baseTag.slice(1).split(".").map(Number);

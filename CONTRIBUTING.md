@@ -29,9 +29,10 @@ CI runs the same build and tests on Ubuntu and Windows.
 - For anything beyond a small fix, make sure the change was discussed first
   (see above) — unsolicited PRs that change behavior may not be accepted.
 - Keep changes focused; one logical change per PR.
-- Every PR must carry exactly one `semver:*` label — `semver:major`,
-  `semver:minor`, or `semver:patch` — describing the largest release impact
-  of the change. CI fails without it. When in doubt, use `semver:patch`.
+- Every PR carries one `semver:*` label — `semver:major`, `semver:minor`, or
+  `semver:patch` — describing the largest release impact of the change. It
+  drives the next version number and the release notes. A maintainer applies
+  it, so there's nothing for you to do here.
 - Make sure the build and tests pass before marking the PR ready.
 
 ## Reporting bugs

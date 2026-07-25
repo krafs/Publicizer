@@ -1,9 +1,10 @@
 changelog:
+  # skip-changelog is the only exclusion: whether a PR earns a line is a judgment
+  # call per PR, not something an author or a path glob can decide. A dependabot
+  # bump of a shipped dependency (dnlib) belongs in the notes; a test-only or CI
+  # bump does not.
   exclude:
-    authors:
-      - dependabot
     labels:
-      - documentation
       - skip-changelog
   categories:
     - title: Breaking Changes
