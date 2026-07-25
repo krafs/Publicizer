@@ -1,4 +1,11 @@
 version: 2
+
+# Bumps stay out of the release notes: every dependency here is test, CI, or
+# build-time only, so a version number tells a consumer nothing. dnlib is no
+# exception -- it is packed into the package, but runs inside the MSBuild task
+# and never reaches the consumer's app. If a bump does change what Publicizer
+# does to an assembly, write that up as its own note rather than surfacing the
+# bump line.
 updates:
   - package-ecosystem: "nuget"
     directory: "/"
@@ -6,6 +13,7 @@ updates:
       interval: "weekly"
     labels:
       - "semver:patch"
+      - "skip-changelog"
     cooldown:
       default-days: 7
     groups:
@@ -20,6 +28,7 @@ updates:
       interval: "weekly"
     labels:
       - "semver:patch"
+      - "skip-changelog"
     cooldown:
       default-days: 7
 
@@ -29,6 +38,7 @@ updates:
       interval: "weekly"
     labels:
       - "semver:patch"
+      - "skip-changelog"
     cooldown:
       default-days: 7
     groups:

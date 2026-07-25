@@ -8,4 +8,6 @@
 
 ---
 
-- [ ] Added exactly one `semver:*` label (`major` / `minor` / `patch`).
+<!-- Maintainer: apply one `semver:*` label (`major` / `minor` / `patch`) before
+     merge. The next release won't resolve a version until every merged PR has one. -->
+

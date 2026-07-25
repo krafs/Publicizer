@@ -1,9 +1,9 @@
 changelog:
+  # A line is earned by changing something a consumer can observe, which is a
+  # per-PR call. Dependabot labels its own PRs skip-changelog, so bumps never
+  # land here on their own.
   exclude:
-    authors:
-      - dependabot
     labels:
-      - documentation
       - skip-changelog
   categories:
     - title: Breaking Changes

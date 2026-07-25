@@ -2,22 +2,22 @@
 //
 // Resolve the next release version from PR semver labels.
 //
-// With OVERRIDE set, validates and uses it verbatim. Otherwise finds the
-// latest stable vX.Y.Z tag, lists the PRs merged into main since that tag,
-// reads each PR's semver:{major,minor,patch} label, and bumps from the highest.
+// With OVERRIDE set, validates and uses it verbatim. Otherwise finds the latest
+// stable vX.Y.Z tag, reads the semver:{major,minor,patch} label on every PR
+// released since it, and bumps from the highest.
 //
-// Every merged PR is expected to carry exactly one semver label -- the PR
-// Labels gate enforces this, so this script trusts it rather than re-checking.
-// Release-note noise (dependabot, docs) is filtered separately in
-// .github/release.yml, not here, so bumps and notes stay decoupled.
+// This is the only place the label requirement is enforced. A PR-time check
+// can't be: labels arrive after the PR opens, and contributors can't set them.
+// What earns a line in the notes is decided separately in .github/release.yml,
+// so bumps and notes stay decoupled.
 //
 // Env:
 //   OVERRIDE  optional version override, no leading v (e.g. 2.4.0)
 //   GH_TOKEN  token for `gh` (required unless OVERRIDE is set)
 //
-// Emits `version` to GITHUB_OUTPUT and a note to GITHUB_STEP_SUMMARY when those
-// are set, and always prints the resolved version to stdout. Run locally from a
-// full clone to preview: node scripts/resolve-version.mjs
+// Emits `version` and `base-tag` to GITHUB_OUTPUT and a note to
+// GITHUB_STEP_SUMMARY, and prints the version to stdout. Preview locally from a
+// full clone: node scripts/resolve-version.mjs
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
@@ -38,37 +38,44 @@ const override = process.env.OVERRIDE ?? "";
 let version;
 let source;
 
+// Emitted as `base-tag` so the notes are bounded by the same tag as the bump.
+const baseTag = git("tag", "--list", "v*", "--sort=-v:refname")
+  .split("\n")
+  .find((t) => /^v\d+\.\d+\.\d+$/.test(t));
+
 if (override) {
   if (!SEMVER_RE.test(override)) die(`Invalid version override: ${override}`);
   version = override;
   source = "manual override";
 } else {
-  const baseTag = git("tag", "--list", "v*", "--sort=-v:refname")
-    .split("\n")
-    .find((t) => /^v\d+\.\d+\.\d+$/.test(t));
   if (!baseTag) {
     die("No version tag found. Set the version input to seed the first release.");
   }
   console.error(`Base tag: ${baseTag}`);
 
-  // PRs merged into main after the tag's commit. One query, JSON in hand --
-  // no walking commit subjects for "(#123)", so merge style doesn't matter.
+  // Merge dates only narrow the search; ancestry decides what the tag contains.
+  // `merged:>=` is inclusive, so the tag's own PR comes back -- already released.
   const since = git("log", "-1", "--format=%cI", baseTag);
+  const released = new Set(git("rev-list", baseTag).split("\n"));
   const prs = JSON.parse(
     gh("pr", "list",
       "--state", "merged",
       "--base", "main",
       "--search", `merged:>=${since}`,
       "--limit", "500",
-      "--json", "labels"),
-  );
+      "--json", "number,title,labels,mergeCommit"),
+  ).filter((pr) => !released.has(pr.mergeCommit?.oid));
   if (prs.length === 0) die(`No merged PRs since ${baseTag}. Nothing to release.`);
 
-  const rank = Math.max(
-    0,
-    ...prs.flatMap((pr) => pr.labels.map((l) => RANKS[l.name] ?? 0)),
-  );
-  if (rank === 0) die(`No semver-labeled PRs since ${baseTag}.`);
+  const rankOf = (pr) => Math.max(0, ...pr.labels.map((l) => RANKS[l.name] ?? 0));
+
+  const unlabeled = prs.filter((pr) => rankOf(pr) === 0);
+  if (unlabeled.length > 0) {
+    console.error(unlabeled.map((pr) => `  #${pr.number} ${pr.title}`).join("\n"));
+    die(`${unlabeled.length} merged PR(s) since ${baseTag} lack a semver label. Label them and re-run.`);
+  }
+
+  const rank = Math.max(...prs.map(rankOf));
 
   const bump = BUMPS[rank];
   const [major, minor, patch] = baseTag.slice(1).split(".").map(Number);
@@ -91,7 +98,7 @@ try {
 if (tagExists) die(`Tag v${version} already exists.`);
 
 if (process.env.GITHUB_OUTPUT) {
-  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nbase-tag=${baseTag ?? ""}\n`);
 }
 if (process.env.GITHUB_STEP_SUMMARY) {
   appendFileSync(

@@ -44,6 +44,23 @@ jobs:
         OVERRIDE: ${{ inputs.version }}
       run: node scripts/resolve-version.mjs
 
+    # Generated on dry runs too, so the notes can be reviewed before a real
+    # release commits to them. The tag need not exist yet -- notes are generated
+    # against target_commitish -- and an empty previous_tag_name is treated as
+    # absent, so the first release needs no special case here.
+    - name: Generate release notes
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.resolve.outputs.version }}
+        BASE_TAG: ${{ steps.resolve.outputs.base-tag }}
+      run: |
+        gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+          -f tag_name="v$VERSION" \
+          -f target_commitish="$GITHUB_SHA" \
+          -f previous_tag_name="$BASE_TAG" \
+          --jq .body > release-notes.md
+        { echo "## Release notes"; cat release-notes.md; } | tee -a "$GITHUB_STEP_SUMMARY"
+
     - name: Set up .NET
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
@@ -93,4 +110,4 @@ jobs:
       run: |
         git tag "v$VERSION"
         git push origin "v$VERSION"
-        gh release create "v$VERSION" --title "v$VERSION" --generate-notes
+        gh release create "v$VERSION" --title "v$VERSION" --notes-file release-notes.md
