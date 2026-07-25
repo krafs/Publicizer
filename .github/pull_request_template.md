@@ -8,6 +8,6 @@
 
 ---
 
-<!-- Maintainer: apply one `semver:*` label (`major` / `minor` / `patch`) before merge.
-     The release workflow refuses to run while a merged PR is unlabeled. -->
+<!-- Maintainer: apply one `semver:*` label (`major` / `minor` / `patch`) before
+     merge. The next release won't resolve a version until every merged PR has one. -->
 
