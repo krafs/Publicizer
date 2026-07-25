@@ -18,9 +18,10 @@
 //   OVERRIDE  optional version override, no leading v (e.g. 2.4.0)
 //   GH_TOKEN  token for `gh` (required unless OVERRIDE is set)
 //
-// Emits `version` to GITHUB_OUTPUT and a note to GITHUB_STEP_SUMMARY when those
-// are set, and always prints the resolved version to stdout. Run locally from a
-// full clone to preview: node scripts/resolve-version.mjs
+// Emits `version` and `base-tag` to GITHUB_OUTPUT and a note to
+// GITHUB_STEP_SUMMARY when those are set, and always prints the resolved version
+// to stdout. Run locally from a full clone to preview:
+//   node scripts/resolve-version.mjs
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
@@ -41,14 +42,17 @@ const override = process.env.OVERRIDE ?? "";
 let version;
 let source;
 
+// Latest stable vX.Y.Z. Also emitted as `base-tag` so the release notes can be
+// bounded explicitly rather than left to GitHub's guess at the previous release.
+const baseTag = git("tag", "--list", "v*", "--sort=-v:refname")
+  .split("\n")
+  .find((t) => /^v\d+\.\d+\.\d+$/.test(t));
+
 if (override) {
   if (!SEMVER_RE.test(override)) die(`Invalid version override: ${override}`);
   version = override;
   source = "manual override";
 } else {
-  const baseTag = git("tag", "--list", "v*", "--sort=-v:refname")
-    .split("\n")
-    .find((t) => /^v\d+\.\d+\.\d+$/.test(t));
   if (!baseTag) {
     die("No version tag found. Set the version input to seed the first release.");
   }
@@ -56,15 +60,32 @@ if (override) {
 
   // PRs merged into main after the tag's commit. One query, JSON in hand --
   // no walking commit subjects for "(#123)", so merge style doesn't matter.
+  //
+  // The date search is only a cheap prefilter: `merged:>=` is inclusive, so it
+  // returns the tag's own PR, and merge dates in general don't decide what a tag
+  // contains. Ancestry does, so each candidate is then checked against the tag --
+  // which is also how GitHub bounds the generated notes, keeping the bump and the
+  // notes describing the same set of PRs.
   const since = git("log", "-1", "--format=%cI", baseTag);
-  const prs = JSON.parse(
+  const candidates = JSON.parse(
     gh("pr", "list",
       "--state", "merged",
       "--base", "main",
       "--search", `merged:>=${since}`,
       "--limit", "500",
-      "--json", "number,title,labels"),
+      "--json", "number,title,labels,mergeCommit"),
   );
+
+  const releasedIn = (sha) => {
+    try {
+      execFileSync("git", ["merge-base", "--is-ancestor", sha, baseTag], { stdio: "ignore" });
+      return true;
+    } catch {
+      return false; // non-zero exit means the commit is not in the tag
+    }
+  };
+
+  const prs = candidates.filter((pr) => !(pr.mergeCommit && releasedIn(pr.mergeCommit.oid)));
   if (prs.length === 0) die(`No merged PRs since ${baseTag}. Nothing to release.`);
 
   const rankOf = (pr) => Math.max(0, ...pr.labels.map((l) => RANKS[l.name] ?? 0));
@@ -98,7 +119,7 @@ try {
 if (tagExists) die(`Tag v${version} already exists.`);
 
 if (process.env.GITHUB_OUTPUT) {
-  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+  appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nbase-tag=${baseTag ?? ""}\n`);
 }
 if (process.env.GITHUB_STEP_SUMMARY) {
   appendFileSync(
