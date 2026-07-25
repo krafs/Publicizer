@@ -6,7 +6,6 @@ namespace Publicizer.E2ETests;
 // the same project over and over in one session, against publicized assemblies cached in
 // the intermediate folder and against a build node that never goes away — which is where
 // stale-cache and file-locking failures live.
-[Parallelizable(ParallelScope.Children)]
 public class RebuildTests
 {
     private const string PrivateClassPrintingFoo = """

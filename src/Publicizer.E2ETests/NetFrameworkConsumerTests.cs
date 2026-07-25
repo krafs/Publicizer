@@ -7,7 +7,6 @@ namespace Publicizer.E2ETests;
 // references through different search paths and reference assemblies, and gets the
 // IgnoresAccessChecksTo attribute compiled against a different corlib — a path Publicizer
 // supports and nothing exercised. Windows-only: building net472 needs the targeting pack.
-[Parallelizable(ParallelScope.Children)]
 public class NetFrameworkConsumerTests
 {
     private const string NetFrameworkTargetFramework = "net472";
