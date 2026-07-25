@@ -9,7 +9,6 @@ namespace Publicizer.E2ETests;
 // editor resolves the original assembly and marks every non-public member as inaccessible —
 // red squiggles over code that compiles fine from the command line. Nothing else in the
 // suite runs a build in that mode.
-[Parallelizable(ParallelScope.Children)]
 public class DesignTimeBuildTests
 {
     // The properties the .NET Project System sets for a design-time build.

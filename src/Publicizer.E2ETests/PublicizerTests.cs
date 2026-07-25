@@ -7,7 +7,6 @@ namespace Publicizer.E2ETests;
 // and a real consumer builds and runs against a publicized reference. One case per
 // MSBuild path (explicit Publicize items, and PublicizeAll). What publicization does to
 // each member kind is covered by the characterization and engine unit tests, not here.
-[Parallelizable(ParallelScope.Children)]
 public class PublicizerTests
 {
     private const string PrivateClassCode = """
