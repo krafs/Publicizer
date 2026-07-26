@@ -1,4 +1,3 @@
-using System.IO;
 using NUnit.Framework;
 
 namespace Publicizer.E2ETests;

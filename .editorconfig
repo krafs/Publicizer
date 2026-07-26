@@ -265,3 +265,8 @@ dotnet_diagnostic.IDE0058.severity = none
 
 # IDE0046: Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = silent
+
+# Test projects are OutputType=Exe only so the test runner can host them; they are
+# not applications, so the "make it internal" advice doesn't apply.
+[src/Publicizer{.Tests,.E2ETests}/**.cs]
+dotnet_diagnostic.CA1515.severity = none

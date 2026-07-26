@@ -12,7 +12,6 @@
     <OutDir Condition="$(OutDir) == ''">bin</OutDir>
     <PackageOutputPath>$(OutDir)</PackageOutputPath>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludePackageDependencies</TargetsForTfmSpecificBuildOutput>
-    <AnalysisMode>All</AnalysisMode>
   </PropertyGroup>
 
   <PropertyGroup Label="Package properties">

@@ -1,4 +1,3 @@
-using System.Linq;
 using dnlib.DotNet;
 using NUnit.Framework;
 
@@ -96,7 +95,7 @@ public class AssemblyEditorTests
         bool modified = AssemblyEditor.PublicizeProperty(property);
 
         Assert.That(modified, Is.True);
-        Assert.That(property.GetMethod!.IsPublic, Is.True);
-        Assert.That(property.SetMethod!.IsPublic, Is.True);
+        Assert.That(property.GetMethod.IsPublic, Is.True);
+        Assert.That(property.SetMethod.IsPublic, Is.True);
     }
 }

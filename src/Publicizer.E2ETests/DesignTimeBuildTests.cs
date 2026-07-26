@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using NUnit.Framework;
 
 namespace Publicizer.E2ETests;
@@ -12,7 +10,7 @@ namespace Publicizer.E2ETests;
 public class DesignTimeBuildTests
 {
     // The properties the .NET Project System sets for a design-time build.
-    private static readonly string[] DesignTimeBuildArguments =
+    private static readonly string[] s_designTimeBuildArguments =
     [
         "-t:DumpReferencePaths",
         "-p:DesignTimeBuild=true",
@@ -41,7 +39,7 @@ public class DesignTimeBuildTests
             .Item("Publicize", "PrivateAssembly")
             .RawXml(DumpTarget);
 
-        ProcessResult result = app.Build(DesignTimeBuildArguments);
+        ProcessResult result = app.Build(s_designTimeBuildArguments);
         Assert.That(result.ExitCode, Is.Zero, result.Output);
 
         string[] referencePaths = File.ReadAllLines(Path.Combine(app.Folder, "referencepaths.txt"));

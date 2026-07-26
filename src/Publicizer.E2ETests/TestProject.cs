@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-
 namespace Publicizer.E2ETests;
 
 // A throwaway consumer project in a temporary folder: one source file, a csproj assembled
