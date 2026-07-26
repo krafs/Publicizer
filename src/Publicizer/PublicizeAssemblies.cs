@@ -76,7 +76,10 @@ public sealed class PublicizeAssemblies : Task
             return false;
         }
 
-        Dictionary<string, PublicizerAssemblyContext> assemblyContexts = GetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes, logger);
+        if (!TryGetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes, logger, out Dictionary<string, PublicizerAssemblyContext> assemblyContexts))
+        {
+            return false;
+        }
 
         var referencePathsToDelete = new List<ITaskItem>();
         var referencePathsToAdd = new List<ITaskItem>();
@@ -160,67 +163,42 @@ public sealed class PublicizeAssemblies : Task
         return true;
     }
 
-    internal static Dictionary<string, PublicizerAssemblyContext> GetPublicizerAssemblyContexts(
+    /// <summary>
+    /// Parses every item into per-assembly contexts, returning <see langword="false"/> if any item
+    /// was malformed. All items are parsed regardless, so one bad target does not hide the rest.
+    /// </summary>
+    internal static bool TryGetPublicizerAssemblyContexts(
         ITaskItem[] publicizeItems,
         ITaskItem[] doNotPublicizeItems,
-        ITaskLogger logger)
+        ITaskLogger logger,
+        out Dictionary<string, PublicizerAssemblyContext> contexts)
     {
-        var contexts = new Dictionary<string, PublicizerAssemblyContext>();
+        contexts = [];
+        bool valid = true;
 
         foreach (ITaskItem item in publicizeItems)
         {
-            int index = item.ItemSpec.IndexOf(':');
-            bool isAssemblyPattern = index == -1;
-            string assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
-
-            if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
-            {
-                assemblyContext = new PublicizerAssemblyContext(assemblyName);
-                contexts.Add(assemblyName, assemblyContext);
-            }
-
-            if (isAssemblyPattern)
-            {
-                assemblyContext.IncludeCompilerGeneratedMembers = item.IncludeCompilerGeneratedMembers();
-                assemblyContext.IncludeVirtualMembers = item.IncludeVirtualMembers();
-                assemblyContext.ExplicitlyPublicizeAssembly = true;
-                assemblyContext.PublicizeMemberRegexPattern = item.MemberPattern();
-                logger.Info($"Publicize: {item}, virtual members: {assemblyContext.IncludeVirtualMembers}, compiler-generated members: {assemblyContext.IncludeCompilerGeneratedMembers}, member pattern: {assemblyContext.PublicizeMemberRegexPattern}");
-            }
-            else
-            {
-                string memberPattern = item.ItemSpec.Substring(index + 1);
-                assemblyContext.PublicizeMemberPatterns.Add(memberPattern);
-                logger.Info($"Publicize: {item}");
-            }
+            valid &= PublicizeItemParser.TryApply(item, deny: false, ContextFor(item, contexts), logger);
         }
 
         foreach (ITaskItem item in doNotPublicizeItems)
         {
-            int index = item.ItemSpec.IndexOf(':');
-            bool isAssemblyPattern = index == -1;
-            string assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
-
-            if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
-            {
-                assemblyContext = new PublicizerAssemblyContext(assemblyName);
-                contexts.Add(assemblyName, assemblyContext);
-            }
-
-            if (isAssemblyPattern)
-            {
-                assemblyContext.ExplicitlyDoNotPublicizeAssembly = true;
-            }
-            else
-            {
-                string memberPattern = item.ItemSpec.Substring(index + 1);
-                assemblyContext.DoNotPublicizeMemberPatterns.Add(memberPattern);
-            }
-
-            logger.Info($"DoNotPublicize: {item}");
+            valid &= PublicizeItemParser.TryApply(item, deny: true, ContextFor(item, contexts), logger);
         }
 
-        return contexts;
+        return valid;
+    }
+
+    private static PublicizerAssemblyContext ContextFor(ITaskItem item, Dictionary<string, PublicizerAssemblyContext> contexts)
+    {
+        string assemblyName = PublicizeItemParser.AssemblyNameOf(item);
+        if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
+        {
+            assemblyContext = new PublicizerAssemblyContext(assemblyName);
+            contexts.Add(assemblyName, assemblyContext);
+        }
+
+        return assemblyContext;
     }
 
     /// <summary>
@@ -262,7 +240,7 @@ public sealed class PublicizeAssemblies : Task
         foreach (TypeDef? typeDef in module.GetTypes())
         {
             string typeName = typeDef.ReflectionFullName;
-            if (assemblyPlan.ForType(typeName) is not TypePlan typePlan)
+            if (assemblyPlan.ForType(typeName, NamespaceOf(typeDef)) is not TypePlan typePlan)
             {
                 // No rule can reach anything in this type; skip it without touching a member.
                 continue;
@@ -445,6 +423,21 @@ public sealed class PublicizeAssemblies : Task
         logger.Info("Publicized fields: " + publicizedFieldsCount);
 
         return publicizedAnyMemberInAssembly;
+    }
+
+    /// <summary>
+    /// The namespace a type belongs to. dnlib leaves <see cref="TypeDef.Namespace"/> empty on nested
+    /// types, so the namespace has to come from the outermost enclosing type.
+    /// </summary>
+    private static string NamespaceOf(TypeDef typeDef)
+    {
+        TypeDef outermost = typeDef;
+        while (outermost.DeclaringType is TypeDef declaringType)
+        {
+            outermost = declaringType;
+        }
+
+        return outermost.Namespace?.String ?? "";
     }
 
     private static bool IsCompilerGenerated(IHasCustomAttribute memberDef) => memberDef.CustomAttributes.Any(x => x.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");

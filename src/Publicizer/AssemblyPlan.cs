@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Publicizer;
 
 /// <summary>
@@ -7,19 +5,20 @@ namespace Publicizer;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The context stores targets as flat dotted strings that are compared against
+/// The colon-string item form stores targets as flat dotted strings that are compared against
 /// <c>{TypeReflectionFullName}.{MemberName}</c>. Rebuilding that concatenation for every member of
 /// every type is the dominant cost of matching, so instead each target is decomposed once, up front,
 /// into the (type name, member name) pairs it could denote. The member walk then does a single
 /// dictionary lookup per type and plain lookups per member, never concatenating.
 /// </para>
 /// <para>
-/// A target is ambiguous by construction: <c>A.B.C</c> may name a type, or member <c>C</c> of type
-/// <c>A.B</c>, and the syntax gives no way to tell. Rather than guess, a target is indexed under
+/// Such a target is ambiguous by construction: <c>A.B.C</c> may name a type, or member <c>C</c> of
+/// type <c>A.B</c>, and the syntax gives no way to tell. Rather than guess, a target is indexed under
 /// <em>every</em> split point, plus as a type name in its own right. That is exactly equivalent to
 /// the string comparison it replaces — including the doubled dot of <c>Fixture.Shapes..ctor</c>,
 /// which a naive split at the last dot would get wrong. Targets are few and user-authored, so the
-/// extra entries cost nothing.
+/// extra entries cost nothing. The structured item form exists precisely to avoid this guesswork,
+/// and its targets arrive here already unambiguous, as <see cref="PublicizeScope"/>s.
 /// </para>
 /// </remarks>
 internal sealed class AssemblyPlan
@@ -28,6 +27,8 @@ internal sealed class AssemblyPlan
     private readonly Dictionary<string, HashSet<string>> deniedMembersByType;
     private readonly HashSet<string> allowedTypeNames;
     private readonly HashSet<string> deniedTypeNames;
+    private readonly List<PublicizeScope> scopes;
+    private readonly SweepSettings assemblySettings;
 
     private AssemblyPlan(
         Dictionary<string, HashSet<string>> allowedMembersByType,
@@ -41,23 +42,15 @@ internal sealed class AssemblyPlan
         this.allowedTypeNames = allowedTypeNames;
         this.deniedTypeNames = deniedTypeNames;
 
-        PublicizeAll = context.ExplicitlyPublicizeAssembly;
-        DenyAll = context.ExplicitlyDoNotPublicizeAssembly;
-        IncludeVirtualMembers = context.IncludeVirtualMembers;
-        MemberRegex = context.PublicizeMemberRegexPattern;
-        NeedsCompilerGeneratedCheck = context.ExplicitlyPublicizeAssembly && !context.IncludeCompilerGeneratedMembers;
+        scopes = context.Scopes;
+        assemblySettings = new SweepSettings
+        {
+            Publicize = context.ExplicitlyPublicizeAssembly && !context.ExplicitlyDoNotPublicizeAssembly,
+            IncludeVirtualMembers = context.IncludeVirtualMembers,
+            IncludeCompilerGeneratedMembers = context.IncludeCompilerGeneratedMembers,
+            MemberPattern = context.PublicizeMemberRegexPattern,
+        };
     }
-
-    internal bool PublicizeAll { get; }
-    internal bool DenyAll { get; }
-    internal bool IncludeVirtualMembers { get; }
-    internal Regex? MemberRegex { get; }
-
-    /// <summary>
-    /// Whether the compiler-generated attribute scan can affect any decision. Hoisted here so the
-    /// walk runs the scan only when it matters, rather than once per member.
-    /// </summary>
-    internal bool NeedsCompilerGeneratedCheck { get; }
 
     internal static AssemblyPlan Compile(PublicizerAssemblyContext context)
     {
@@ -93,7 +86,7 @@ internal sealed class AssemblyPlan
                 index.Add(typeName, memberNames);
             }
 
-            memberNames.Add(memberName);
+            _ = memberNames.Add(memberName);
         }
     }
 
@@ -109,19 +102,81 @@ internal sealed class AssemblyPlan
     /// <see langword="null"/> when nothing in the type is reachable by any rule and the whole type
     /// can be skipped without inspecting a single member.
     /// </summary>
-    internal TypePlan? ForType(string typeReflectionFullName)
+    /// <param name="typeReflectionFullName">dnlib's <c>ReflectionFullName</c> for the type.</param>
+    /// <param name="typeNamespace">The namespace of the outermost enclosing type, which is the
+    /// namespace a nested type belongs to.</param>
+    internal TypePlan? ForType(string typeReflectionFullName, string typeNamespace)
     {
         _ = allowedMembersByType.TryGetValue(typeReflectionFullName, out HashSet<string>? allowedMembers);
         _ = deniedMembersByType.TryGetValue(typeReflectionFullName, out HashSet<string>? deniedMembers);
         bool allowedAsType = allowedTypeNames.Contains(typeReflectionFullName);
         bool deniedAsType = deniedTypeNames.Contains(typeReflectionFullName);
 
+        SweepSettings settings = Resolve(typeReflectionFullName, typeNamespace);
+
         bool hasNamedTarget = allowedMembers is not null || deniedMembers is not null || allowedAsType || deniedAsType;
-        if (!hasNamedTarget && !PublicizeAll)
+        if (!hasNamedTarget && !settings.Publicize)
         {
             return null;
         }
 
-        return new TypePlan(this, typeReflectionFullName, allowedMembers, deniedMembers, allowedAsType, deniedAsType);
+        return new TypePlan(settings, typeReflectionFullName, allowedMembers, deniedMembers, allowedAsType, deniedAsType);
+    }
+
+    /// <summary>
+    /// Narrows the assembly-wide settings by the tightest scope covering this type. Scopes are few
+    /// and user-authored, so a linear scan costs less than any index would.
+    /// </summary>
+    private SweepSettings Resolve(string typeReflectionFullName, string typeNamespace)
+    {
+        if (scopes.Count == 0)
+        {
+            return assemblySettings;
+        }
+
+        PublicizeScope? winner = null;
+        foreach (PublicizeScope scope in scopes)
+        {
+            if (scope.Covers(typeReflectionFullName, typeNamespace) && (winner is null || Beats(scope, winner)))
+            {
+                winner = scope;
+            }
+        }
+
+        if (winner is null)
+        {
+            return assemblySettings;
+        }
+
+        return new SweepSettings
+        {
+            Publicize = !winner.Deny,
+            IncludeVirtualMembers = winner.IncludeVirtualMembers ?? assemblySettings.IncludeVirtualMembers,
+            IncludeCompilerGeneratedMembers = winner.IncludeCompilerGeneratedMembers ?? assemblySettings.IncludeCompilerGeneratedMembers,
+            MemberPattern = winner.MemberPattern ?? assemblySettings.MemberPattern,
+        };
+    }
+
+    /// <summary>
+    /// A tighter scope always wins. Between equally tight scopes, <c>DoNotPublicize</c> wins over
+    /// <c>Publicize</c> — matching the colon form, where naming a member in both excludes it — and
+    /// otherwise the later item wins.
+    /// </summary>
+    private static bool Beats(PublicizeScope candidate, PublicizeScope current)
+    {
+        (int candidateDepth, int candidateLength) = candidate.Specificity;
+        (int currentDepth, int currentLength) = current.Specificity;
+
+        if (candidateDepth != currentDepth)
+        {
+            return candidateDepth > currentDepth;
+        }
+
+        if (candidateLength != currentLength)
+        {
+            return candidateLength > currentLength;
+        }
+
+        return candidate.Deny || !current.Deny;
     }
 }

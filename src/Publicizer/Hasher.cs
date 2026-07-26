@@ -39,6 +39,16 @@ internal static class Hasher
         {
             sb.Append(assemblyContext.PublicizeMemberRegexPattern.ToString());
         }
+        foreach (PublicizeScope scope in assemblyContext.Scopes)
+        {
+            // Delimited, so that Namespace="AB" cannot hash the same as Namespace="A" Type="B".
+            _ = sb.Append("|scope|").Append(scope.Deny)
+                .Append('|').Append(scope.Namespace)
+                .Append('|').Append(scope.TypeReflectionName)
+                .Append('|').Append(scope.IncludeVirtualMembers)
+                .Append('|').Append(scope.IncludeCompilerGeneratedMembers)
+                .Append('|').Append(scope.MemberPattern);
+        }
 
         byte[] patternBytes = Encoding.UTF8.GetBytes(sb.ToString());
         byte[] assemblyBytes = File.ReadAllBytes(assemblyPath);

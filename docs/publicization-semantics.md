@@ -4,16 +4,22 @@ This document describes what the current publicization engine actually does, mem
 
 It is not user documentation. The README is the user-facing contract; this describes the implementation's observable behavior, including corners the README doesn't mention.
 
-Every claim below is pinned by a test. Test names refer to `src/Publicizer.Tests/PublicizeAssemblyCharacterizationTests.cs` unless stated otherwise. The engine itself lives in `src/Publicizer/PublicizeAssemblies.cs` (traversal and edits), `src/Publicizer/AssemblyPlan.cs` and `src/Publicizer/TypePlan.cs` (which target matches what), and `src/Publicizer/AssemblyEditor.cs` (what publicizing does).
+Every claim below is pinned by a test. Test names refer to `src/Publicizer.Tests/PublicizeAssemblyCharacterizationTests.cs` unless stated otherwise. The engine itself lives in `src/Publicizer/PublicizeAssemblies.cs` (traversal and edits), `src/Publicizer/PublicizeItemParser.cs` (which items mean what), `src/Publicizer/AssemblyPlan.cs` and `src/Publicizer/TypePlan.cs` (which target matches what), and `src/Publicizer/AssemblyEditor.cs` (what publicizing does).
 
 ## Targets
 
-A target is the `Include` value of a `Publicize` or `DoNotPublicize` item. It has two forms, distinguished by the presence of a colon:
+A target is a `Publicize` or `DoNotPublicize` item. It comes in a **colon form**, where the whole target is packed into `Include`, and a **structured form**, where `Include` is the bare assembly name and each qualifier is its own metadata. `PublicizeItemParser` reads both into the same model; there is no second code path.
+
+The two cannot be combined on one item — a colon spec carrying `Namespace` or `Type` metadata is a build error (`StructuredTargetTests.ColonFormCombinedWithStructuredMetadata_IsRejected`), because honoring one and dropping the other would publicize something the author did not ask for.
+
+### The colon form
+
+Two shapes, distinguished by the presence of a colon:
 
 - `AssemblyName` — the assembly form.
 - `AssemblyName:MemberName` — the member form.
 
-The split happens at the **first** colon (`PublicizeAssemblies.cs:172`). Everything before it is the assembly name; everything after it, including any further colons, is the member name (`GetPublicizerAssemblyContextsTests.MemberSpec_SplitsOnFirstColonOnly`).
+The split happens at the **first** colon (`PublicizeItemParser.TryApply`). Everything before it is the assembly name; everything after it, including any further colons, is the member name (`GetPublicizerAssemblyContextsTests.MemberSpec_SplitsOnFirstColonOnly`).
 
 Assemblies are identified by reference file name without extension, compared against the `Filename` metadata of each `ReferencePath`. Lookup is an ordinal dictionary lookup, so it is **case-sensitive** (`GetPublicizerAssemblyContextsTests.AssemblyNames_AreCaseSensitive`). A reference not named by any target is skipped untouched.
 
@@ -39,6 +45,36 @@ This has direct consequences for the syntax users must write:
 
 The comparison is not literally a lookup of the concatenated name. `AssemblyPlan` decomposes each target once, up front, into every `(type, member)` pair it could denote, so deciding a member is a per-type set lookup rather than a rebuilt string. The target is genuinely ambiguous — `A.B.C` may name a type, or member `C` of type `A.B`, and the syntax offers no way to say which — so it is indexed under *every* split point rather than resolved to one reading. That is equivalent to the string comparison it describes, including the doubled dot of `Fixture.Shapes..ctor`, which a split at the last dot would get wrong.
 
+### The structured form
+
+`Namespace` and `Type` metadata on a bare-assembly `Include` name a **scope**: a namespace, or a type and everything in it. Scopes are recursive by default and narrow as qualifiers are added. Tests are in `StructuredTargetTests`.
+
+- `Namespace="A.B"` covers `A.B` and every namespace under it, on segment boundaries — `A.B.C` is inside it, `A.BX` is not (`NamespaceScope_IsRecursiveOnSegmentBoundaries`).
+- `Type="Outer.Inner"` names a nested type: **dots separate nested types, and the namespace goes in `Namespace`**. This is the point of the form — it is what removes the namespace-vs-nested-type ambiguity the colon form cannot express. A `+` in `Type` is an error pointing at `.`.
+- A type scope reaches the nested types inside it (`TypeScope_CoversNestedTypes`).
+- `Type` with no `Namespace` is a type in the global namespace (`TypeScope_WithoutNamespace_IsTheGlobalNamespace`). A namespace scope always names a namespace, since empty metadata reads as absent — the global namespace is not addressable as a scope.
+- Generic arity is written `MyType{T1,T2}` and lowered to `MyType`` `2``. Only the count is read; the names inside the braces mean nothing until `Parameters` lands. A backtick in `Type` is an error, deliberately: accepting both spellings would leave overload targeting to reconcile them later.
+- Member-level qualifiers (`Field`, `Method`, `Property`, `Event`, `Accessor`, `Parameters`) are reserved and **rejected**, not ignored, so a target written against the eventual syntax fails loudly rather than silently sweeping a whole type (`MemberQualifiers_AreRejectedUntilTheyAreImplemented`).
+
+Malformed items are reported as build errors, and every item is parsed regardless so one bad target does not hide the rest (`RejectedItems_AreAllReported_NotJustTheFirst`).
+
+#### Naming a type means different things in the two forms
+
+This is a deliberate divergence, pinned by `TypeScope_SweepsMembers_UnlikeTheColonForm`:
+
+| Target | Effect |
+|---|---|
+| `Include="Asm:N.T"` | Publicizes `T`'s own accessibility. Members untouched. |
+| `Include="Asm" Namespace="N" Type="T"` | Publicizes `T` **and every member in it**. |
+
+Both readings are supported permanently. The colon form's is frozen behavior; the structured form's follows recursive-by-default, and is what retires the old wart that "all members of one type" was expressible only as a regex.
+
+#### Scope-level filters
+
+`IncludeVirtualMembers`, `IncludeCompilerGeneratedMembers` and `MemberPattern` can sit on any scope, and a scope inherits whatever it does not set from the assembly (`ScopeFilters_OverrideTheAssemblySweep_AndInheritWhenAbsent`, `ScopeMemberPattern_AppliesOnlyInsideTheScope`). This is the one place the two forms differ in capability rather than spelling: on the colon form these are still assembly-only, and still last-wins across duplicate items.
+
+Naming a *scope* leaves the filters in force. Naming an individual *member* still bypasses them, as it always has — so sweeping a type does not silently publicize its compiler-generated event backing fields, which is the CS0229 collision `IncludeCompilerGeneratedMembers` exists to prevent (issue #9).
+
 ### Events are not a member kind
 
 The engine iterates types, properties, methods and fields. It never iterates `TypeDef.Events`. An event therefore cannot be targeted as an event.
@@ -47,7 +83,7 @@ It works anyway, by coincidence: a field-like event's compiler-generated backing
 
 ### Assembly-form metadata
 
-Three metadata attributes are read, and **only from assembly-form items** (`PublicizeAssemblies.cs:184-187`):
+Three metadata attributes are read, and **only from assembly-form items** (`PublicizeItemParser.ApplyAssemblyForm`):
 
 | Metadata | Default | Effect |
 |---|---|---|
@@ -70,10 +106,11 @@ For each field, method and property the engine walks a fixed decision ladder and
 1. **Accessor of an excluded property** (methods only) — skip.
 2. **`DoNotPublicize` names this member exactly** — skip.
 3. **`Publicize` names this member exactly** — publicize, ignoring every filter.
-4. **`DoNotPublicize` names the declaring type** — skip.
-5. **`DoNotPublicize` names the assembly** — skip.
-6. **`Publicize` names the assembly** — publicize, subject to the compiler-generated, regex and virtual filters.
-7. Otherwise — skip.
+4. **`DoNotPublicize` names the declaring type** (colon form) — skip.
+5. **The narrowest scope covering this type** — publicize or skip according to that scope, subject to the compiler-generated, regex and virtual filters resolved for it.
+6. Otherwise — skip.
+
+Rung 5 is where the assembly-wide sweep now lives, alongside namespace and type scopes. `AssemblyPlan.Resolve` picks the scope: a type scope beats a namespace scope, a longer namespace beats the namespace enclosing it, and between equally narrow scopes `DoNotPublicize` wins over `Publicize`, otherwise the later item wins (`TypeScope_BeatsAnEnclosingNamespaceScope`, `InnermostNamespaceScope_Wins`, `DoNotPublicizeScope_BeatsPublicizeScope_AtEqualSpecificity`). With no structured items in play this collapses to the old two rungs — `DoNotPublicize` on the assembly, then `Publicize` on the assembly — which is why the characterization suite is unchanged.
 
 Consequences worth naming explicitly:
 
@@ -116,7 +153,7 @@ This is defensible — a publicized member is useless in an inaccessible type �
 The engine is quiet by design, which the rewrite intends to change:
 
 - A target that matches nothing produces **no diagnostic at all** (`PublicizeTarget_MatchesNothing_PublicizesNothingAndReturnsFalse`). Typos in a member name are silent.
-- If an assembly is targeted but nothing in it was publicized, a warning is logged and the reference is left pointing at the original assembly (`PublicizeAssemblies.cs:115`).
+- If an assembly is targeted but nothing in it was publicized, a warning is logged and the reference is left pointing at the original assembly (`PublicizeAssemblies.cs:118`).
 - A `DoNotPublicize` naming an assembly that no `Publicize` mentions creates a context anyway, so the assembly is processed, publicizes nothing, and warns.
 - Everything else is informational logging, optionally mirrored to `PublicizerLogFilePath`.
 
@@ -125,7 +162,7 @@ The engine is quiet by design, which the rewrite intends to change:
 For completeness, behavior that surrounds publicization but isn't part of the matching rules:
 
 - **Caching.** Output goes to `{OutputDirectory}/{assembly}.{hash}/{assembly}.dll`, where the hash covers the input assembly bytes, the resolved context, and Publicizer's own informational version (`Hasher.cs`). If that path exists, the assembly is not reprocessed. Changing any target therefore changes the path rather than invalidating in place.
-- **XML documentation** next to the input assembly is copied alongside the output (`PublicizeAssemblies.cs:135-144`).
+- **XML documentation** next to the input assembly is copied alongside the output (`PublicizeAssemblies.cs:138-147`).
 - **Writer options** set `KeepOldMaxStack`, because writing some assemblies fails otherwise (issue #42).
 - **Reference swapping.** Processed references are reported on `ReferencePathsToDelete`/`ReferencePathsToAdd`, with metadata copied to the new item, and the targets file performs the substitution.
 
@@ -169,4 +206,4 @@ Collected here as rewrite input. None of these are bugs the current tests fail o
 9. `DoNotPublicize` on a type does not prevent that type from being made public via an explicitly targeted member.
 10. `DoNotPublicize` on a type does not extend to its nested types; each nested type has its own reflection name and must be named separately (`DoNotPublicizeType_DoesNotExtendToNestedTypes`). Publicizing those nested types no longer drags the excluded encloser public via the walk-up (`DoNotPublicizeType_SurvivesTheWalkUpFromItsNestedTypes`).
 11. Publicization does not close over signature types, so targeted publicization can produce public-but-unusable members.
-12. Per-item options only exist on the assembly form, so "all members of this type" is only expressible as a regex.
+12. ~~Per-item options only exist on the assembly form, so "all members of this type" is only expressible as a regex.~~ Fixed for the structured form: a `Type` scope sweeps the type and carries its own filters. Still true of the colon form.
