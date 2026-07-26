@@ -2,16 +2,6 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
-      "Microsoft.NET.Test.Sdk": {
-        "type": "Direct",
-        "requested": "[18.8.1, )",
-        "resolved": "18.8.1",
-        "contentHash": "dknJL3/9Y3t4XuCBqnc0PevPxgLsUMmVhjwup/b1HNovA8zWcj3XsfIf7c6p05363DWcqL7X/YhDL9B+Zymv1w==",
-        "dependencies": {
-          "Microsoft.CodeCoverage": "18.8.1",
-          "Microsoft.TestPlatform.TestHost": "18.8.1"
-        }
-      },
       "NUnit": {
         "type": "Direct",
         "requested": "[4.6.1, )",
@@ -33,11 +23,6 @@
         "type": "Transitive",
         "resolved": "2.23.0",
         "contentHash": "nWArUZTdU7iqZLycLKWe0TDms48KKGE6pONH2terYNa8REXiqixrMOkf1sk5DHGMaUTqONU2YkS4SAXBhLStgw=="
-      },
-      "Microsoft.CodeCoverage": {
-        "type": "Transitive",
-        "resolved": "18.8.1",
-        "contentHash": "Eclse/ZZjr4lmWzZFNN9h/OluhKL+SK/QbUyKUewgX139aGeyMEO/DkMPwuFs2MixvanTnz6891rF8UHDg+W4Q=="
       },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
@@ -87,16 +72,8 @@
       },
       "Microsoft.TestPlatform.ObjectModel": {
         "type": "Transitive",
-        "resolved": "18.8.1",
-        "contentHash": "qLbktNB1+b1XZLNJBTzaWVVJAd6PEzD7cgD406geMb6PcFZhp3EDNa1tctWx1+mtMU6MP/6ozVvFPC9vs2a9rw=="
-      },
-      "Microsoft.TestPlatform.TestHost": {
-        "type": "Transitive",
-        "resolved": "18.8.1",
-        "contentHash": "FaQHPDTUOcE+SFTjssNPfrub2lT9Zyon4J2W/KLHt/efLJACb1TCeWXyOgh0D/4Q1e4n+S3E6mOKud+9nLZlEA==",
-        "dependencies": {
-          "Microsoft.TestPlatform.ObjectModel": "18.8.1"
-        }
+        "resolved": "18.0.1",
+        "contentHash": "qT/mwMcLF9BieRkzOBPL2qCopl8hQu6A1P7JWAoj/FMu5i9vds/7cjbJ/LLtaiwWevWLAeD5v5wjQJ/l6jvhWQ=="
       },
       "Krafs.Publicizer": {
         "type": "Project",
