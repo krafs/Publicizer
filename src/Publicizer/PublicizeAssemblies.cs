@@ -225,6 +225,8 @@ public sealed class PublicizeAssemblies : Task
 
     internal static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
     {
+        var assemblyPlan = AssemblyPlan.Compile(assemblyContext);
+
         bool publicizedAnyMemberInAssembly = false;
         var doNotPublicizePropertyMethods = new HashSet<MethodDef>();
 
@@ -233,204 +235,150 @@ public sealed class PublicizeAssemblies : Task
         int publicizedMethodsCount = 0;
         int publicizedFieldsCount = 0;
 
-        // TYPES
         foreach (TypeDef? typeDef in module.GetTypes())
         {
-            doNotPublicizePropertyMethods.Clear();
-
-            bool publicizedAnyMemberInType = false;
             string typeName = typeDef.ReflectionFullName;
-
-            bool explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
-
-            // PROPERTIES
-            foreach (PropertyDef? propertyDef in typeDef.Properties)
+            if (assemblyPlan.ForType(typeName) is not TypePlan typePlan)
             {
-                string propertyName = $"{typeName}.{propertyDef.Name}";
+                // No rule can reach anything in this type; skip it without touching a member.
+                continue;
+            }
 
-                bool explicitlyDoNotPublicizeProperty = assemblyContext.DoNotPublicizeMemberPatterns.Contains(propertyName);
-                if (explicitlyDoNotPublicizeProperty)
+            doNotPublicizePropertyMethods.Clear();
+            bool publicizedAnyMemberInType = false;
+
+            bool needsCompilerGeneratedCheck = typePlan.NeedsCompilerGeneratedCheck;
+            bool allMembersDecided = typePlan.TryDecideAllMembers(out PublicizeDecision uniformDecision);
+            bool anyMemberCanBePublicized = !allMembersDecided || uniformDecision != PublicizeDecision.Skip;
+
+            // Properties are walked before methods so that a denied property can suppress its own
+            // accessors when the method loop reaches them.
+            if (anyMemberCanBePublicized)
+            {
+                foreach (PropertyDef? propertyDef in typeDef.Properties)
                 {
-                    if (propertyDef.GetMethod is MethodDef getter)
+                    PublicizeDecision decision = allMembersDecided
+                        ? uniformDecision
+                        : typePlan.DecideMember(propertyDef.Name, needsCompilerGeneratedCheck && IsCompilerGenerated(propertyDef));
+
+                    switch (decision)
                     {
-                        doNotPublicizePropertyMethods.Add(getter);
+                        case PublicizeDecision.DeniedExplicitly:
+                            if (propertyDef.GetMethod is MethodDef getter)
+                            {
+                                doNotPublicizePropertyMethods.Add(getter);
+                            }
+                            if (propertyDef.SetMethod is MethodDef setter)
+                            {
+                                doNotPublicizePropertyMethods.Add(setter);
+                            }
+                            logger.Verbose($"Explicitly ignoring property: {typePlan.FullNameOf(propertyDef.Name)}");
+                            break;
+
+                        case PublicizeDecision.Explicit:
+                            // Naming a member is an unambiguous opt-in that outranks IncludeVirtualMembers.
+                            if (AssemblyEditor.PublicizeProperty(propertyDef, includeVirtual: true))
+                            {
+                                publicizedAnyMemberInType = true;
+                                publicizedAnyMemberInAssembly = true;
+                                publicizedPropertiesCount++;
+                                logger.Verbose($"Explicitly publicizing property: {typePlan.FullNameOf(propertyDef.Name)}");
+                            }
+                            break;
+
+                        case PublicizeDecision.ByAssemblyRule:
+                            if (AssemblyEditor.PublicizeProperty(propertyDef, typePlan.IncludeVirtualMembers))
+                            {
+                                publicizedAnyMemberInType = true;
+                                publicizedAnyMemberInAssembly = true;
+                                publicizedPropertiesCount++;
+                            }
+                            break;
+
+                        case PublicizeDecision.Skip:
+                        default:
+                            break;
                     }
-                    if (propertyDef.SetMethod is MethodDef setter)
-                    {
-                        doNotPublicizePropertyMethods.Add(setter);
-                    }
-                    logger.Verbose($"Explicitly ignoring property: {propertyName}");
-                    continue;
                 }
 
-                bool explicitlyPublicizeProperty = assemblyContext.PublicizeMemberPatterns.Contains(propertyName);
-                if (explicitlyPublicizeProperty)
+                foreach (MethodDef? methodDef in typeDef.Methods)
                 {
-                    if (AssemblyEditor.PublicizeProperty(propertyDef))
-                    {
-                        publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedPropertiesCount++;
-                        logger.Verbose($"Explicitly publicizing property: {propertyName}");
-                    }
-                    continue;
-                }
-
-                if (explicitlyDoNotPublicizeType)
-                {
-                    continue;
-                }
-
-                if (assemblyContext.ExplicitlyDoNotPublicizeAssembly)
-                {
-                    continue;
-                }
-
-                if (assemblyContext.ExplicitlyPublicizeAssembly)
-                {
-                    bool isCompilerGeneratedProperty = IsCompilerGenerated(propertyDef);
-                    if (isCompilerGeneratedProperty && !assemblyContext.IncludeCompilerGeneratedMembers)
+                    if (doNotPublicizePropertyMethods.Contains(methodDef))
                     {
                         continue;
                     }
 
-                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(propertyName) ?? true;
-                    if (!isRegexPatternMatch)
-                    {
-                        continue;
-                    }
+                    PublicizeDecision decision = allMembersDecided
+                        ? uniformDecision
+                        : typePlan.DecideMember(methodDef.Name, needsCompilerGeneratedCheck && IsCompilerGenerated(methodDef));
 
-                    if (AssemblyEditor.PublicizeProperty(propertyDef, assemblyContext.IncludeVirtualMembers))
+                    switch (decision)
                     {
-                        publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedPropertiesCount++;
+                        case PublicizeDecision.DeniedExplicitly:
+                            logger.Verbose($"Explicitly ignoring method: {typePlan.FullNameOf(methodDef.Name)}");
+                            break;
+
+                        case PublicizeDecision.Explicit:
+                            if (AssemblyEditor.PublicizeMethod(methodDef, includeVirtual: true))
+                            {
+                                publicizedAnyMemberInType = true;
+                                publicizedAnyMemberInAssembly = true;
+                                publicizedMethodsCount++;
+                                logger.Verbose($"Explicitly publicizing method: {typePlan.FullNameOf(methodDef.Name)}");
+                            }
+                            break;
+
+                        case PublicizeDecision.ByAssemblyRule:
+                            if (AssemblyEditor.PublicizeMethod(methodDef, typePlan.IncludeVirtualMembers))
+                            {
+                                publicizedAnyMemberInType = true;
+                                publicizedAnyMemberInAssembly = true;
+                                publicizedMethodsCount++;
+                            }
+                            break;
+
+                        case PublicizeDecision.Skip:
+                        default:
+                            break;
+                    }
+                }
+
+                foreach (FieldDef? fieldDef in typeDef.Fields)
+                {
+                    PublicizeDecision decision = allMembersDecided
+                        ? uniformDecision
+                        : typePlan.DecideMember(fieldDef.Name, needsCompilerGeneratedCheck && IsCompilerGenerated(fieldDef));
+
+                    switch (decision)
+                    {
+                        case PublicizeDecision.DeniedExplicitly:
+                            logger.Verbose($"Explicitly ignoring field: {typePlan.FullNameOf(fieldDef.Name)}");
+                            break;
+
+                        case PublicizeDecision.Explicit:
+                        case PublicizeDecision.ByAssemblyRule:
+                            // IncludeVirtualMembers has no meaning for fields.
+                            if (AssemblyEditor.PublicizeField(fieldDef))
+                            {
+                                publicizedAnyMemberInType = true;
+                                publicizedAnyMemberInAssembly = true;
+                                publicizedFieldsCount++;
+                                if (decision == PublicizeDecision.Explicit)
+                                {
+                                    logger.Verbose($"Explicitly publicizing field: {typePlan.FullNameOf(fieldDef.Name)}");
+                                }
+                            }
+                            break;
+
+                        case PublicizeDecision.Skip:
+                        default:
+                            break;
                     }
                 }
             }
 
-            // METHODS
-            foreach (MethodDef? methodDef in typeDef.Methods)
-            {
-                string methodName = $"{typeName}.{methodDef.Name}";
-
-                bool isMethodOfNonPublicizedProperty = doNotPublicizePropertyMethods.Contains(methodDef);
-                if (isMethodOfNonPublicizedProperty)
-                {
-                    continue;
-                }
-
-                bool explicitlyDoNotPublicizeMethod = assemblyContext.DoNotPublicizeMemberPatterns.Contains(methodName);
-                if (explicitlyDoNotPublicizeMethod)
-                {
-                    logger.Verbose($"Explicitly ignoring method: {methodName}");
-                    continue;
-                }
-
-                bool explicitlyPublicizeMethod = assemblyContext.PublicizeMemberPatterns.Contains(methodName);
-                if (explicitlyPublicizeMethod)
-                {
-                    if (AssemblyEditor.PublicizeMethod(methodDef))
-                    {
-                        publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedMethodsCount++;
-                        logger.Verbose($"Explicitly publicizing method: {methodName}");
-                    }
-                    continue;
-                }
-
-                if (explicitlyDoNotPublicizeType)
-                {
-                    continue;
-                }
-
-                if (assemblyContext.ExplicitlyDoNotPublicizeAssembly)
-                {
-                    continue;
-                }
-
-                if (assemblyContext.ExplicitlyPublicizeAssembly)
-                {
-                    bool isCompilerGeneratedMethod = IsCompilerGenerated(methodDef);
-                    if (isCompilerGeneratedMethod && !assemblyContext.IncludeCompilerGeneratedMembers)
-                    {
-                        continue;
-                    }
-
-                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(methodName) ?? true;
-                    if (!isRegexPatternMatch)
-                    {
-                        continue;
-                    }
-
-                    if (AssemblyEditor.PublicizeMethod(methodDef, assemblyContext.IncludeVirtualMembers))
-                    {
-                        publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedMethodsCount++;
-                    }
-                }
-            }
-
-            // FIELDS
-            foreach (FieldDef? fieldDef in typeDef.Fields)
-            {
-                string fieldName = $"{typeName}.{fieldDef.Name}";
-
-                bool explicitlyDoNotPublicizeField = assemblyContext.DoNotPublicizeMemberPatterns.Contains(fieldName);
-                if (explicitlyDoNotPublicizeField)
-                {
-                    logger.Verbose($"Explicitly ignoring field: {fieldName}");
-                    continue;
-                }
-
-                bool explicitlyPublicizeField = assemblyContext.PublicizeMemberPatterns.Contains(fieldName);
-                if (explicitlyPublicizeField)
-                {
-                    if (AssemblyEditor.PublicizeField(fieldDef))
-                    {
-                        publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedFieldsCount++;
-                        logger.Verbose($"Explicitly publicizing field: {fieldName}");
-                    }
-                    continue;
-                }
-
-                if (explicitlyDoNotPublicizeType)
-                {
-                    continue;
-                }
-
-                if (assemblyContext.ExplicitlyDoNotPublicizeAssembly)
-                {
-                    continue;
-                }
-
-                if (assemblyContext.ExplicitlyPublicizeAssembly)
-                {
-                    bool isCompilerGeneratedField = IsCompilerGenerated(fieldDef);
-                    if (isCompilerGeneratedField && !assemblyContext.IncludeCompilerGeneratedMembers)
-                    {
-                        continue;
-                    }
-
-                    bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(fieldName) ?? true;
-                    if (!isRegexPatternMatch)
-                    {
-                        continue;
-                    }
-
-                    if (AssemblyEditor.PublicizeField(fieldDef))
-                    {
-                        publicizedAnyMemberInType = true;
-                        publicizedAnyMemberInAssembly = true;
-                        publicizedFieldsCount++;
-                    }
-                }
-            }
-
+            // A type with any publicized member is publicized regardless of its own rules — a
+            // publicized member is useless in an inaccessible type.
             if (publicizedAnyMemberInType)
             {
                 if (AssemblyEditor.PublicizeType(typeDef))
@@ -441,48 +389,29 @@ public sealed class PublicizeAssemblies : Task
                 continue;
             }
 
-            if (explicitlyDoNotPublicizeType)
+            PublicizeDecision typeDecision = typePlan.DecideType(needsCompilerGeneratedCheck && IsCompilerGenerated(typeDef));
+            switch (typeDecision)
             {
-                logger.Verbose($"Explicitly ignoring type: {typeName}");
-                continue;
-            }
+                case PublicizeDecision.DeniedExplicitly:
+                    logger.Verbose($"Explicitly ignoring type: {typeName}");
+                    break;
 
-            bool explicitlyPublicizeType = assemblyContext.PublicizeMemberPatterns.Contains(typeName);
-            if (explicitlyPublicizeType)
-            {
-                if (AssemblyEditor.PublicizeType(typeDef))
-                {
-                    publicizedAnyMemberInAssembly = true;
-                    publicizedTypesCount++;
-                    logger.Verbose($"Explicitly publicizing type: {typeName}");
-                }
-                continue;
-            }
+                case PublicizeDecision.Explicit:
+                case PublicizeDecision.ByAssemblyRule:
+                    if (AssemblyEditor.PublicizeType(typeDef))
+                    {
+                        publicizedAnyMemberInAssembly = true;
+                        publicizedTypesCount++;
+                        if (typeDecision == PublicizeDecision.Explicit)
+                        {
+                            logger.Verbose($"Explicitly publicizing type: {typeName}");
+                        }
+                    }
+                    break;
 
-            if (assemblyContext.ExplicitlyDoNotPublicizeAssembly)
-            {
-                continue;
-            }
-
-            if (assemblyContext.ExplicitlyPublicizeAssembly)
-            {
-                bool isCompilerGeneratedType = IsCompilerGenerated(typeDef);
-                if (isCompilerGeneratedType && !assemblyContext.IncludeCompilerGeneratedMembers)
-                {
-                    continue;
-                }
-
-                bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(typeName) ?? true;
-                if (!isRegexPatternMatch)
-                {
-                    continue;
-                }
-
-                if (AssemblyEditor.PublicizeType(typeDef))
-                {
-                    publicizedAnyMemberInAssembly = true;
-                    publicizedTypesCount++;
-                }
+                case PublicizeDecision.Skip:
+                default:
+                    break;
             }
         }
 
