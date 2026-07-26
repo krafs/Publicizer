@@ -1,4 +1,3 @@
-using System.Linq;
 using dnlib.DotNet;
 using NUnit.Framework;
 
@@ -8,14 +7,14 @@ namespace Publicizer.Tests;
 /// Characterizes <see cref="AssemblyEditor"/>: the low-level attribute flips and
 /// their "was anything modified" return values.
 /// </summary>
-public class AssemblyEditorTests
+internal static class AssemblyEditorTests
 {
     private static TypeDef ShapesType(ModuleDef module) => module.Find("Fixture.Shapes", isReflectionName: true);
     private static FieldDef Field(ModuleDef module, string name) => ShapesType(module).Fields.Single(f => f.Name == name);
     private static MethodDef Method(ModuleDef module, string name) => ShapesType(module).Methods.Single(m => m.Name == name);
 
     [Test]
-    public void PublicizeField_PrivateField_BecomesPublicAndReturnsTrue()
+    public static void PublicizeField_PrivateField_BecomesPublicAndReturnsTrue()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         FieldDef field = Field(module, "PrivateField");
@@ -27,7 +26,7 @@ public class AssemblyEditorTests
     }
 
     [Test]
-    public void PublicizeField_AlreadyPublicField_ReturnsFalse()
+    public static void PublicizeField_AlreadyPublicField_ReturnsFalse()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         FieldDef field = Field(module, "PublicField");
@@ -39,7 +38,7 @@ public class AssemblyEditorTests
     }
 
     [Test]
-    public void PublicizeMethod_PrivateMethod_BecomesPublicAndReturnsTrue()
+    public static void PublicizeMethod_PrivateMethod_BecomesPublicAndReturnsTrue()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         MethodDef method = Method(module, "PrivateMethod");
@@ -51,7 +50,7 @@ public class AssemblyEditorTests
     }
 
     [Test]
-    public void PublicizeMethod_VirtualMethod_ExcludingVirtual_LeavesItUntouchedAndReturnsFalse()
+    public static void PublicizeMethod_VirtualMethod_ExcludingVirtual_LeavesItUntouchedAndReturnsFalse()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         MethodDef method = Method(module, "ProtectedVirtualMethod");
@@ -63,7 +62,7 @@ public class AssemblyEditorTests
     }
 
     [Test]
-    public void PublicizeMethod_VirtualMethod_IncludingVirtual_BecomesPublic()
+    public static void PublicizeMethod_VirtualMethod_IncludingVirtual_BecomesPublic()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         MethodDef method = Method(module, "ProtectedVirtualMethod");
@@ -75,7 +74,7 @@ public class AssemblyEditorTests
     }
 
     [Test]
-    public void PublicizeType_NestedType_AlsoPublicizesEnclosingType()
+    public static void PublicizeType_NestedType_AlsoPublicizesEnclosingType()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         TypeDef inner = module.Find("Fixture.Shapes+Inner", isReflectionName: true);
@@ -88,7 +87,7 @@ public class AssemblyEditorTests
     }
 
     [Test]
-    public void PublicizeProperty_PublicizesAccessorMethods()
+    public static void PublicizeProperty_PublicizesAccessorMethods()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         PropertyDef property = ShapesType(module).Properties.Single(p => p.Name == "PrivateAutoProp");
@@ -96,7 +95,7 @@ public class AssemblyEditorTests
         bool modified = AssemblyEditor.PublicizeProperty(property);
 
         Assert.That(modified, Is.True);
-        Assert.That(property.GetMethod!.IsPublic, Is.True);
-        Assert.That(property.SetMethod!.IsPublic, Is.True);
+        Assert.That(property.GetMethod.IsPublic, Is.True);
+        Assert.That(property.SetMethod.IsPublic, Is.True);
     }
 }

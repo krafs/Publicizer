@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using Microsoft.Build.Framework;
 
 namespace Publicizer.Tests;

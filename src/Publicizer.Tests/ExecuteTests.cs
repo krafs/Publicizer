@@ -1,6 +1,3 @@
-using System.IO;
-using System.Linq;
-using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using NUnit.Framework;
 
@@ -12,7 +9,7 @@ namespace Publicizer.Tests;
 /// engine. The member-level publicization behavior is covered by
 /// <see cref="PublicizeAssemblyCharacterizationTests"/>.
 /// </summary>
-public class ExecuteTests
+internal static class ExecuteTests
 {
     private static PublicizeAssemblies NewTask(string outputDirectory, out FakeBuildEngine engine)
     {
@@ -27,7 +24,7 @@ public class ExecuteTests
     }
 
     [Test]
-    public void Execute_PublicizesReference_PopulatesOutputItemsUnderOutputDirectory()
+    public static void Execute_PublicizesReference_PopulatesOutputItemsUnderOutputDirectory()
     {
         using var output = new TemporaryFolder();
         PublicizeAssemblies task = NewTask(output.Path, out _);
@@ -43,7 +40,7 @@ public class ExecuteTests
     }
 
     [Test]
-    public void Execute_SecondRunWithSameInputs_IsCacheHit()
+    public static void Execute_SecondRunWithSameInputs_IsCacheHit()
     {
         using var output = new TemporaryFolder();
 
@@ -60,7 +57,7 @@ public class ExecuteTests
     }
 
     [Test]
-    public void Execute_NoPublicizes_ReturnsTrueWithoutOutputs()
+    public static void Execute_NoPublicizes_ReturnsTrueWithoutOutputs()
     {
         using var output = new TemporaryFolder();
         var task = new PublicizeAssemblies
@@ -78,7 +75,7 @@ public class ExecuteTests
     }
 
     [Test]
-    public void Execute_PublicizeTargetMatchesNothing_WarnsAndDoesNotSwapReference()
+    public static void Execute_PublicizeTargetMatchesNothing_WarnsAndDoesNotSwapReference()
     {
         using var output = new TemporaryFolder();
         var engine = new FakeBuildEngine();
@@ -99,7 +96,7 @@ public class ExecuteTests
     }
 
     [Test]
-    public void Execute_WithLogFilePath_WritesLogFile()
+    public static void Execute_WithLogFilePath_WritesLogFile()
     {
         using var output = new TemporaryFolder();
         string logFilePath = Path.Combine(output.Path, "publicizer.log");

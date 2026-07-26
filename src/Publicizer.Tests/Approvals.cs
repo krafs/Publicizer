@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 
@@ -28,7 +26,7 @@ internal static class Approvals
         string receivedPath = Path.Combine(snapshotDirectory, baseName + ".received.txt");
 
         // Normalize line endings so approved files compare equal across platforms.
-        received = received.Replace("\r\n", "\n");
+        received = received.Replace("\r\n", "\n", StringComparison.Ordinal);
 
         if (string.Equals(Environment.GetEnvironmentVariable("VERIFY_APPROVE"), "1", StringComparison.Ordinal))
         {
@@ -46,7 +44,7 @@ internal static class Approvals
             Assert.Fail($"No approved snapshot at {approvedPath}. Reviewed the received output at {receivedPath} and rename it to *.verified.txt, or re-run with VERIFY_APPROVE=1.");
         }
 
-        string approved = File.ReadAllText(approvedPath).Replace("\r\n", "\n");
+        string approved = File.ReadAllText(approvedPath).Replace("\r\n", "\n", StringComparison.Ordinal);
         if (string.Equals(approved, received, StringComparison.Ordinal))
         {
             if (File.Exists(receivedPath))

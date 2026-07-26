@@ -1,4 +1,3 @@
-using System;
 using NUnit.Framework;
 
 namespace Publicizer.E2ETests;
@@ -7,12 +6,12 @@ namespace Publicizer.E2ETests;
 // references through different search paths and reference assemblies, and gets the
 // IgnoresAccessChecksTo attribute compiled against a different corlib — a path Publicizer
 // supports and nothing exercised. Windows-only: building net472 needs the targeting pack.
-public class NetFrameworkConsumerTests
+internal static class NetFrameworkConsumerTests
 {
     private const string NetFrameworkTargetFramework = "net472";
 
     [SetUp]
-    public void RequireWindows()
+    public static void RequireWindows()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -21,7 +20,7 @@ public class NetFrameworkConsumerTests
     }
 
     [Test]
-    public void NetFrameworkConsumer_CompilesAndRunsAgainstAPublicizedReference()
+    public static void NetFrameworkConsumer_CompilesAndRunsAgainstAPublicizedReference()
     {
         string libraryCode = """
             namespace PrivateNamespace

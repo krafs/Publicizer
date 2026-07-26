@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 
 namespace Publicizer.E2ETests;
@@ -51,13 +50,13 @@ internal static class Runner
         {
             startInfo.ArgumentList.Add(argument);
         }
-        using var process = Process.Start(startInfo)!;
+        using Process process = Process.Start(startInfo)!;
 
         // Drain both streams concurrently before waiting: a chatty child (desktop
         // msbuild -restore) can fill a pipe buffer and block on write while we block on
         // WaitForExit, deadlocking. Reading first avoids that.
-        System.Threading.Tasks.Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-        System.Threading.Tasks.Task<string> errorTask = process.StandardError.ReadToEndAsync();
+        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> errorTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
 
         var result = new ProcessResult(

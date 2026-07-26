@@ -12,7 +12,6 @@
     <OutDir Condition="$(OutDir) == ''">bin</OutDir>
     <PackageOutputPath>$(OutDir)</PackageOutputPath>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludePackageDependencies</TargetsForTfmSpecificBuildOutput>
-    <AnalysisMode>All</AnalysisMode>
   </PropertyGroup>
 
   <PropertyGroup Label="Package properties">
@@ -30,27 +29,27 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Publicizer.Tests" />
+    <InternalsVisibleTo Include="Publicizer.Tests"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="dnlib" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" />
-    <PackageReference Include="DotNet.ReproducibleBuilds" PrivateAssets="all" />
+    <PackageReference Include="dnlib"/>
+    <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all"/>
+    <PackageReference Include="DotNet.ReproducibleBuilds" PrivateAssets="all"/>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <Content Include="Krafs.Publicizer.props" PackagePath="build" />
-    <Content Include="Krafs.Publicizer.targets" PackagePath="build" />
-    <Compile Remove="IgnoresAccessChecksToAttribute.cs" />
-    <Content Include="IgnoresAccessChecksToAttribute.cs" PackagePath="contentfiles\cs\any\Publicizer" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\"/>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    <Content Include="Krafs.Publicizer.props" PackagePath="build"/>
+    <Content Include="Krafs.Publicizer.targets" PackagePath="build"/>
+    <Compile Remove="IgnoresAccessChecksToAttribute.cs"/>
+    <Content Include="IgnoresAccessChecksToAttribute.cs" PackagePath="contentfiles\cs\any\Publicizer"/>
   </ItemGroup>
 
   <Target Name="IncludePackageDependencies">
     <ItemGroup>
-      <BuildOutputInPackage Include="$(OutDir)dnlib.dll" />
+      <BuildOutputInPackage Include="$(OutDir)dnlib.dll"/>
     </ItemGroup>
   </Target>
 
@@ -59,9 +58,9 @@
        package (e.g. a previous release) would otherwise shadow this build. -->
   <Target Name="CleanStalePackages" BeforeTargets="GenerateNuspec">
     <ItemGroup>
-      <_StalePackage Include="$([MSBuild]::EnsureTrailingSlash($(PackageOutputPath)))Krafs.Publicizer.*.nupkg" />
+      <_StalePackage Include="$([MSBuild]::EnsureTrailingSlash($(PackageOutputPath)))Krafs.Publicizer.*.nupkg"/>
     </ItemGroup>
-    <Delete Files="@(_StalePackage)" />
+    <Delete Files="@(_StalePackage)"/>
   </Target>
 
 </Project>

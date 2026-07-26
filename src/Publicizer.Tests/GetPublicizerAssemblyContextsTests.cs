@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using NUnit.Framework;
@@ -10,7 +9,7 @@ namespace Publicizer.Tests;
 /// how Publicize / DoNotPublicize item specs and metadata parse into per-assembly
 /// contexts.
 /// </summary>
-public class GetPublicizerAssemblyContextsTests
+internal static class GetPublicizerAssemblyContextsTests
 {
     private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null)
     {
@@ -18,7 +17,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void AssemblyWidePublicize_SetsExplicitlyPublicizeAssemblyWithDefaults()
+    public static void AssemblyWidePublicize_SetsExplicitlyPublicizeAssemblyWithDefaults()
     {
         Dictionary<string, PublicizerAssemblyContext> contexts = Build([new TaskItem("Asm")]);
 
@@ -31,7 +30,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void MemberPublicize_AddsMemberPatternAndDoesNotPublicizeWholeAssembly()
+    public static void MemberPublicize_AddsMemberPatternAndDoesNotPublicizeWholeAssembly()
     {
         Dictionary<string, PublicizerAssemblyContext> contexts =
             Build([new TaskItem("Asm:Ns.Type.Member")]);
@@ -42,7 +41,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void AssemblyWidePublicize_HonorsIncludeFlagMetadata()
+    public static void AssemblyWidePublicize_HonorsIncludeFlagMetadata()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("IncludeVirtualMembers", "false");
@@ -55,7 +54,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void AssemblyWidePublicize_HonorsMemberPatternMetadata()
+    public static void AssemblyWidePublicize_HonorsMemberPatternMetadata()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("MemberPattern", ".*Foo.*");
@@ -66,7 +65,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void DoNotPublicizeAssembly_SetsExplicitlyDoNotPublicizeAssembly()
+    public static void DoNotPublicizeAssembly_SetsExplicitlyDoNotPublicizeAssembly()
     {
         Dictionary<string, PublicizerAssemblyContext> contexts = Build([], [new TaskItem("Asm")]);
 
@@ -74,7 +73,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void DoNotPublicizeMember_AddsDoNotPublicizeMemberPattern()
+    public static void DoNotPublicizeMember_AddsDoNotPublicizeMemberPattern()
     {
         Dictionary<string, PublicizerAssemblyContext> contexts = Build([], [new TaskItem("Asm:Ns.Type.Member")]);
 
@@ -82,7 +81,7 @@ public class GetPublicizerAssemblyContextsTests
     }
 
     [Test]
-    public void SameAssemblyInPublicizeAndDoNotPublicize_MergesIntoOneContext()
+    public static void SameAssemblyInPublicizeAndDoNotPublicize_MergesIntoOneContext()
     {
         Dictionary<string, PublicizerAssemblyContext> contexts = Build([new TaskItem("Asm")], [new TaskItem("Asm:Ns.Type.Member")]);
 

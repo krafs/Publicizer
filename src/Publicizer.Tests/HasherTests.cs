@@ -8,7 +8,7 @@ namespace Publicizer.Tests;
 /// stable for equal inputs and must change when any input that affects
 /// publicization output changes.
 /// </summary>
-public partial class HasherTests
+internal static partial class HasherTests
 {
     [GeneratedRegex(".*Foo.*")]
     private static partial Regex FooPattern();
@@ -16,7 +16,7 @@ public partial class HasherTests
     private static string Hash(PublicizerAssemblyContext context) => Hasher.ComputeHash(Fixtures.ShapesPath(), context);
 
     [Test]
-    public void ComputeHash_SameInputs_IsStable()
+    public static void ComputeHash_SameInputs_IsStable()
     {
         string first = Hash(new PublicizerAssemblyContext("Fixture"));
         string second = Hash(new PublicizerAssemblyContext("Fixture"));
@@ -25,7 +25,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_DifferentAssemblyName_ChangesHash()
+    public static void ComputeHash_DifferentAssemblyName_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         string other = Hash(new PublicizerAssemblyContext("Other"));
@@ -34,7 +34,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_TogglingIncludeCompilerGeneratedMembers_ChangesHash()
+    public static void ComputeHash_TogglingIncludeCompilerGeneratedMembers_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture") { IncludeCompilerGeneratedMembers = false };
@@ -43,7 +43,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_TogglingIncludeVirtualMembers_ChangesHash()
+    public static void ComputeHash_TogglingIncludeVirtualMembers_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture") { IncludeVirtualMembers = false };
@@ -52,7 +52,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_TogglingExplicitlyPublicizeAssembly_ChangesHash()
+    public static void ComputeHash_TogglingExplicitlyPublicizeAssembly_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
@@ -61,7 +61,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_TogglingExplicitlyDoNotPublicizeAssembly_ChangesHash()
+    public static void ComputeHash_TogglingExplicitlyDoNotPublicizeAssembly_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyDoNotPublicizeAssembly = true };
@@ -70,7 +70,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_AddingPublicizeMemberPattern_ChangesHash()
+    public static void ComputeHash_AddingPublicizeMemberPattern_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture");
@@ -80,7 +80,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_AddingDoNotPublicizeMemberPattern_ChangesHash()
+    public static void ComputeHash_AddingDoNotPublicizeMemberPattern_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture");
@@ -90,7 +90,7 @@ public partial class HasherTests
     }
 
     [Test]
-    public void ComputeHash_SettingMemberRegexPattern_ChangesHash()
+    public static void ComputeHash_SettingMemberRegexPattern_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
         var context = new PublicizerAssemblyContext("Fixture") { PublicizeMemberRegexPattern = FooPattern() };

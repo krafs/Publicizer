@@ -1,13 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using dnlib.DotNet;
 using dnlib.DotNet.Writer;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
+using Task = Microsoft.Build.Utilities.Task;
 
 namespace Publicizer;
+
 public sealed class PublicizeAssemblies : Task
 {
     [Required]
@@ -57,8 +55,8 @@ public sealed class PublicizeAssemblies : Task
         using Logger logger = GetLogger();
         logger.Info($"Initializing assembly publicization");
 
-        Publicizes ??= Array.Empty<ITaskItem>();
-        DoNotPublicizes ??= Array.Empty<ITaskItem>();
+        Publicizes ??= [];
+        DoNotPublicizes ??= [];
 
         logger.Info($"Referenced assemblies: {ReferencePaths.Length}");
 
@@ -150,8 +148,8 @@ public sealed class PublicizeAssemblies : Task
             scopedLogger.Info("Assembly processing finished");
         }
 
-        ReferencePathsToDelete = referencePathsToDelete.ToArray();
-        ReferencePathsToAdd = referencePathsToAdd.ToArray();
+        ReferencePathsToDelete = [.. referencePathsToDelete];
+        ReferencePathsToAdd = [.. referencePathsToAdd];
 
         logger.Info($"Finished processing {assemblyContexts.Count} assemblies. Terminating task.");
 
@@ -240,7 +238,7 @@ public sealed class PublicizeAssemblies : Task
             string typeName = typeDef.ReflectionFullName;
 
             bool explicitlyDoNotPublicizeType = assemblyContext.DoNotPublicizeMemberPatterns.Contains(typeName);
-            
+
             // PROPERTIES
             foreach (PropertyDef? propertyDef in typeDef.Properties)
             {
@@ -291,7 +289,7 @@ public sealed class PublicizeAssemblies : Task
                     {
                         continue;
                     }
-                    
+
                     bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(propertyName) ?? true;
                     if (!isRegexPatternMatch)
                     {
@@ -355,7 +353,7 @@ public sealed class PublicizeAssemblies : Task
                     {
                         continue;
                     }
-                    
+
                     bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(methodName) ?? true;
                     if (!isRegexPatternMatch)
                     {
@@ -413,7 +411,7 @@ public sealed class PublicizeAssemblies : Task
                     {
                         continue;
                     }
-                    
+
                     bool isRegexPatternMatch = assemblyContext.PublicizeMemberRegexPattern?.IsMatch(fieldName) ?? true;
                     if (!isRegexPatternMatch)
                     {

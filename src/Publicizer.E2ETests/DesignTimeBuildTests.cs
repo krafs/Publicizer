@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using NUnit.Framework;
 
 namespace Publicizer.E2ETests;
@@ -9,10 +7,10 @@ namespace Publicizer.E2ETests;
 // editor resolves the original assembly and marks every non-public member as inaccessible —
 // red squiggles over code that compiles fine from the command line. Nothing else in the
 // suite runs a build in that mode.
-public class DesignTimeBuildTests
+internal static class DesignTimeBuildTests
 {
     // The properties the .NET Project System sets for a design-time build.
-    private static readonly string[] DesignTimeBuildArguments =
+    private static readonly string[] s_designTimeBuildArguments =
     [
         "-t:DumpReferencePaths",
         "-p:DesignTimeBuild=true",
@@ -31,7 +29,7 @@ public class DesignTimeBuildTests
         """;
 
     [Test]
-    public void DesignTimeBuild_ResolvesThePublicizedAssemblyRatherThanTheOriginal()
+    public static void DesignTimeBuild_ResolvesThePublicizedAssemblyRatherThanTheOriginal()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PublicizerTests.PrivateClassIn("PrivateNamespace")).BuildOrFail();
 
@@ -41,7 +39,7 @@ public class DesignTimeBuildTests
             .Item("Publicize", "PrivateAssembly")
             .RawXml(DumpTarget);
 
-        ProcessResult result = app.Build(DesignTimeBuildArguments);
+        ProcessResult result = app.Build(s_designTimeBuildArguments);
         Assert.That(result.ExitCode, Is.Zero, result.Output);
 
         string[] referencePaths = File.ReadAllLines(Path.Combine(app.Folder, "referencepaths.txt"));

@@ -1,4 +1,3 @@
-using System.IO;
 using NUnit.Framework;
 
 namespace Publicizer.E2ETests;
@@ -7,7 +6,7 @@ namespace Publicizer.E2ETests;
 // runs one inner build per framework, each publicizing the same reference against a
 // different corlib into its own IntermediateOutputPath — so the inner builds must neither
 // serve each other a cached assembly nor race over the same output folder.
-public class MultiTargetedConsumerTests
+internal static class MultiTargetedConsumerTests
 {
     private const string LegacyTargetFramework = "netstandard2.0";
 
@@ -40,7 +39,7 @@ public class MultiTargetedConsumerTests
         .Item("Publicize", "PrivateAssembly");
 
     [Test]
-    public void MultiTargetedConsumer_PublicizesInEveryInnerBuild()
+    public static void MultiTargetedConsumer_PublicizesInEveryInnerBuild()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", LibraryCode)
             .TargetingFramework(LegacyTargetFramework)
@@ -56,7 +55,7 @@ public class MultiTargetedConsumerTests
     }
 
     [Test]
-    public void RebuildingAMultiTargetedConsumer_PublicizesTheChangedReferenceInEveryInnerBuild()
+    public static void RebuildingAMultiTargetedConsumer_PublicizesTheChangedReferenceInEveryInnerBuild()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", LibraryCode)
             .TargetingFramework(LegacyTargetFramework)

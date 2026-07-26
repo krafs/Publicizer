@@ -34,7 +34,7 @@ internal static class TaskItemExtensions
 
         return true;
     }
-    
+
     internal static Regex? MemberPattern(this ITaskItem item)
     {
         string? memberPattern = item.GetMetadata("MemberPattern");

@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-
 namespace Publicizer.E2ETests;
 
 internal sealed class TemporaryFolder : IDisposable

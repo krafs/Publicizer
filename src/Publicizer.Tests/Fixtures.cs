@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using dnlib.DotNet;
 
 namespace Publicizer.Tests;
