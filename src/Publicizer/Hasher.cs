@@ -12,7 +12,7 @@ internal static class Hasher
     // Includes the commit hash via SourceLink, so it changes on every build.
     // Feeding it into the cache key invalidates assemblies publicized by an
     // older Publicizer whose publicization logic may have differed.
-    private static readonly string s_publicizerVersion =
+    private static readonly string publicizerVersion =
         typeof(Hasher).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion
@@ -21,7 +21,7 @@ internal static class Hasher
     internal static string ComputeHash(string assemblyPath, PublicizerAssemblyContext assemblyContext)
     {
         var sb = new StringBuilder();
-        sb.Append(s_publicizerVersion);
+        sb.Append(publicizerVersion);
         sb.Append(assemblyContext.AssemblyName);
         sb.Append(assemblyContext.IncludeCompilerGeneratedMembers);
         sb.Append(assemblyContext.IncludeVirtualMembers);

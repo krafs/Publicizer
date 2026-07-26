@@ -11,10 +11,7 @@ namespace Publicizer.Tests;
 /// </summary>
 internal static class GetPublicizerAssemblyContextsTests
 {
-    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null)
-    {
-        return PublicizeAssemblies.GetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? [], NullTaskLogger.Instance);
-    }
+    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null) => PublicizeAssemblies.GetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? [], NullTaskLogger.Instance);
 
     [Test]
     public static void AssemblyWidePublicize_SetsExplicitlyPublicizeAssemblyWithDefaults()

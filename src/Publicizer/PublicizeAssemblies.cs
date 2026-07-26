@@ -490,8 +490,5 @@ public sealed class PublicizeAssemblies : Task
         return publicizedAnyMemberInAssembly;
     }
 
-    private static bool IsCompilerGenerated(IHasCustomAttribute memberDef)
-    {
-        return memberDef.CustomAttributes.Any(x => x.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
-    }
+    private static bool IsCompilerGenerated(IHasCustomAttribute memberDef) => memberDef.CustomAttributes.Any(x => x.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
 }

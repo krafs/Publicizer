@@ -5,15 +5,9 @@ namespace Publicizer;
 
 internal static class TaskItemExtensions
 {
-    internal static string FileName(this ITaskItem item)
-    {
-        return item.GetMetadata("Filename");
-    }
+    internal static string FileName(this ITaskItem item) => item.GetMetadata("Filename");
 
-    internal static string FullPath(this ITaskItem item)
-    {
-        return item.GetMetadata("Fullpath");
-    }
+    internal static string FullPath(this ITaskItem item) => item.GetMetadata("Fullpath");
 
     internal static bool IncludeCompilerGeneratedMembers(this ITaskItem item)
     {

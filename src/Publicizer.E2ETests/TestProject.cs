@@ -11,49 +11,49 @@ internal sealed class TestProject : IDisposable
     // nothing collides across tests and the reference can be pinned exactly.
     private const string PackageVersion = "1.0.0";
 
-    private readonly TemporaryFolder _folder = new();
-    private readonly string _name;
-    private readonly string _outputType;
-    private readonly string _sourcePath;
-    private readonly List<string> _properties = [];
-    private readonly List<string> _items = [];
-    private readonly List<string> _rawXml = [];
-    private readonly List<LocalPackageSource> _packageSources = [];
-    private List<string> _targetFrameworks = [DefaultTargetFramework];
+    private readonly TemporaryFolder folder = new();
+    private readonly string name;
+    private readonly string outputType;
+    private readonly string sourcePath;
+    private readonly List<string> properties = [];
+    private readonly List<string> items = [];
+    private readonly List<string> rawXml = [];
+    private readonly List<LocalPackageSource> packageSources = [];
+    private List<string> targetFrameworks = [DefaultTargetFramework];
 
     private TestProject(string name, string outputType, string sourceCode)
     {
-        _name = name;
-        _outputType = outputType;
-        _sourcePath = Path.Combine(_folder.Path, "Source.cs");
-        File.WriteAllText(_sourcePath, sourceCode);
+        this.name = name;
+        this.outputType = outputType;
+        sourcePath = Path.Combine(folder.Path, "Source.cs");
+        File.WriteAllText(sourcePath, sourceCode);
     }
 
     internal static TestProject Library(string name, string sourceCode) => new(name, "library", sourceCode);
 
     internal static TestProject App(string sourceCode) => new("App", "exe", sourceCode);
 
-    internal string Folder => _folder.Path;
+    internal string Folder => folder.Path;
 
     // Output goes to a subfolder, not the project directory: with the two the same, a
     // consumer's copy-local of a reference lands next to its own project and gets resolved
     // in preference to the HintPath on the next build — stale, and nothing to do with the
     // code under test.
-    private string OutputFolder => Path.Combine(_folder.Path, "bin");
+    private string OutputFolder => Path.Combine(folder.Path, "bin");
 
-    private bool IsMultiTargeted => _targetFrameworks.Count > 1;
+    private bool IsMultiTargeted => targetFrameworks.Count > 1;
 
-    private bool TargetsNetFramework => _targetFrameworks[0].StartsWith("net4", StringComparison.Ordinal);
+    private bool TargetsNetFramework => targetFrameworks[0].StartsWith("net4", StringComparison.Ordinal);
 
-    private string PackageFolder => Path.Combine(_folder.Path, "package");
+    private string PackageFolder => Path.Combine(folder.Path, "package");
 
-    internal string AssemblyPath => AssemblyPathFor(_targetFrameworks[0]);
+    internal string AssemblyPath => AssemblyPathFor(targetFrameworks[0]);
 
-    internal string ProjectPath => Path.Combine(_folder.Path, $"{_name}.csproj");
+    internal string ProjectPath => Path.Combine(folder.Path, $"{name}.csproj");
 
     // Multi-targeted builds give each inner build its own OutDir, so an assembly is only
     // addressable per target framework.
-    internal string AssemblyPathFor(string targetFramework) => Path.Combine(IsMultiTargeted ? Path.Combine(OutputFolder, targetFramework) : OutputFolder, $"{_name}.dll");
+    internal string AssemblyPathFor(string targetFramework) => Path.Combine(IsMultiTargeted ? Path.Combine(OutputFolder, targetFramework) : OutputFolder, $"{name}.dll");
 
     // .NET Framework consumers resolve references through a different set of search paths
     // and reference assemblies than .NET ones.
@@ -63,28 +63,28 @@ internal sealed class TestProject : IDisposable
     // own IntermediateOutputPath and its own pass over the references.
     internal TestProject TargetingFrameworks(params string[] targetFrameworks)
     {
-        _targetFrameworks = [.. targetFrameworks];
+        this.targetFrameworks = [.. targetFrameworks];
         return this;
     }
 
     internal TestProject Property(string name, string value)
     {
-        _properties.Add($"<{name}>{value}</{name}>");
+        properties.Add($"<{name}>{value}</{name}>");
         return this;
     }
 
     internal TestProject Item(string type, string include, string? attributes = null)
     {
-        _items.Add($"""<{type} Include="{include}"{(attributes is null ? "" : " " + attributes)} />""");
+        items.Add($"""<{type} Include="{include}"{(attributes is null ? "" : " " + attributes)} />""");
         return this;
     }
 
-    internal TestProject Referencing(TestProject other) => Item("Reference", other._name, $"""HintPath="{other.AssemblyPath}" """);
+    internal TestProject Referencing(TestProject other) => Item("Reference", other.name, $"""HintPath="{other.AssemblyPath}" """);
 
     // The PackageReference plus the local source that resolves it from the locally packed nupkg.
     internal TestProject ConsumingPublicizer()
     {
-        _packageSources.Add(new LocalPackageSource("publicizer", NugetConfigMaker.PublicizerPackagesFolder, "Krafs.Publicizer"));
+        packageSources.Add(new LocalPackageSource("publicizer", NugetConfigMaker.PublicizerPackagesFolder, "Krafs.Publicizer"));
         return Item("PackageReference", "Krafs.Publicizer", """Version="*" """);
     }
 
@@ -93,14 +93,14 @@ internal sealed class TestProject : IDisposable
     // other project to have been packed.
     internal TestProject ReferencingPackage(TestProject other)
     {
-        _packageSources.Add(new LocalPackageSource(other._name, other.PackageFolder, other._name));
-        return Item("PackageReference", other._name, $"""Version="{PackageVersion}" """);
+        packageSources.Add(new LocalPackageSource(other.name, other.PackageFolder, other.name));
+        return Item("PackageReference", other.name, $"""Version="{PackageVersion}" """);
     }
 
     // Raw XML appended inside the project, for the odd test that needs a target of its own.
     internal TestProject RawXml(string xml)
     {
-        _rawXml.Add(xml);
+        rawXml.Add(xml);
         return this;
     }
 
@@ -120,7 +120,7 @@ internal sealed class TestProject : IDisposable
         ProcessResult result = Runner.Pack(ProjectPath);
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Packing {_name} failed with exit code {result.ExitCode}:{Environment.NewLine}{result.Output}{result.Error}");
+            throw new InvalidOperationException($"Packing {name} failed with exit code {result.ExitCode}:{Environment.NewLine}{result.Output}{result.Error}");
         }
         return this;
     }
@@ -137,15 +137,15 @@ internal sealed class TestProject : IDisposable
     private void Materialize()
     {
         File.WriteAllText(ProjectPath, ToCsproj());
-        if (_packageSources.Count > 0)
+        if (packageSources.Count > 0)
         {
-            NugetConfigMaker.CreateConfig(_folder.Path, _packageSources);
+            NugetConfigMaker.CreateConfig(folder.Path, packageSources);
         }
     }
 
     internal TestProject Rewrite(string sourceCode)
     {
-        File.WriteAllText(_sourcePath, sourceCode);
+        File.WriteAllText(sourcePath, sourceCode);
         return this;
     }
 
@@ -155,25 +155,25 @@ internal sealed class TestProject : IDisposable
         ProcessResult result = Build();
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Building {_name} failed with exit code {result.ExitCode}:{Environment.NewLine}{result.Output}{result.Error}");
+            throw new InvalidOperationException($"Building {name} failed with exit code {result.ExitCode}:{Environment.NewLine}{result.Output}{result.Error}");
         }
         return this;
     }
 
     // .NET Framework apps produce a runnable .exe; .NET apps are launched through the host.
     internal ProcessResult Run() => TargetsNetFramework
-        ? Runner.Run(Path.Combine(OutputFolder, $"{_name}.exe"))
+        ? Runner.Run(Path.Combine(OutputFolder, $"{name}.exe"))
         : Runner.Run("dotnet", AssemblyPath);
 
     private string ToCsproj()
     {
-        string properties = string.Join(Environment.NewLine + "    ", _properties);
-        string items = string.Join(Environment.NewLine + "    ", _items);
-        string rawXml = string.Join(Environment.NewLine, _rawXml);
+        string propertiesXml = string.Join(Environment.NewLine + "    ", properties);
+        string itemsXml = string.Join(Environment.NewLine + "    ", items);
+        string rawXmlText = string.Join(Environment.NewLine, rawXml);
 
-        string targetFrameworks = IsMultiTargeted
-            ? $"<TargetFrameworks>{string.Join(";", _targetFrameworks)}</TargetFrameworks>"
-            : $"<TargetFramework>{_targetFrameworks[0]}</TargetFramework>";
+        string targetFrameworksXml = IsMultiTargeted
+            ? $"<TargetFrameworks>{string.Join(";", targetFrameworks)}</TargetFrameworks>"
+            : $"<TargetFramework>{targetFrameworks[0]}</TargetFramework>";
 
         // Inner builds would otherwise all write to the same OutDir and overwrite each other.
         string outDir = IsMultiTargeted
@@ -184,23 +184,23 @@ internal sealed class TestProject : IDisposable
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
-                {targetFrameworks}
+                {targetFrameworksXml}
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-                <OutputType>{_outputType}</OutputType>
+                <OutputType>{outputType}</OutputType>
                 <OutDir>{outDir}</OutDir>
-                {properties}
+                {propertiesXml}
               </PropertyGroup>
 
               <ItemGroup>
-                <Compile Include="{_sourcePath}" />
-                {items}
+                <Compile Include="{sourcePath}" />
+                {itemsXml}
               </ItemGroup>
 
-              {rawXml}
+              {rawXmlText}
 
             </Project>
             """;
     }
 
-    public void Dispose() => ((IDisposable)_folder).Dispose();
+    public void Dispose() => ((IDisposable)folder).Dispose();
 }
