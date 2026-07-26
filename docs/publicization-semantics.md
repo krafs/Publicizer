@@ -32,7 +32,8 @@ This has direct consequences for the syntax users must write:
 
 - Nested types use `+`: `Fixture.Shapes+Inner` (`NestedMember_AlsoPublicizesEnclosingType`).
 - Generic types carry arity, backtick included: ``Fixture.GenericHolder`1.GenericField`` (`SingleMember_GenericField_MatchesArityMangledName`).
-- Constructors are `.ctor`, producing the doubled dot in `Fixture.Shapes..ctor` (`SingleMember_Constructor`).
+- Constructors are `.ctor`, producing the doubled dot in `Fixture.Shapes..ctor` (`SingleMember_Constructor`). Static constructors are `.cctor`.
+- Types in the global namespace have no prefix at all: `GlobalType.someField` (`SignatureClosureTests.GlobalNamespaceType_IsNamedWithoutNamespacePrefix`, issue #14).
 - Methods have no parameter list, so a target names *all* overloads at once. This is the single biggest limitation of the current model and the main motivation for a real parser.
 - Because names are compared without regard to member kind, one target string can match a type, a field, a method and a property simultaneously if they happen to share a name.
 
@@ -54,7 +55,7 @@ Three metadata attributes are read, and **only from assembly-form items** (`Publ
 
 Defaults apply when the metadata is absent *or unparseable* — `bool.TryParse` failure falls back to `true` rather than erroring (`TaskItemExtensions.cs:12-30`, `TaskItemExtensionsTests.IncludeCompilerGeneratedMembers_GarbageMetadata_DefaultsToTrue`), so `IncludeVirtualMembers="yes"` silently means `true`.
 
-Putting this metadata on a member-form item has no effect; it is read but never stored. `DoNotPublicize` items never read metadata at all.
+Putting this metadata on a member-form item has no effect; it is read but never stored. `DoNotPublicize` items never read metadata at all. This asymmetry is a known wart — it was raised while designing the "publicize a whole type" feature (issue #100), and is why that feature shipped as assembly-level `MemberPattern` rather than a type-level `IncludeMembers`. Consequently **the only way to publicize all members of one type is a regex** anchored on the type name.
 
 When several assembly-form `Publicize` items name the same assembly, the metadata of each **overwrites** the previous — last item wins, with no merge and no diagnostic. The overwrite is unconditional per field, so a later item that sets none of the metadata resets all of it to defaults, silently discarding an earlier item's `MemberPattern` (`GetPublicizerAssemblyContextsTests.DuplicateAssemblyWidePublicizes_LastMetadataWins`).
 
@@ -126,6 +127,31 @@ For completeness, behavior that surrounds publicization but isn't part of the ma
 - **Writer options** set `KeepOldMaxStack`, because writing some assemblies fails otherwise (issue #42).
 - **Reference swapping.** Processed references are reported on `ReferencePathsToDelete`/`ReferencePathsToAdd`, with metadata copied to the new item, and the targets file performs the substitution.
 
+## Publicization does not close over dependencies
+
+Publicization changes the accessibility of the members it matches by name, and nothing else. It never inspects a member's signature. The only transitive rule in the engine is the declaring-type walk-up for nested types (`AssemblyEditor.cs:16`).
+
+So a member can become public and still be unusable:
+
+- A method whose **parameter** type is internal or private becomes public but stays uncallable — the caller cannot name a value to pass (`SignatureClosureTests.PublicizingMethod_DoesNotPublicizeItsParameterTypes`).
+- A method whose **return** type is inaccessible is survivable via `var`, but the type still can't be named in a field, a cast, or a generic argument (`PublicizingMethod_DoesNotPublicizeItsReturnType`).
+- A **field** of an inaccessible type has the same problem (`PublicizingField_DoesNotPublicizeItsFieldType`).
+- Generic constraints, base types and interfaces are equally untouched.
+
+This has gone largely unreported because **whole-assembly publicization closes over everything by accident** — if every type is public, no signature can reference an inaccessible one (`WholeAssembly_ClosesOverSignatureTypesByAccident`). The gap only bites targeted publicization, which is the minority use case today and the mode a structured-matcher rewrite is meant to make attractive. Anything that makes targeting more precise makes this more visible.
+
+Whether to close over signatures automatically is a genuine design question, not an obvious fix: the transitive closure of a single method can drag in a large share of an assembly, and silently publicizing types the user didn't name is its own surprise. Options worth weighing are doing nothing (status quo), warning when a publicized member's signature references a type that stays inaccessible, or an opt-in closure mode.
+
+## Type-identity scenarios that are out of scope
+
+These are recurring support questions where the semantics are working as designed and the problem lies outside the decision tree. Documented so a rewrite doesn't mistake them for bugs to fix.
+
+- **The publicized assembly is a compile-time substitute only.** The runtime loads the *original*. Everything in the README's "Quirks" section follows from this, and so does the override mismatch that `IncludeVirtualMembers` exists to work around (issue #72 proposed rewriting subclass overrides to compensate; declined as more ambitious than it's worth).
+- **Reference assemblies publicize fine but decompile poorly**, because method bodies are already stripped before Publicizer sees them (issue #63).
+- **Targets are matched against the assembly on disk that the project actually references**, which may not be the one the user is reading in a decompiler. Issue #175 is entirely this: `Dictionary` fields named `_buckets` vs `buckets` because the reference package was built from .NET Core rather than Framework. No engine change can help; a diagnostic naming the resolved path might.
+- **Runtime-implementation assemblies can't be targeted unless the project references them.** `System.Private.CoreLib` is reached through `System.Runtime`, which is what the project references and therefore all that can be publicized (issue #101; the reporter's workaround was to author a stub reference assembly of the same name).
+- **`IgnoresAccessChecksToAttribute` can collide** with another definition in the compilation, e.g. MonoMod.Utils, producing CS0436 (issue #163). This is the runtime strategy, not publicization.
+
 ## Known-questionable behavior
 
 Collected here as rewrite input. None of these are bugs the current tests fail on; they are the places where the current model and a reasonable model diverge.
@@ -140,3 +166,5 @@ Collected here as rewrite input. None of these are bugs the current tests fail o
 8. Assembly name matching is case-sensitive, which is surprising on Windows.
 9. `DoNotPublicize` on a type does not prevent that type from being made public via an explicitly targeted member.
 10. `DoNotPublicize` on a type does not extend to its nested types; each nested type has its own reflection name and must be named separately (`DoNotPublicizeType_DoesNotExtendToNestedTypes`).
+11. Publicization does not close over signature types, so targeted publicization can produce public-but-unusable members.
+12. Per-item options only exist on the assembly form, so "all members of this type" is only expressible as a regex.
