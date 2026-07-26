@@ -124,6 +124,13 @@ internal static class PublicizeItemParser
             return false;
         }
 
+        // Same segment rule 'Type' is held to: a dot separates two names, so neither side may be empty.
+        if (namespaceName.Length > 0 && Array.Exists(namespaceName.Split('.'), segment => segment.Length == 0))
+        {
+            logger.Error($"{itemName} item '{spec}': 'Namespace' has an empty name segment: '{namespaceName}'.");
+            return false;
+        }
+
         string? typeReflectionName = null;
         if (typeValue is not null)
         {
@@ -259,6 +266,14 @@ internal static class PublicizeItemParser
         if (arguments.Trim().Length == 0)
         {
             logger.Error($"{itemName} item '{spec}': 'Type' segment '{segment}' has an empty type argument list. Drop the braces for a non-generic type.");
+            return false;
+        }
+
+        // A nested argument list would make the commas ambiguous — 'Holder{Dictionary{K,V}}' has one
+        // argument, not two — and nothing reads the names yet anyway, so refuse rather than guess.
+        if (arguments.IndexOf('{') >= 0)
+        {
+            logger.Error($"{itemName} item '{spec}': 'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
             return false;
         }
 

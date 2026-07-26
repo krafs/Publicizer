@@ -197,11 +197,19 @@ internal static class StructuredTargetTests
         Assert.That(ErrorFor(Item("Asm", "Type", "Holder{T")), Does.Contain("unbalanced braces"));
         Assert.That(ErrorFor(Item("Asm", "Type", "Holder{}")), Does.Contain("empty type argument list"));
         Assert.That(ErrorFor(Item("Asm", "Type", "A..B")), Does.Contain("empty name segment"));
+
+        // The commas inside would be counted as arity, so 'Holder{Dictionary{K,V}}' would silently
+        // lower to Holder`2 and match nothing.
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder{Dictionary{K,V}}")), Does.Contain("nested type argument list"));
     }
 
     [Test]
-    public static void MalformedNamespace_IsRejected() =>
+    public static void MalformedNamespace_IsRejected()
+    {
         Assert.That(ErrorFor(Item("Asm", "Namespace", "A+B")), Does.Contain("plain dotted namespace name"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A..B")), Does.Contain("empty name segment"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A.")), Does.Contain("empty name segment"));
+    }
 
     [Test]
     public static void MemberQualifiers_AreRejectedUntilTheyAreImplemented()
