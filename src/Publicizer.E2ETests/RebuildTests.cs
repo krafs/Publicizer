@@ -6,7 +6,7 @@ namespace Publicizer.E2ETests;
 // the same project over and over in one session, against publicized assemblies cached in
 // the intermediate folder and against a build node that never goes away — which is where
 // stale-cache and file-locking failures live.
-public class RebuildTests
+internal static class RebuildTests
 {
     private const string PrivateClassPrintingFoo = """
         namespace PrivateNamespace;
@@ -24,7 +24,7 @@ public class RebuildTests
         .Item("Publicize", "PrivateAssembly");
 
     [Test]
-    public void RebuildingAnUnchangedConsumer_StillBuildsAndRuns()
+    public static void RebuildingAnUnchangedConsumer_StillBuildsAndRuns()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassPrintingFoo).BuildOrFail();
         using TestProject app = Consumer(library);
@@ -39,7 +39,7 @@ public class RebuildTests
     }
 
     [Test]
-    public void RebuildingAfterTheReferencedAssemblyChanged_PublicizesTheNewOne()
+    public static void RebuildingAfterTheReferencedAssemblyChanged_PublicizesTheNewOne()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassPrintingFoo).BuildOrFail();
         using TestProject app = Consumer(library);
@@ -67,7 +67,7 @@ public class RebuildTests
     }
 
     [Test]
-    public void RebuildingThroughAReusedBuildNode_StillBuildsAndRuns()
+    public static void RebuildingThroughAReusedBuildNode_StillBuildsAndRuns()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassPrintingFoo).BuildOrFail();
         using TestProject app = Consumer(library);

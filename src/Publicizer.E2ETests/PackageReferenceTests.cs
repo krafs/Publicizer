@@ -6,7 +6,7 @@ namespace Publicizer.E2ETests;
 // <Reference HintPath=...>. The common real-world case is a PackageReference: the assembly
 // arrives on ReferencePath from the NuGet restore graph, carrying package metadata and
 // different copy-local semantics, and the reference Publicizer swaps in has to survive that.
-public class PackageReferenceTests
+internal static class PackageReferenceTests
 {
     private const string PrivateClassCode = """
         namespace PrivateNamespace;
@@ -23,7 +23,7 @@ public class PackageReferenceTests
         """;
 
     [Test]
-    public void PublicizeAssemblyFromAPackageReference_CompilesAndRuns()
+    public static void PublicizeAssemblyFromAPackageReference_CompilesAndRuns()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassCode).PackOrFail();
 

@@ -8,17 +8,17 @@ namespace Publicizer.Tests;
 /// Characterizes <see cref="TaskItemExtensions"/>: metadata parsing and its
 /// default-to-true / null-on-blank behavior.
 /// </summary>
-public class TaskItemExtensionsTests
+internal static class TaskItemExtensionsTests
 {
     [Test]
-    public void IncludeCompilerGeneratedMembers_MissingMetadata_DefaultsToTrue()
+    public static void IncludeCompilerGeneratedMembers_MissingMetadata_DefaultsToTrue()
     {
         var item = new TaskItem("Asm");
         Assert.That(item.IncludeCompilerGeneratedMembers(), Is.True);
     }
 
     [Test]
-    public void IncludeCompilerGeneratedMembers_GarbageMetadata_DefaultsToTrue()
+    public static void IncludeCompilerGeneratedMembers_GarbageMetadata_DefaultsToTrue()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("IncludeCompilerGeneratedMembers", "notabool");
@@ -26,7 +26,7 @@ public class TaskItemExtensionsTests
     }
 
     [Test]
-    public void IncludeCompilerGeneratedMembers_False_IsFalse()
+    public static void IncludeCompilerGeneratedMembers_False_IsFalse()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("IncludeCompilerGeneratedMembers", "false");
@@ -34,14 +34,14 @@ public class TaskItemExtensionsTests
     }
 
     [Test]
-    public void IncludeVirtualMembers_MissingMetadata_DefaultsToTrue()
+    public static void IncludeVirtualMembers_MissingMetadata_DefaultsToTrue()
     {
         var item = new TaskItem("Asm");
         Assert.That(item.IncludeVirtualMembers(), Is.True);
     }
 
     [Test]
-    public void IncludeVirtualMembers_False_IsFalse()
+    public static void IncludeVirtualMembers_False_IsFalse()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("IncludeVirtualMembers", "false");
@@ -49,14 +49,14 @@ public class TaskItemExtensionsTests
     }
 
     [Test]
-    public void MemberPattern_MissingMetadata_IsNull()
+    public static void MemberPattern_MissingMetadata_IsNull()
     {
         var item = new TaskItem("Asm");
         Assert.That(item.MemberPattern(), Is.Null);
     }
 
     [Test]
-    public void MemberPattern_BlankMetadata_IsNull()
+    public static void MemberPattern_BlankMetadata_IsNull()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("MemberPattern", "   ");
@@ -64,7 +64,7 @@ public class TaskItemExtensionsTests
     }
 
     [Test]
-    public void MemberPattern_Set_ReturnsMatchingRegex()
+    public static void MemberPattern_Set_ReturnsMatchingRegex()
     {
         var item = new TaskItem("Asm");
         item.SetMetadata("MemberPattern", ".*Foo.*");
@@ -77,7 +77,7 @@ public class TaskItemExtensionsTests
     }
 
     [Test]
-    public void FileName_ReturnsFileNameWithoutExtension()
+    public static void FileName_ReturnsFileNameWithoutExtension()
     {
         var item = new TaskItem("/some/dir/PrivateAssembly.dll");
         Assert.That(item.FileName(), Is.EqualTo("PrivateAssembly"));

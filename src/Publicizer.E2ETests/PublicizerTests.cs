@@ -6,7 +6,7 @@ namespace Publicizer.E2ETests;
 // and a real consumer builds and runs against a publicized reference. One case per
 // MSBuild path (explicit Publicize items, and PublicizeAll). What publicization does to
 // each member kind is covered by the characterization and engine unit tests, not here.
-public class PublicizerTests
+internal static class PublicizerTests
 {
     private const string PrivateClassCode = """
         namespace {0};
@@ -27,7 +27,7 @@ public class PublicizerTests
     // misconfiguration, and a silent skip would let the desktop MSBuild leg stop running
     // without anyone noticing.
     [OneTimeSetUp]
-    public void RequireWindowsForDesktopMSBuild()
+    public static void RequireWindowsForDesktopMSBuild()
     {
         if (Runner.UsesDesktopMSBuild && !OperatingSystem.IsWindows())
         {
@@ -36,7 +36,7 @@ public class PublicizerTests
     }
 
     [Test]
-    public void PublicizeAssembly_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromAllPrivateMembersInPrivateClass()
+    public static void PublicizeAssembly_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromAllPrivateMembersInPrivateClass()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassIn("PrivateNamespace")).BuildOrFail();
 
@@ -62,7 +62,7 @@ public class PublicizerTests
     }
 
     [Test]
-    public void PublicizeAll_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromPrivateMembersFromTwoDifferentAssemblies()
+    public static void PublicizeAll_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromPrivateMembersFromTwoDifferentAssemblies()
     {
         using TestProject library1 = TestProject.Library("PrivateAssembly1", PrivateClassIn("PrivateNamespace1")).BuildOrFail();
         using TestProject library2 = TestProject.Library("PrivateAssembly2", PrivateClassIn("PrivateNamespace2")).BuildOrFail();

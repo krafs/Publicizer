@@ -7,7 +7,7 @@ namespace Publicizer.E2ETests;
 // editor resolves the original assembly and marks every non-public member as inaccessible —
 // red squiggles over code that compiles fine from the command line. Nothing else in the
 // suite runs a build in that mode.
-public class DesignTimeBuildTests
+internal static class DesignTimeBuildTests
 {
     // The properties the .NET Project System sets for a design-time build.
     private static readonly string[] s_designTimeBuildArguments =
@@ -29,7 +29,7 @@ public class DesignTimeBuildTests
         """;
 
     [Test]
-    public void DesignTimeBuild_ResolvesThePublicizedAssemblyRatherThanTheOriginal()
+    public static void DesignTimeBuild_ResolvesThePublicizedAssemblyRatherThanTheOriginal()
     {
         using TestProject library = TestProject.Library("PrivateAssembly", PublicizerTests.PrivateClassIn("PrivateNamespace")).BuildOrFail();
 

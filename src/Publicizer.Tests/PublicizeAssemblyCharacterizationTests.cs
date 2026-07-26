@@ -10,7 +10,7 @@ namespace Publicizer.Tests;
 /// each scenario. These snapshots freeze current behavior so the tree can be refactored
 /// safely: any change to a member's resulting visibility surfaces as a snapshot diff.
 /// </summary>
-public partial class PublicizeAssemblyCharacterizationTests
+internal static partial class PublicizeAssemblyCharacterizationTests
 {
     [GeneratedRegex("Protected")]
     private static partial Regex ProtectedPattern();
@@ -21,7 +21,7 @@ public partial class PublicizeAssemblyCharacterizationTests
         module.Find(typeReflectionName, isReflectionName: true).Fields.Single(f => f.Name == fieldName);
 
     [Test]
-    public void WholeAssembly_Defaults()
+    public static void WholeAssembly_Defaults()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
@@ -33,7 +33,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void WholeAssembly_ExcludingVirtualMembers()
+    public static void WholeAssembly_ExcludingVirtualMembers()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture")
@@ -48,7 +48,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void WholeAssembly_ExcludingCompilerGeneratedMembers()
+    public static void WholeAssembly_ExcludingCompilerGeneratedMembers()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture")
@@ -63,7 +63,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void WholeAssembly_WithMemberRegexPattern()
+    public static void WholeAssembly_WithMemberRegexPattern()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture")
@@ -78,7 +78,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void SingleMember_Field()
+    public static void SingleMember_Field()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -90,7 +90,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void SingleMember_Property()
+    public static void SingleMember_Property()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -102,7 +102,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void SingleMember_Method()
+    public static void SingleMember_Method()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -114,7 +114,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void SingleMember_Constructor()
+    public static void SingleMember_Constructor()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -126,7 +126,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void WholeAssembly_ExceptOneProperty_LeavesAccessorsUntouched()
+    public static void WholeAssembly_ExceptOneProperty_LeavesAccessorsUntouched()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
@@ -138,7 +138,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void DoNotPublicizeAssembly_PublicizesNothing()
+    public static void DoNotPublicizeAssembly_PublicizesNothing()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyDoNotPublicizeAssembly = true };
@@ -150,7 +150,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void NestedMember_AlsoPublicizesEnclosingType()
+    public static void NestedMember_AlsoPublicizesEnclosingType()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -162,7 +162,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void PublicizeType_ByName_PublicizesTypeAndWalksUp()
+    public static void PublicizeType_ByName_PublicizesTypeAndWalksUp()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -174,7 +174,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void WholeAssembly_ExceptType_LeavesThatTypesMembersUntouched()
+    public static void WholeAssembly_ExceptType_LeavesThatTypesMembersUntouched()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
@@ -188,7 +188,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     // --- Event backing field: the original reason for the compiler-generated filter (issue #9). ---
 
     [Test]
-    public void EventBackingField_WholeAssemblyDefault_BecomesPublic_TheCollision()
+    public static void EventBackingField_WholeAssemblyDefault_BecomesPublic_TheCollision()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
@@ -200,7 +200,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void EventBackingField_ExcludingCompilerGenerated_StaysPrivate()
+    public static void EventBackingField_ExcludingCompilerGenerated_StaysPrivate()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture")
@@ -217,7 +217,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     // --- Precedence and generics. ---
 
     [Test]
-    public void MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins()
+    public static void MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -230,7 +230,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void SingleMember_GenericField_MatchesArityMangledName()
+    public static void SingleMember_GenericField_MatchesArityMangledName()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -242,7 +242,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void PublicizeTarget_MatchesNothing_PublicizesNothingAndReturnsFalse()
+    public static void PublicizeTarget_MatchesNothing_PublicizesNothingAndReturnsFalse()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -258,7 +258,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void ExplicitMemberPublicize_BeatsDoNotPublicizeType()
+    public static void ExplicitMemberPublicize_BeatsDoNotPublicizeType()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture");
@@ -274,7 +274,7 @@ public partial class PublicizeAssemblyCharacterizationTests
     }
 
     [Test]
-    public void DoNotPublicizeEvent_ByName_ExcludesBackingField()
+    public static void DoNotPublicizeEvent_ByName_ExcludesBackingField()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
