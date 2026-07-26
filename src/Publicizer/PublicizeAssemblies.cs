@@ -107,7 +107,7 @@ public sealed class PublicizeAssemblies : Task
             }
             else
             {
-                using ModuleDef module = ModuleDefMD.Load(assemblyPath);
+                using var module = ModuleDefMD.Load(assemblyPath);
                 scopedLogger.Info("Publicizing members...");
                 bool isAssemblyModified = PublicizeAssembly(module, assemblyContext, scopedLogger);
                 if (!isAssemblyModified)
@@ -116,17 +116,21 @@ public sealed class PublicizeAssemblies : Task
                     continue;
                 }
 
-                using var fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
-
-                var writerOptions = new ModuleWriterOptions(module)
-                {
-                    // Writing the module sometime fails without this flag due to how it was originally compiled.
-                    // https://github.com/krafs/Publicizer/issues/42
-                    MetadataOptions = new MetadataOptions(MetadataFlags.KeepOldMaxStack),
-                    Logger = DummyLogger.NoThrowInstance
-                };
                 scopedLogger.Info($"Saving publicized assembly to {outputAssemblyPath}");
-                module.Write(fileStream, writerOptions);
+
+                if (!InPlaceWriter.TryWrite(module, assemblyPath, outputAssemblyPath, scopedLogger))
+                {
+                    using var fileStream = new FileStream(outputAssemblyPath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+
+                    var writerOptions = new ModuleWriterOptions(module)
+                    {
+                        // Writing the module sometime fails without this flag due to how it was originally compiled.
+                        // https://github.com/krafs/Publicizer/issues/42
+                        MetadataOptions = new MetadataOptions(MetadataFlags.KeepOldMaxStack),
+                        Logger = DummyLogger.NoThrowInstance
+                    };
+                    module.Write(fileStream, writerOptions);
+                }
 
                 string assemblyDirectory = Path.GetDirectoryName(assemblyPath);
                 string originalDocumentationFullPath = Path.Combine(assemblyDirectory, assemblyName + ".xml");
