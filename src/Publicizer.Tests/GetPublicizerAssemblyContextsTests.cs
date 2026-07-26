@@ -87,4 +87,37 @@ internal static class GetPublicizerAssemblyContextsTests
         Assert.That(context.ExplicitlyPublicizeAssembly, Is.True);
         Assert.That(context.DoNotPublicizeMemberPatterns, Does.Contain("Ns.Type.Member"));
     }
+
+    [Test]
+    public static void MemberSpec_SplitsOnFirstColonOnly()
+    {
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build([new TaskItem("Asm:Ns.Type.Member:Extra")]);
+
+        Assert.That(contexts["Asm"].PublicizeMemberPatterns, Does.Contain("Ns.Type.Member:Extra"));
+    }
+
+    [Test]
+    public static void AssemblyNames_AreCaseSensitive()
+    {
+        Dictionary<string, PublicizerAssemblyContext> contexts = Build([new TaskItem("Asm"), new TaskItem("ASM")]);
+
+        Assert.That(contexts, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public static void DuplicateAssemblyWidePublicizes_LastMetadataWins()
+    {
+        var first = new TaskItem("Asm");
+        first.SetMetadata("IncludeVirtualMembers", "false");
+        first.SetMetadata("MemberPattern", ".*First.*");
+        var second = new TaskItem("Asm");
+        second.SetMetadata("IncludeVirtualMembers", "true");
+
+        PublicizerAssemblyContext context = Build([first, second])["Asm"];
+
+        // The second item overwrites every metadata-derived field, including the ones it does not set,
+        // because each is assigned unconditionally rather than merged.
+        Assert.That(context.IncludeVirtualMembers, Is.True);
+        Assert.That(context.PublicizeMemberRegexPattern, Is.Null);
+    }
 }
