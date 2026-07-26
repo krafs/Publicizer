@@ -34,7 +34,46 @@ jobs:
       run: dotnet restore src/Publicizer.Tests/Publicizer.Tests.csproj --locked-mode
 
     - name: Test
-      run: dotnet test src/Publicizer.Tests/Publicizer.Tests.csproj -c Release --no-restore
+      run: dotnet test src/Publicizer.Tests/Publicizer.Tests.csproj -c Release --no-restore --collect "XPlat Code Coverage" --results-directory coverage
+
+    - name: Upload coverage
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: coverage
+        path: coverage/**/coverage.cobertura.xml
+
+  # Split out from Test so the pull-requests: write token isn't held while
+  # building and running test code.
+  coverage:
+    name: Coverage report
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Download coverage
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: coverage
+        path: coverage
+
+    - name: Summarize coverage
+      run: node scripts/coverage-summary.mjs coverage
+
+    # Fork PRs get a read-only token, so skip rather than fail the job.
+    - name: Comment on PR
+      if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: gh pr comment "$PR" --edit-last --create-if-none --body-file coverage-summary.md
 
   e2e:
     # End-to-end tests build a real consumer and exercise the task under an MSBuild host.

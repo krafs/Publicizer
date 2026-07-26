@@ -5,3 +5,5 @@ obj
 .idea
 .claude
 *.received.txt
+coverage
+coverage-summary.md
