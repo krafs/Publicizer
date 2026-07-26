@@ -12,13 +12,7 @@ internal sealed class TemporaryFolder : IDisposable
 
     internal string Path => _directoryInfo.FullName;
 
-    public override string ToString()
-    {
-        return _directoryInfo.FullName;
-    }
+    public override string ToString() => _directoryInfo.FullName;
 
-    void IDisposable.Dispose()
-    {
-        _directoryInfo.Delete(recursive: true);
-    }
+    void IDisposable.Dispose() => _directoryInfo.Delete(recursive: true);
 }

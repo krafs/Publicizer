@@ -65,18 +65,9 @@ internal sealed class Logger : ITaskLogger, IDisposable
         Write("VRB", message);
     }
 
-    private void Write(string logLevel, string message)
-    {
-        _logFileWriter.WriteLine($"[{Now} {logLevel}]{_scope} {message}");
-    }
+    private void Write(string logLevel, string message) => _logFileWriter.WriteLine($"[{Now} {logLevel}]{_scope} {message}");
 
-    internal ITaskLogger CreateScope(string assemblyName)
-    {
-        return new Logger(this, assemblyName);
-    }
+    internal ITaskLogger CreateScope(string assemblyName) => new Logger(this, assemblyName);
 
-    public void Dispose()
-    {
-        _logFileWriter.Dispose();
-    }
+    public void Dispose() => _logFileWriter.Dispose();
 }
