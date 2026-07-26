@@ -4,16 +4,15 @@
 //
 // Finds the first coverage.cobertura.xml under the given directory (default:
 // coverage), reads the aggregate counts from the root <coverage> element, and
-// writes coverage-summary.md. Also appends to GITHUB_STEP_SUMMARY when set so
-// the numbers show on the run page. The written file is what CI posts as a PR
-// comment.
+// appends a table to GITHUB_STEP_SUMMARY so the numbers show on the run page.
+// Also prints to stdout so the raw job log carries them.
 //
 // Numbers cover the unit tests only. The E2E suite drives the task through a
 // separate `dotnet build` process, which the in-process collector cannot see.
 //
 // Usage: node scripts/coverage-summary.mjs [coverage-dir]
 
-import { readFileSync, writeFileSync, appendFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, appendFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.argv[2] ?? 'coverage';
@@ -58,7 +57,6 @@ const md = [
   '',
 ].join('\n');
 
-writeFileSync('coverage-summary.md', md);
 if (process.env.GITHUB_STEP_SUMMARY) {
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${md}\n`);
 }
