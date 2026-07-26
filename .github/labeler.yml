@@ -5,5 +5,7 @@ documentation:
 
 skip-changelog:
   - changed-files:
-      - any-glob-to-all-files:
-          - '{.github/**,.editorconfig,.gitignore,global.json,Publicizer.slnx,scripts/**,src/Publicizer.Tests/**}'
+      - all-globs-to-all-files:
+          - '!src/Publicizer/**'
+          - '!icon.png'
+          - '!**/*.md'
