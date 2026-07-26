@@ -4,7 +4,7 @@ This document describes what the current publicization engine actually does, mem
 
 It is not user documentation. The README is the user-facing contract; this describes the implementation's observable behavior, including corners the README doesn't mention.
 
-Every claim below is pinned by a test. Test names refer to `src/Publicizer.Tests/PublicizeAssemblyCharacterizationTests.cs` unless stated otherwise. The engine itself lives in `src/Publicizer/PublicizeAssemblies.cs` and `src/Publicizer/AssemblyEditor.cs`.
+Every claim below is pinned by a test. Test names refer to `src/Publicizer.Tests/PublicizeAssemblyCharacterizationTests.cs` unless stated otherwise. The engine itself lives in `src/Publicizer/PublicizeAssemblies.cs` (traversal and edits), `src/Publicizer/AssemblyPlan.cs` and `src/Publicizer/TypePlan.cs` (which target matches what), and `src/Publicizer/AssemblyEditor.cs` (what publicizing does).
 
 ## Targets
 
@@ -13,13 +13,13 @@ A target is the `Include` value of a `Publicize` or `DoNotPublicize` item. It ha
 - `AssemblyName` — the assembly form.
 - `AssemblyName:MemberName` — the member form.
 
-The split happens at the **first** colon (`PublicizeAssemblies.cs:168`). Everything before it is the assembly name; everything after it, including any further colons, is the member name (`GetPublicizerAssemblyContextsTests.MemberSpec_SplitsOnFirstColonOnly`).
+The split happens at the **first** colon (`PublicizeAssemblies.cs:172`). Everything before it is the assembly name; everything after it, including any further colons, is the member name (`GetPublicizerAssemblyContextsTests.MemberSpec_SplitsOnFirstColonOnly`).
 
 Assemblies are identified by reference file name without extension, compared against the `Filename` metadata of each `ReferencePath`. Lookup is an ordinal dictionary lookup, so it is **case-sensitive** (`GetPublicizerAssemblyContextsTests.AssemblyNames_AreCaseSensitive`). A reference not named by any target is skipped untouched.
 
 ### Member names
 
-Member names are matched by **exact string equality** against a `HashSet<string>` — despite the field being named `PublicizeMemberPatterns`, there is no globbing or wildcard matching in the member form. The strings compared against are:
+Member names are matched by **exact string equality** — despite the field being named `PublicizeMemberPatterns`, there is no globbing or wildcard matching in the member form. The strings compared against are:
 
 | Kind | String |
 |---|---|
@@ -37,6 +37,8 @@ This has direct consequences for the syntax users must write:
 - Methods have no parameter list, so a target names *all* overloads at once. This is the single biggest limitation of the current model and the main motivation for a real parser.
 - Because names are compared without regard to member kind, one target string can match a type, a field, a method and a property simultaneously if they happen to share a name.
 
+The comparison is not literally a lookup of the concatenated name. `AssemblyPlan` decomposes each target once, up front, into every `(type, member)` pair it could denote, so deciding a member is a per-type set lookup rather than a rebuilt string. The target is genuinely ambiguous — `A.B.C` may name a type, or member `C` of type `A.B`, and the syntax offers no way to say which — so it is indexed under *every* split point rather than resolved to one reading. That is equivalent to the string comparison it describes, including the doubled dot of `Fixture.Shapes..ctor`, which a split at the last dot would get wrong.
+
 ### Events are not a member kind
 
 The engine iterates types, properties, methods and fields. It never iterates `TypeDef.Events`. An event therefore cannot be targeted as an event.
@@ -45,7 +47,7 @@ It works anyway, by coincidence: a field-like event's compiler-generated backing
 
 ### Assembly-form metadata
 
-Three metadata attributes are read, and **only from assembly-form items** (`PublicizeAssemblies.cs:178-185`):
+Three metadata attributes are read, and **only from assembly-form items** (`PublicizeAssemblies.cs:184-187`):
 
 | Metadata | Default | Effect |
 |---|---|---|
@@ -63,7 +65,7 @@ The regex is applied to the same name strings listed above, and it is applied to
 
 ## Precedence
 
-For each field, method and property the engine walks a fixed decision ladder and stops at the first rule that applies (`PublicizeAssemblies.cs:243-428`, repeated near-identically for the three member kinds):
+For each field, method and property the engine walks a fixed decision ladder and stops at the first rule that applies (`TypePlan.DecideMember`, with the type's own tail in `TypePlan.DecideType`):
 
 1. **Accessor of an excluded property** (methods only) — skip.
 2. **`DoNotPublicize` names this member exactly** — skip.
@@ -77,8 +79,8 @@ Consequences worth naming explicitly:
 
 - **`DoNotPublicize` beats `Publicize` at the same specificity.** Naming a member in both excludes it (`MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins`).
 - **Specific beats general.** An explicit member `Publicize` overrides a type-wide or assembly-wide exclusion (`ExplicitMemberPublicize_BeatsDoNotPublicizeType`). This is what makes the README's "publicize specific ignored members" pattern work.
-- **Rule 3 bypasses all three filters, by design.** An explicitly named member is publicized even if it is compiler-generated, even if it is virtual, and even if `MemberPattern` doesn't match it — `AssemblyEditor.PublicizeProperty`/`PublicizeMethod` are called with their `includeVirtual` default of `true` rather than the assembly's setting (`PublicizeAssemblies.cs:265`, `:329`, `ExplicitMemberPublicize_IgnoresIncludeVirtualMembers`). This is the documented escape hatch: the README's "you can still publicize specific ignored members by specifying them explicitly" pattern depends on it. Naming a member is treated as an unambiguous opt-in that outranks every blanket filter, so **a rewrite must preserve this** — removing it would silently un-publicize members for anyone following the documented pattern, surfacing as an unexplained CS0122.
-- **Excluding a property excludes its accessors.** Properties are processed before methods; excluding a property registers its getter and setter in a per-type set that the method loop consults first (`PublicizeAssemblies.cs:250-257`, `:313`). So `WholeAssembly_ExceptOneProperty_LeavesAccessorsUntouched` holds. Note the ordering: because rule 1 precedes rule 3, a `DoNotPublicize` on a property beats an explicit `Publicize` on one of its accessor methods by name.
+- **Rule 3 bypasses all three filters, by design.** An explicitly named member is publicized even if it is compiler-generated, even if it is virtual, and even if `MemberPattern` doesn't match it — the ladder reports such a hit as `PublicizeDecision.Explicit`, and the walk then calls `AssemblyEditor.PublicizeProperty`/`PublicizeMethod` with `includeVirtual: true` rather than the assembly's setting (`ExplicitMemberPublicize_IgnoresIncludeVirtualMembers`). This is the documented escape hatch: the README's "you can still publicize specific ignored members by specifying them explicitly" pattern depends on it. Naming a member is treated as an unambiguous opt-in that outranks every blanket filter, so **a rewrite must preserve this** — removing it would silently un-publicize members for anyone following the documented pattern, surfacing as an unexplained CS0122.
+- **Excluding a property excludes its accessors.** Properties are processed before methods; a `PublicizeDecision.DeniedExplicitly` on a property registers its getter and setter in a per-type set that the method loop consults first. So `WholeAssembly_ExceptOneProperty_LeavesAccessorsUntouched` holds. Note the ordering: because rule 1 precedes rule 3, a `DoNotPublicize` on a property beats an explicit `Publicize` on one of its accessor methods by name.
 - **Filters do not compose as an OR.** With `MemberPattern` set *and* `IncludeCompilerGeneratedMembers="false"`, both must pass.
 
 ## What publicizing does
@@ -92,7 +94,7 @@ Each of these returns whether it actually changed anything, so publicizing an al
 
 ### Types are publicized implicitly
 
-A type is publicized if **any** member in it was publicized, before the type's own rules are consulted (`PublicizeAssemblies.cs:430`). Only if no member was publicized does the engine evaluate the type against the ladder above.
+A type is publicized if **any** member in it was publicized, before the type's own rules are consulted. This short-circuit lives in the walk, not in the matcher. Only if no member was publicized does the engine evaluate the type against the ladder above.
 
 Because the implicit case short-circuits, it outranks the type's own exclusions:
 
@@ -123,7 +125,7 @@ The engine is quiet by design, which the rewrite intends to change:
 For completeness, behavior that surrounds publicization but isn't part of the matching rules:
 
 - **Caching.** Output goes to `{OutputDirectory}/{assembly}.{hash}/{assembly}.dll`, where the hash covers the input assembly bytes, the resolved context, and Publicizer's own informational version (`Hasher.cs`). If that path exists, the assembly is not reprocessed. Changing any target therefore changes the path rather than invalidating in place.
-- **XML documentation** next to the input assembly is copied alongside the output (`PublicizeAssemblies.cs:132-141`).
+- **XML documentation** next to the input assembly is copied alongside the output (`PublicizeAssemblies.cs:135-144`).
 - **Writer options** set `KeepOldMaxStack`, because writing some assemblies fails otherwise (issue #42).
 - **Reference swapping.** Processed references are reported on `ReferencePathsToDelete`/`ReferencePathsToAdd`, with metadata copied to the new item, and the targets file performs the substitution.
 
