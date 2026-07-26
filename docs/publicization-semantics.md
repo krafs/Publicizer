@@ -1,0 +1,142 @@
+# Publicization semantics
+
+This document describes what the current publicization engine actually does, member by member and rule by rule. It is a baseline: it records behavior as of today, including behavior that is accidental or undesirable, so that a future rewrite can decide deliberately what to preserve and what to change.
+
+It is not user documentation. The README is the user-facing contract; this describes the implementation's observable behavior, including corners the README doesn't mention.
+
+Every claim below is pinned by a test. Test names refer to `src/Publicizer.Tests/PublicizeAssemblyCharacterizationTests.cs` unless stated otherwise. The engine itself lives in `src/Publicizer/PublicizeAssemblies.cs` and `src/Publicizer/AssemblyEditor.cs`.
+
+## Targets
+
+A target is the `Include` value of a `Publicize` or `DoNotPublicize` item. It has two forms, distinguished by the presence of a colon:
+
+- `AssemblyName` — the assembly form.
+- `AssemblyName:MemberName` — the member form.
+
+The split happens at the **first** colon (`PublicizeAssemblies.cs:168`). Everything before it is the assembly name; everything after it, including any further colons, is the member name (`GetPublicizerAssemblyContextsTests.MemberSpec_SplitsOnFirstColonOnly`).
+
+Assemblies are identified by reference file name without extension, compared against the `Filename` metadata of each `ReferencePath`. Lookup is an ordinal dictionary lookup, so it is **case-sensitive** (`GetPublicizerAssemblyContextsTests.AssemblyNames_AreCaseSensitive`). A reference not named by any target is skipped untouched.
+
+### Member names
+
+Member names are matched by **exact string equality** against a `HashSet<string>` — despite the field being named `PublicizeMemberPatterns`, there is no globbing or wildcard matching in the member form. The strings compared against are:
+
+| Kind | String |
+|---|---|
+| Type | dnlib's `TypeDef.ReflectionFullName` |
+| Field | `{ReflectionFullName}.{FieldName}` |
+| Method | `{ReflectionFullName}.{MethodName}` |
+| Property | `{ReflectionFullName}.{PropertyName}` |
+
+This has direct consequences for the syntax users must write:
+
+- Nested types use `+`: `Fixture.Shapes+Inner` (`NestedMember_AlsoPublicizesEnclosingType`).
+- Generic types carry arity, backtick included: ``Fixture.GenericHolder`1.GenericField`` (`SingleMember_GenericField_MatchesArityMangledName`).
+- Constructors are `.ctor`, producing the doubled dot in `Fixture.Shapes..ctor` (`SingleMember_Constructor`).
+- Methods have no parameter list, so a target names *all* overloads at once. This is the single biggest limitation of the current model and the main motivation for a real parser.
+- Because names are compared without regard to member kind, one target string can match a type, a field, a method and a property simultaneously if they happen to share a name.
+
+### Events are not a member kind
+
+The engine iterates types, properties, methods and fields. It never iterates `TypeDef.Events`. An event therefore cannot be targeted as an event.
+
+It works anyway, by coincidence: a field-like event's compiler-generated backing field has the same name as the event, so `DoNotPublicize` on the event name matches the *field* and excludes it (`DoNotPublicizeEvent_ByName_ExcludesBackingField`). This is the documented workaround for issue #141, and it works only for field-like events — not for events with explicit `add`/`remove` accessors.
+
+### Assembly-form metadata
+
+Three metadata attributes are read, and **only from assembly-form items** (`PublicizeAssemblies.cs:178-185`):
+
+| Metadata | Default | Effect |
+|---|---|---|
+| `IncludeCompilerGeneratedMembers` | `true` | When false, skip anything carrying `[CompilerGenerated]` |
+| `IncludeVirtualMembers` | `true` | When false, skip virtual methods (and virtual property accessors) |
+| `MemberPattern` | none | Regex; a member is only publicized if the pattern matches its name string |
+
+Defaults apply when the metadata is absent *or unparseable* — `bool.TryParse` failure falls back to `true` rather than erroring (`TaskItemExtensions.cs:12-30`, `TaskItemExtensionsTests.IncludeCompilerGeneratedMembers_GarbageMetadata_DefaultsToTrue`), so `IncludeVirtualMembers="yes"` silently means `true`.
+
+Putting this metadata on a member-form item has no effect; it is read but never stored. `DoNotPublicize` items never read metadata at all.
+
+When several assembly-form `Publicize` items name the same assembly, the metadata of each **overwrites** the previous — last item wins, with no merge and no diagnostic. The overwrite is unconditional per field, so a later item that sets none of the metadata resets all of it to defaults, silently discarding an earlier item's `MemberPattern` (`GetPublicizerAssemblyContextsTests.DuplicateAssemblyWidePublicizes_LastMetadataWins`).
+
+The regex is applied to the same name strings listed above, and it is applied to types as well as members. It is unanchored, so `MemberPattern="Protected"` matches anywhere in the name (`WholeAssembly_WithMemberRegexPattern`).
+
+## Precedence
+
+For each field, method and property the engine walks a fixed decision ladder and stops at the first rule that applies (`PublicizeAssemblies.cs:243-428`, repeated near-identically for the three member kinds):
+
+1. **Accessor of an excluded property** (methods only) — skip.
+2. **`DoNotPublicize` names this member exactly** — skip.
+3. **`Publicize` names this member exactly** — publicize, ignoring every filter.
+4. **`DoNotPublicize` names the declaring type** — skip.
+5. **`DoNotPublicize` names the assembly** — skip.
+6. **`Publicize` names the assembly** — publicize, subject to the compiler-generated, regex and virtual filters.
+7. Otherwise — skip.
+
+Consequences worth naming explicitly:
+
+- **`DoNotPublicize` beats `Publicize` at the same specificity.** Naming a member in both excludes it (`MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins`).
+- **Specific beats general.** An explicit member `Publicize` overrides a type-wide or assembly-wide exclusion (`ExplicitMemberPublicize_BeatsDoNotPublicizeType`). This is what makes the README's "publicize specific ignored members" pattern work.
+- **Rule 3 bypasses all three filters.** An explicitly named member is publicized even if it is compiler-generated, even if it is virtual, and even if `MemberPattern` doesn't match it — `AssemblyEditor.PublicizeProperty`/`PublicizeMethod` are called with their `includeVirtual` default of `true` rather than the assembly's setting (`PublicizeAssemblies.cs:265`, `:329`, `ExplicitMemberPublicize_IgnoresIncludeVirtualMembers`).
+- **Excluding a property excludes its accessors.** Properties are processed before methods; excluding a property registers its getter and setter in a per-type set that the method loop consults first (`PublicizeAssemblies.cs:250-257`, `:313`). So `WholeAssembly_ExceptOneProperty_LeavesAccessorsUntouched` holds. Note the ordering: because rule 1 precedes rule 3, a `DoNotPublicize` on a property beats an explicit `Publicize` on one of its accessor methods by name.
+- **Filters do not compose as an OR.** With `MemberPattern` set *and* `IncludeCompilerGeneratedMembers="false"`, both must pass.
+
+## What publicizing does
+
+- **Field** — access bits cleared, `Public` set. Unconditional; `IncludeVirtualMembers` has no meaning for fields (`AssemblyEditor.cs:65`).
+- **Method** — access bits cleared, `Public` set, unless `includeVirtual` is false and the method is virtual, in which case nothing happens (`AssemblyEditor.cs:53`).
+- **Property** — the property itself has no accessibility in IL; publicizing one means publicizing its getter and setter, each subject to the virtual check (`AssemblyEditor.cs:36`).
+- **Type** — visibility bits cleared, then `Public` for a top-level type or `NestedPublic` for a nested one. The engine then **walks up the declaring-type chain** and does the same to every enclosing type, because a nested type is unreachable unless all its enclosers are too (`AssemblyEditor.cs:16`). Pinned by `PublicizeType_ByName_PublicizesTypeAndWalksUp` and `NestedMember_AlsoPublicizesEnclosingType`.
+
+Each of these returns whether it actually changed anything, so publicizing an already-public member reports no modification.
+
+### Types are publicized implicitly
+
+A type is publicized if **any** member in it was publicized, before the type's own rules are consulted (`PublicizeAssemblies.cs:430`). Only if no member was publicized does the engine evaluate the type against the ladder above.
+
+Because the implicit case short-circuits, it outranks the type's own exclusions:
+
+- A type named in `DoNotPublicize` still becomes public if an explicitly named member of it was publicized — though its other members stay untouched (`ExplicitMemberPublicize_BeatsDoNotPublicizeType`).
+- A type that the `MemberPattern` regex rejects still becomes public if one of its members matched.
+
+This is defensible — a publicized member is useless in an inaccessible type — but it means "do not publicize this type" does not guarantee the type's accessibility is preserved.
+
+## Whole-assembly behavior
+
+`Publicize Include="MyAssembly"` with no member targets publicizes every type and every member subject to the filters (`WholeAssembly_Defaults`). Notable interactions:
+
+- `IncludeVirtualMembers="false"` leaves virtual methods and virtual property accessors alone but does not affect fields or types (`WholeAssembly_ExcludingVirtualMembers`).
+- `IncludeCompilerGeneratedMembers="false"` skips anything with `[CompilerGenerated]`, which is what keeps event backing fields private and avoids the CS0229 collision that motivated the flag in issue #9 (`WholeAssembly_ExcludingCompilerGeneratedMembers`, `EventBackingField_WholeAssemblyDefault_BecomesPublic_TheCollision`, `EventBackingField_ExcludingCompilerGenerated_StaysPrivate`). The check looks only for that one attribute by full name; it does not recognise other compiler conventions such as `<>`-mangled names.
+- `DoNotPublicize Include="MyAssembly"` suppresses the whole-assembly sweep but does not suppress explicit member targets (`DoNotPublicizeAssembly_PublicizesNothing` covers the sweep; rule 3 above covers the exception).
+
+## Diagnostics
+
+The engine is quiet by design, which the rewrite intends to change:
+
+- A target that matches nothing produces **no diagnostic at all** (`PublicizeTarget_MatchesNothing_PublicizesNothingAndReturnsFalse`). Typos in a member name are silent.
+- If an assembly is targeted but nothing in it was publicized, a warning is logged and the reference is left pointing at the original assembly (`PublicizeAssemblies.cs:115`).
+- A `DoNotPublicize` naming an assembly that no `Publicize` mentions creates a context anyway, so the assembly is processed, publicizes nothing, and warns.
+- Everything else is informational logging, optionally mirrored to `PublicizerLogFilePath`.
+
+## Outside the decision tree
+
+For completeness, behavior that surrounds publicization but isn't part of the matching rules:
+
+- **Caching.** Output goes to `{OutputDirectory}/{assembly}.{hash}/{assembly}.dll`, where the hash covers the input assembly bytes, the resolved context, and Publicizer's own informational version (`Hasher.cs`). If that path exists, the assembly is not reprocessed. Changing any target therefore changes the path rather than invalidating in place.
+- **XML documentation** next to the input assembly is copied alongside the output (`PublicizeAssemblies.cs:132-141`).
+- **Writer options** set `KeepOldMaxStack`, because writing some assemblies fails otherwise (issue #42).
+- **Reference swapping.** Processed references are reported on `ReferencePathsToDelete`/`ReferencePathsToAdd`, with metadata copied to the new item, and the targets file performs the substitution.
+
+## Known-questionable behavior
+
+Collected here as rewrite input. None of these are bugs the current tests fail on; they are the places where the current model and a reasonable model diverge.
+
+1. Method targets cannot select an overload.
+2. Member names are matched by exact string, and the member kind is not part of the match, so a single target may hit several unrelated members.
+3. Events cannot be targeted; the backing-field name collision is the only handle, and it doesn't exist for events with explicit accessors.
+4. Explicit member targets silently ignore `IncludeVirtualMembers`, which can reintroduce the very override mismatch that flag exists to prevent.
+5. Assembly-form metadata is last-wins across duplicate items, without a diagnostic.
+6. Unparseable boolean metadata falls back to `true` instead of failing.
+7. A no-match target is silent.
+8. Assembly name matching is case-sensitive, which is surprising on Windows.
+9. `DoNotPublicize` on a type does not prevent that type from being made public via an explicitly targeted member.
+10. `DoNotPublicize` on a type does not extend to its nested types; each nested type has its own reflection name and must be named separately (`DoNotPublicizeType_DoesNotExtendToNestedTypes`).

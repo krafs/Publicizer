@@ -20,6 +20,9 @@ internal static partial class PublicizeAssemblyCharacterizationTests
     private static FieldDef Field(ModuleDef module, string typeReflectionName, string fieldName) =>
         module.Find(typeReflectionName, isReflectionName: true).Fields.Single(f => f.Name == fieldName);
 
+    private static MethodDef Method(ModuleDef module, string typeReflectionName, string methodName) =>
+        module.Find(typeReflectionName, isReflectionName: true).Methods.Single(m => m.Name == methodName);
+
     [Test]
     public static void WholeAssembly_Defaults()
     {
@@ -288,5 +291,39 @@ internal static partial class PublicizeAssemblyCharacterizationTests
         Assert.That(Field(module, "Fixture.Shapes", "FieldLikeEvent").IsPrivate, Is.True);
         // The rest of the assembly is still publicized.
         Assert.That(Field(module, "Fixture.Shapes", "PrivateField").IsPublic, Is.True);
+    }
+
+    [Test]
+    public static void ExplicitMemberPublicize_IgnoresIncludeVirtualMembers()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture")
+        {
+            ExplicitlyPublicizeAssembly = true,
+            IncludeVirtualMembers = false,
+        };
+        context.PublicizeMemberPatterns.Add("Fixture.Shapes.ProtectedVirtualMethod");
+
+        Publicize(module, context);
+
+        // The explicit path publicizes with includeVirtual defaulted to true rather than the assembly's
+        // setting, so naming a virtual member reintroduces the override mismatch the flag exists to avoid.
+        Assert.That(Method(module, "Fixture.Shapes", "ProtectedVirtualMethod").IsPublic, Is.True);
+        // Virtual members not named explicitly still honor the flag.
+        Assert.That(Method(module, "Fixture.Shapes", "ProtectedAbstractMethod").IsFamily, Is.True);
+    }
+
+    [Test]
+    public static void DoNotPublicizeType_DoesNotExtendToNestedTypes()
+    {
+        using ModuleDefMD module = Fixtures.LoadShapesModule();
+        var context = new PublicizerAssemblyContext("Fixture") { ExplicitlyPublicizeAssembly = true };
+        context.DoNotPublicizeMemberPatterns.Add("Fixture.Shapes");
+
+        Publicize(module, context);
+
+        // A nested type has its own reflection name, so excluding the enclosing type leaves it publicized.
+        Assert.That(Field(module, "Fixture.Shapes", "PrivateField").IsPrivate, Is.True);
+        Assert.That(Field(module, "Fixture.Shapes+Inner", "InnerPrivateField").IsPublic, Is.True);
     }
 }
