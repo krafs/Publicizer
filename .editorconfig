@@ -37,33 +37,12 @@ dotnet_naming_symbols.constants.required_modifiers = const
 
 dotnet_naming_style.constant_style.capitalization = pascal_case
 
-# Static fields are camelCase and start with s_
-dotnet_naming_rule.static_fields_should_be_camel_case.severity = warning
-dotnet_naming_rule.static_fields_should_be_camel_case.symbols = static_fields
-dotnet_naming_rule.static_fields_should_be_camel_case.style = static_field_style
+# Fields, locals and parameters are camelCase
+dotnet_naming_rule.fields_locals_and_parameters_should_be_camel_case.severity = warning
+dotnet_naming_rule.fields_locals_and_parameters_should_be_camel_case.symbols = fields_locals_and_parameters
+dotnet_naming_rule.fields_locals_and_parameters_should_be_camel_case.style = camel_case_style
 
-dotnet_naming_symbols.static_fields.applicable_kinds = field
-dotnet_naming_symbols.static_fields.required_modifiers = static
-
-dotnet_naming_style.static_field_style.capitalization = camel_case
-dotnet_naming_style.static_field_style.required_prefix = s_
-
-# Instance fields are camelCase and start with _
-dotnet_naming_rule.instance_fields_should_be_camel_case.severity = warning
-dotnet_naming_rule.instance_fields_should_be_camel_case.symbols = instance_fields
-dotnet_naming_rule.instance_fields_should_be_camel_case.style = instance_field_style
-
-dotnet_naming_symbols.instance_fields.applicable_kinds = field
-
-dotnet_naming_style.instance_field_style.capitalization = camel_case
-dotnet_naming_style.instance_field_style.required_prefix = _
-
-# Locals and parameters are camelCase
-dotnet_naming_rule.locals_should_be_camel_case.severity = warning
-dotnet_naming_rule.locals_should_be_camel_case.symbols = locals_and_parameters
-dotnet_naming_rule.locals_should_be_camel_case.style = camel_case_style
-
-dotnet_naming_symbols.locals_and_parameters.applicable_kinds = parameter, local
+dotnet_naming_symbols.fields_locals_and_parameters.applicable_kinds = field, parameter, local
 
 dotnet_naming_style.camel_case_style.capitalization = camel_case
 
@@ -80,10 +59,6 @@ dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 csharp_style_namespace_declarations = file_scoped
 csharp_style_var_when_type_is_apparent = true
 csharp_style_expression_bodied_methods = when_on_single_line
-dotnet_style_allow_multiple_blank_lines_experimental = false
-csharp_style_allow_embedded_statements_on_same_line_experimental = false
-csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false
-csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = false
 
 # IDE0058: requiring every return value to be consumed is noise.
 dotnet_diagnostic.IDE0058.severity = none

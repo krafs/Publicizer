@@ -11,14 +11,14 @@ namespace Publicizer.Tests;
 /// </summary>
 internal static class Compiler
 {
-    private static readonly List<MetadataReference> s_references = BuildReferences();
+    private static readonly List<MetadataReference> references = BuildReferences();
 
     internal static byte[] Compile(string code, string assemblyName = "Fixture")
     {
         var compilation = CSharpCompilation.Create(
             assemblyName,
             [CSharpSyntaxTree.ParseText(code)],
-            s_references,
+            references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, deterministic: true));
 
         using var stream = new MemoryStream();
