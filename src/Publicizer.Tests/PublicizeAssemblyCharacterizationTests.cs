@@ -307,7 +307,8 @@ internal static partial class PublicizeAssemblyCharacterizationTests
         Publicize(module, context);
 
         // The explicit path publicizes with includeVirtual defaulted to true rather than the assembly's
-        // setting, so naming a virtual member reintroduces the override mismatch the flag exists to avoid.
+        // setting. This is the documented escape hatch (README: "you can still publicize specific ignored
+        // members by specifying them explicitly") - naming a member outranks every blanket filter.
         Assert.That(Method(module, "Fixture.Shapes", "ProtectedVirtualMethod").IsPublic, Is.True);
         // Virtual members not named explicitly still honor the flag.
         Assert.That(Method(module, "Fixture.Shapes", "ProtectedAbstractMethod").IsFamily, Is.True);

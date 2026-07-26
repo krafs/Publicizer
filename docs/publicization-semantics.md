@@ -77,7 +77,7 @@ Consequences worth naming explicitly:
 
 - **`DoNotPublicize` beats `Publicize` at the same specificity.** Naming a member in both excludes it (`MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins`).
 - **Specific beats general.** An explicit member `Publicize` overrides a type-wide or assembly-wide exclusion (`ExplicitMemberPublicize_BeatsDoNotPublicizeType`). This is what makes the README's "publicize specific ignored members" pattern work.
-- **Rule 3 bypasses all three filters.** An explicitly named member is publicized even if it is compiler-generated, even if it is virtual, and even if `MemberPattern` doesn't match it — `AssemblyEditor.PublicizeProperty`/`PublicizeMethod` are called with their `includeVirtual` default of `true` rather than the assembly's setting (`PublicizeAssemblies.cs:265`, `:329`, `ExplicitMemberPublicize_IgnoresIncludeVirtualMembers`).
+- **Rule 3 bypasses all three filters, by design.** An explicitly named member is publicized even if it is compiler-generated, even if it is virtual, and even if `MemberPattern` doesn't match it — `AssemblyEditor.PublicizeProperty`/`PublicizeMethod` are called with their `includeVirtual` default of `true` rather than the assembly's setting (`PublicizeAssemblies.cs:265`, `:329`, `ExplicitMemberPublicize_IgnoresIncludeVirtualMembers`). This is the documented escape hatch: the README's "you can still publicize specific ignored members by specifying them explicitly" pattern depends on it. Naming a member is treated as an unambiguous opt-in that outranks every blanket filter, so **a rewrite must preserve this** — removing it would silently un-publicize members for anyone following the documented pattern, surfacing as an unexplained CS0122.
 - **Excluding a property excludes its accessors.** Properties are processed before methods; excluding a property registers its getter and setter in a per-type set that the method loop consults first (`PublicizeAssemblies.cs:250-257`, `:313`). So `WholeAssembly_ExceptOneProperty_LeavesAccessorsUntouched` holds. Note the ordering: because rule 1 precedes rule 3, a `DoNotPublicize` on a property beats an explicit `Publicize` on one of its accessor methods by name.
 - **Filters do not compose as an OR.** With `MemberPattern` set *and* `IncludeCompilerGeneratedMembers="false"`, both must pass.
 
@@ -159,7 +159,7 @@ Collected here as rewrite input. None of these are bugs the current tests fail o
 1. Method targets cannot select an overload.
 2. Member names are matched by exact string, and the member kind is not part of the match, so a single target may hit several unrelated members.
 3. Events cannot be targeted; the backing-field name collision is the only handle, and it doesn't exist for events with explicit accessors.
-4. Explicit member targets silently ignore `IncludeVirtualMembers`, which can reintroduce the very override mismatch that flag exists to prevent.
+4. Explicit member targets bypass `IncludeVirtualMembers` intentionally, but because a target names *all* overloads at once, a target aimed at a non-virtual overload also publicizes a virtual one sharing the name — reintroducing the override mismatch the filter exists to prevent, without the user having opted into it for that member. This is a consequence of (1), not of the escape hatch itself, and overload-precise targeting would remove it.
 5. Assembly-form metadata is last-wins across duplicate items, without a diagnostic.
 6. Unparseable boolean metadata falls back to `true` instead of failing.
 7. A no-match target is silent.
