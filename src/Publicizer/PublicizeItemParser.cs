@@ -22,7 +22,7 @@ namespace Publicizer;
 /// thrown, so that one bad item does not hide the rest.
 /// </para>
 /// </remarks>
-internal static class PublicizeItemParser
+internal sealed class PublicizeItemParser
 {
     /// <summary>
     /// Qualifiers the structured syntax reserves but does not implement yet. Rejected rather than
@@ -31,36 +31,58 @@ internal static class PublicizeItemParser
     /// </summary>
     private static readonly string[] unsupportedMetadata = ["Field", "Method", "Property", "Event", "Accessor", "Parameters"];
 
-    internal static string AssemblyNameOf(ITaskItem item)
+    private readonly ITaskItem item;
+    private readonly ITaskLogger logger;
+    private readonly bool deny;
+    private readonly string spec;
+    private readonly string itemName;
+    private readonly int colon;
+
+    private PublicizeItemParser(ITaskItem item, bool deny, ITaskLogger logger)
     {
-        string spec = item.ItemSpec;
-        int colon = spec.IndexOf(':');
-        return colon < 0 ? spec : spec.Substring(0, colon);
+        this.item = item;
+        this.deny = deny;
+        this.logger = logger;
+        spec = item.ItemSpec;
+        itemName = deny ? "DoNotPublicize" : "Publicize";
+        colon = spec.IndexOf(':');
     }
 
-    internal static bool TryApply(ITaskItem item, bool deny, PublicizerAssemblyContext context, ITaskLogger logger)
+    /// <summary>
+    /// Applies one item to the context for the assembly it names, creating that context if this is
+    /// the first item to mention the assembly.
+    /// </summary>
+    internal static bool TryApply(ITaskItem item, bool deny, Dictionary<string, PublicizerAssemblyContext> contexts, ITaskLogger logger)
     {
-        string spec = item.ItemSpec;
-        string itemName = deny ? "DoNotPublicize" : "Publicize";
-        int colon = spec.IndexOf(':');
+        var parser = new PublicizeItemParser(item, deny, logger);
 
-        string? namespaceValue = Metadata(item, "Namespace");
-        string? typeValue = Metadata(item, "Type");
+        string assemblyName = parser.colon < 0 ? parser.spec : parser.spec.Substring(0, parser.colon);
+        if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? context))
+        {
+            context = new PublicizerAssemblyContext(assemblyName);
+            contexts.Add(assemblyName, context);
+        }
+
+        return parser.TryApply(context);
+    }
+
+    private bool TryApply(PublicizerAssemblyContext context)
+    {
+        string? namespaceValue = Metadata("Namespace");
+        string? typeValue = Metadata("Type");
         bool isStructured = namespaceValue is not null || typeValue is not null;
 
         if (colon >= 0 && isStructured)
         {
-            logger.Error($"{itemName} item '{spec}': the '{itemName} Include=\"Assembly:Member\"' form cannot be combined with 'Namespace' or 'Type' metadata. Use one form or the other.");
-            return false;
+            return Fail($"the '{itemName} Include=\"Assembly:Member\"' form cannot be combined with 'Namespace' or 'Type' metadata. Use one form or the other.");
         }
 
         bool valid = true;
         foreach (string name in unsupportedMetadata)
         {
-            if (Metadata(item, name) is not null)
+            if (Metadata(name) is not null)
             {
-                logger.Error($"{itemName} item '{spec}': '{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
-                valid = false;
+                valid = Fail($"'{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
             }
         }
 
@@ -79,15 +101,12 @@ internal static class PublicizeItemParser
             return true;
         }
 
-        if (!isStructured)
-        {
-            return ApplyAssemblyForm(item, deny, context, logger, itemName);
-        }
-
-        return TryApplyScope(item, deny, context, logger, itemName, namespaceValue, typeValue);
+        return isStructured
+            ? TryApplyScope(context, namespaceValue, typeValue)
+            : ApplyAssemblyForm(context);
     }
 
-    private static bool ApplyAssemblyForm(ITaskItem item, bool deny, PublicizerAssemblyContext context, ITaskLogger logger, string itemName)
+    private bool ApplyAssemblyForm(PublicizerAssemblyContext context)
     {
         if (deny)
         {
@@ -106,32 +125,22 @@ internal static class PublicizeItemParser
         return true;
     }
 
-    private static bool TryApplyScope(
-        ITaskItem item,
-        bool deny,
-        PublicizerAssemblyContext context,
-        ITaskLogger logger,
-        string itemName,
-        string? namespaceValue,
-        string? typeValue)
+    private bool TryApplyScope(PublicizerAssemblyContext context, string? namespaceValue, string? typeValue)
     {
-        string spec = item.ItemSpec;
         string namespaceName = namespaceValue ?? "";
 
         if (namespaceName.IndexOfAny(['`', '{', '}', '+']) >= 0)
         {
-            logger.Error($"{itemName} item '{spec}': 'Namespace' must be a plain dotted namespace name, but was '{namespaceName}'.");
-            return false;
+            return Fail($"'Namespace' must be a plain dotted namespace name, but was '{namespaceName}'.");
         }
 
         // Same segment rule 'Type' is held to: a dot separates two names, so neither side may be empty.
         if (namespaceName.Length > 0 && Array.Exists(namespaceName.Split('.'), segment => segment.Length == 0))
         {
-            logger.Error($"{itemName} item '{spec}': 'Namespace' has an empty name segment: '{namespaceName}'.");
-            return false;
+            return Fail($"'Namespace' has an empty name segment: '{namespaceName}'.");
         }
 
-        if (deny && !TryRejectFiltersOnDenyScope(item, spec, logger, itemName))
+        if (deny && !TryRejectFiltersOnDenyScope())
         {
             return false;
         }
@@ -139,7 +148,7 @@ internal static class PublicizeItemParser
         string? typeReflectionName = null;
         if (typeValue is not null)
         {
-            if (!TryLowerTypeName(typeValue, itemName, spec, logger, out string loweredTypeName))
+            if (!TryLowerTypeName(typeValue, out string loweredTypeName))
             {
                 return false;
             }
@@ -152,8 +161,8 @@ internal static class PublicizeItemParser
             Namespace = namespaceName,
             TypeReflectionName = typeReflectionName,
             Deny = deny,
-            IncludeVirtualMembers = NullableBool(item, "IncludeVirtualMembers"),
-            IncludeCompilerGeneratedMembers = NullableBool(item, "IncludeCompilerGeneratedMembers"),
+            IncludeVirtualMembers = NullableBool("IncludeVirtualMembers"),
+            IncludeCompilerGeneratedMembers = NullableBool("IncludeCompilerGeneratedMembers"),
             MemberPattern = item.MemberPattern(),
         });
 
@@ -178,23 +187,21 @@ internal static class PublicizeItemParser
     /// not-yet-supported rather than as nonsense, since it is a capability worth adding.
     /// </para>
     /// </remarks>
-    private static bool TryRejectFiltersOnDenyScope(ITaskItem item, string spec, ITaskLogger logger, string itemName)
+    private bool TryRejectFiltersOnDenyScope()
     {
         bool valid = true;
 
         foreach (string name in new[] { "IncludeVirtualMembers", "IncludeCompilerGeneratedMembers" })
         {
-            if (Metadata(item, name) is not null)
+            if (Metadata(name) is not null)
             {
-                logger.Error($"{itemName} item '{spec}': '{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
-                valid = false;
+                valid = Fail($"'{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
             }
         }
 
-        if (Metadata(item, "MemberPattern") is not null)
+        if (Metadata("MemberPattern") is not null)
         {
-            logger.Error($"{itemName} item '{spec}': 'MemberPattern' on a DoNotPublicize scope is not supported yet. Exclude individual members with the 'DoNotPublicize Include=\"Assembly:Namespace.Type.Member\"' form.");
-            valid = false;
+            valid = Fail("'MemberPattern' on a DoNotPublicize scope is not supported yet. Exclude individual members with the 'DoNotPublicize Include=\"Assembly:Namespace.Type.Member\"' form.");
         }
 
         return valid;
@@ -210,23 +217,23 @@ internal static class PublicizeItemParser
     /// type once overload targeting lands. Only the number of arguments is read here; the names
     /// inside the braces mean nothing until then.
     /// </remarks>
-    private static bool TryLowerTypeName(string typeValue, string itemName, string spec, ITaskLogger logger, out string loweredTypeName)
+    private bool TryLowerTypeName(string typeValue, out string loweredTypeName)
     {
         loweredTypeName = "";
 
         if (typeValue.IndexOf('`') >= 0)
         {
-            logger.Error($"{itemName} item '{spec}': 'Type' must not contain a backtick. Write generic arity as 'MyType{{T1,T2}}' rather than 'MyType`2'.");
-            return false;
+            return Fail($"'Type' must not contain a backtick. Write generic arity as 'MyType{{T1,T2}}' rather than 'MyType`2'.");
         }
 
         if (typeValue.IndexOf('+') >= 0)
         {
-            logger.Error($"{itemName} item '{spec}': 'Type' must not contain '+'. Separate a nested type from its enclosing type with '.', as in 'Outer.Inner'.");
-            return false;
+            return Fail($"'Type' must not contain '+'. Separate a nested type from its enclosing type with '.', as in 'Outer.Inner'.");
         }
 
         var lowered = new StringBuilder(typeValue.Length);
+        // Counted rather than a bool: a nested argument list has to survive this scan intact so that
+        // the segment scanner can reject it by name, instead of it surfacing as unbalanced braces.
         int depth = 0;
         int segmentStart = 0;
 
@@ -246,9 +253,9 @@ internal static class PublicizeItemParser
                     depth--;
                     if (depth < 0)
                     {
-                        logger.Error($"{itemName} item '{spec}': 'Type' has unbalanced braces: '{typeValue}'.");
-                        return false;
+                        return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
                     }
+
                     continue;
                 }
 
@@ -260,11 +267,10 @@ internal static class PublicizeItemParser
             }
             else if (depth != 0)
             {
-                logger.Error($"{itemName} item '{spec}': 'Type' has unbalanced braces: '{typeValue}'.");
-                return false;
+                return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
             }
 
-            if (!TryLowerSegment(typeValue.Substring(segmentStart, i - segmentStart), itemName, spec, typeValue, logger, out string segment))
+            if (!TryLowerSegment(typeValue.Substring(segmentStart, i - segmentStart), typeValue, out string segment))
             {
                 return false;
             }
@@ -281,7 +287,7 @@ internal static class PublicizeItemParser
         return true;
     }
 
-    private static bool TryLowerSegment(string segment, string itemName, string spec, string typeValue, ITaskLogger logger, out string loweredSegment)
+    private bool TryLowerSegment(string segment, string typeValue, out string loweredSegment)
     {
         loweredSegment = "";
 
@@ -290,8 +296,7 @@ internal static class PublicizeItemParser
 
         if (name.Length == 0)
         {
-            logger.Error($"{itemName} item '{spec}': 'Type' has an empty name segment: '{typeValue}'.");
-            return false;
+            return Fail($"'Type' has an empty name segment: '{typeValue}'.");
         }
 
         if (brace < 0)
@@ -302,23 +307,20 @@ internal static class PublicizeItemParser
 
         if (segment[segment.Length - 1] != '}')
         {
-            logger.Error($"{itemName} item '{spec}': 'Type' segment '{segment}' must end its type argument list with '}}'.");
-            return false;
+            return Fail($"'Type' segment '{segment}' must end its type argument list with '}}'.");
         }
 
         string arguments = segment.Substring(brace + 1, segment.Length - brace - 2);
         if (arguments.Trim().Length == 0)
         {
-            logger.Error($"{itemName} item '{spec}': 'Type' segment '{segment}' has an empty type argument list. Drop the braces for a non-generic type.");
-            return false;
+            return Fail($"'Type' segment '{segment}' has an empty type argument list. Drop the braces for a non-generic type.");
         }
 
         // A nested argument list would make the commas ambiguous — 'Holder{Dictionary{K,V}}' has one
         // argument, not two — and nothing reads the names yet anyway, so refuse rather than guess.
         if (arguments.IndexOf('{') >= 0)
         {
-            logger.Error($"{itemName} item '{spec}': 'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
-            return false;
+            return Fail($"'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
         }
 
         // Only the count matters until Parameters lands; the argument names are not resolved yet.
@@ -335,15 +337,22 @@ internal static class PublicizeItemParser
         return true;
     }
 
-    private static string? Metadata(ITaskItem item, string name)
+    /// <summary>Logs one rejection and returns <see langword="false"/>, so call sites can return it directly.</summary>
+    private bool Fail(string message)
+    {
+        logger.Error($"{itemName} item '{spec}': {message}");
+        return false;
+    }
+
+    private string? Metadata(string name)
     {
         string value = item.GetMetadata(name);
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static bool? NullableBool(ITaskItem item, string name)
+    private bool? NullableBool(string name)
     {
-        string? value = Metadata(item, name);
+        string? value = Metadata(name);
         if (value is null)
         {
             return null;

@@ -176,29 +176,15 @@ public sealed class PublicizeAssemblies : Task
         contexts = [];
         bool valid = true;
 
-        foreach (ITaskItem item in publicizeItems)
+        foreach ((ITaskItem[] items, bool deny) in new[] { (publicizeItems, false), (doNotPublicizeItems, true) })
         {
-            valid &= PublicizeItemParser.TryApply(item, deny: false, ContextFor(item, contexts), logger);
-        }
-
-        foreach (ITaskItem item in doNotPublicizeItems)
-        {
-            valid &= PublicizeItemParser.TryApply(item, deny: true, ContextFor(item, contexts), logger);
+            foreach (ITaskItem item in items)
+            {
+                valid &= PublicizeItemParser.TryApply(item, deny, contexts, logger);
+            }
         }
 
         return valid;
-    }
-
-    private static PublicizerAssemblyContext ContextFor(ITaskItem item, Dictionary<string, PublicizerAssemblyContext> contexts)
-    {
-        string assemblyName = PublicizeItemParser.AssemblyNameOf(item);
-        if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
-        {
-            assemblyContext = new PublicizerAssemblyContext(assemblyName);
-            contexts.Add(assemblyName, assemblyContext);
-        }
-
-        return assemblyContext;
     }
 
     /// <summary>
