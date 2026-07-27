@@ -131,6 +131,11 @@ internal static class PublicizeItemParser
             return false;
         }
 
+        if (deny && !TryRejectFiltersOnDenyScope(item, spec, logger, itemName))
+        {
+            return false;
+        }
+
         string? typeReflectionName = null;
         if (typeValue is not null)
         {
@@ -154,6 +159,45 @@ internal static class PublicizeItemParser
 
         logger.Info($"{itemName}: {spec}, namespace: '{namespaceName}', type: {typeReflectionName ?? "(whole namespace)"}");
         return true;
+    }
+
+    /// <summary>
+    /// Rejects the sweep filters on a <c>DoNotPublicize</c> scope, which has no sweep for them to
+    /// filter.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two booleans have no defensible reading here: <c>IncludeVirtualMembers="false"</c> on a
+    /// deny scope would have to mean "do not deny the virtual members", and a user who misreads that
+    /// double negative publicizes more than they meant to.
+    /// </para>
+    /// <para>
+    /// <c>MemberPattern</c> does have a coherent reading — deny only the members it matches — but
+    /// that turns a scope from all-or-nothing for a type into a per-member rule, which the
+    /// single-winner resolution in <see cref="AssemblyPlan"/> cannot express. Rejected as
+    /// not-yet-supported rather than as nonsense, since it is a capability worth adding.
+    /// </para>
+    /// </remarks>
+    private static bool TryRejectFiltersOnDenyScope(ITaskItem item, string spec, ITaskLogger logger, string itemName)
+    {
+        bool valid = true;
+
+        foreach (string name in new[] { "IncludeVirtualMembers", "IncludeCompilerGeneratedMembers" })
+        {
+            if (Metadata(item, name) is not null)
+            {
+                logger.Error($"{itemName} item '{spec}': '{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
+                valid = false;
+            }
+        }
+
+        if (Metadata(item, "MemberPattern") is not null)
+        {
+            logger.Error($"{itemName} item '{spec}': 'MemberPattern' on a DoNotPublicize scope is not supported yet. Exclude individual members with the 'DoNotPublicize Include=\"Assembly:Namespace.Type.Member\"' form.");
+            valid = false;
+        }
+
+        return valid;
     }
 
     /// <summary>

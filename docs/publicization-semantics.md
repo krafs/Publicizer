@@ -74,6 +74,8 @@ Both readings are supported permanently. The colon form's is frozen behavior; th
 
 `IncludeVirtualMembers`, `IncludeCompilerGeneratedMembers` and `MemberPattern` can sit on any scope, and a scope inherits whatever it does not set from the assembly (`ScopeFilters_OverrideTheAssemblySweep_AndInheritWhenAbsent`, `ScopeMemberPattern_AppliesOnlyInsideTheScope`). This is the one place the two forms differ in capability rather than spelling: on the colon form these are still assembly-only, and still last-wins across duplicate items.
 
+All three are rejected on a `DoNotPublicize` scope (`ScopeFiltersOnDoNotPublicize_AreRejected`). The booleans have no defensible reading — `IncludeVirtualMembers="false"` on a deny scope would mean "do not deny the virtuals", a double negative whose misreading publicizes more than the author asked for. `MemberPattern` does have one, "deny only the members it matches", but that makes a scope a per-member rule rather than all-or-nothing for a type, which the single-winner resolution below cannot express; it is rejected as not-yet-supported rather than as nonsense.
+
 Naming a *scope* leaves the filters in force. Naming an individual *member* still bypasses them, as it always has — so sweeping a type does not silently publicize its compiler-generated event backing fields, which is the CS0229 collision `IncludeCompilerGeneratedMembers` exists to prevent (issue #9).
 
 ### Events are not a member kind

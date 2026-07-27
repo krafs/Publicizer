@@ -221,6 +221,16 @@ internal static class StructuredTargetTests
     }
 
     [Test]
+    public static void ScopeFiltersOnDoNotPublicize_AreRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), deny: true), Does.Contain("has no meaning on a DoNotPublicize scope"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeCompilerGeneratedMembers", "false"), deny: true), Does.Contain("has no meaning on a DoNotPublicize scope"));
+
+        // Coherent as a rule, but per-member rather than per-type, which the resolver cannot express yet.
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "MemberPattern", "Secret"), deny: true), Does.Contain("is not supported yet"));
+    }
+
+    [Test]
     public static void RejectedItems_AreAllReported_NotJustTheFirst()
     {
         var logger = new RecordingTaskLogger();
