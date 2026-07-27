@@ -28,6 +28,7 @@ internal sealed class AssemblyPlan
     private readonly HashSet<string> allowedTypeNames;
     private readonly HashSet<string> deniedTypeNames;
     private readonly List<PublicizeScope> scopes;
+    private readonly SweepSettings[] scopeSettings;
     private readonly SweepSettings assemblySettings;
 
     private AssemblyPlan(
@@ -50,6 +51,12 @@ internal sealed class AssemblyPlan
             IncludeCompilerGeneratedMembers = context.IncludeCompilerGeneratedMembers,
             MemberPattern = context.PublicizeMemberRegexPattern,
         };
+
+        scopeSettings = new SweepSettings[scopes.Count];
+        for (int i = 0; i < scopes.Count; i++)
+        {
+            scopeSettings[i] = assemblySettings.NarrowedBy(scopes[i]);
+        }
     }
 
     internal static AssemblyPlan Compile(PublicizerAssemblyContext context)
@@ -124,37 +131,22 @@ internal sealed class AssemblyPlan
     }
 
     /// <summary>
-    /// Narrows the assembly-wide settings by the tightest scope covering this type. Scopes are few
-    /// and user-authored, so a linear scan costs less than any index would.
+    /// The settings of the tightest scope covering this type, or the assembly-wide settings when no
+    /// scope does. Scopes are few and user-authored, so a linear scan costs less than any index
+    /// would, and each scope's narrowed settings were resolved up front.
     /// </summary>
     private SweepSettings Resolve(string typeReflectionFullName, string typeNamespace)
     {
-        if (scopes.Count == 0)
+        int winner = -1;
+        for (int i = 0; i < scopes.Count; i++)
         {
-            return assemblySettings;
-        }
-
-        PublicizeScope? winner = null;
-        foreach (PublicizeScope scope in scopes)
-        {
-            if (scope.Covers(typeReflectionFullName, typeNamespace) && (winner is null || Beats(scope, winner)))
+            if (scopes[i].Covers(typeReflectionFullName, typeNamespace) && (winner < 0 || Beats(scopes[i], scopes[winner])))
             {
-                winner = scope;
+                winner = i;
             }
         }
 
-        if (winner is null)
-        {
-            return assemblySettings;
-        }
-
-        return new SweepSettings
-        {
-            Publicize = !winner.Deny,
-            IncludeVirtualMembers = winner.IncludeVirtualMembers ?? assemblySettings.IncludeVirtualMembers,
-            IncludeCompilerGeneratedMembers = winner.IncludeCompilerGeneratedMembers ?? assemblySettings.IncludeCompilerGeneratedMembers,
-            MemberPattern = winner.MemberPattern ?? assemblySettings.MemberPattern,
-        };
+        return winner < 0 ? assemblySettings : scopeSettings[winner];
     }
 
     /// <summary>
@@ -164,19 +156,7 @@ internal sealed class AssemblyPlan
     /// </summary>
     private static bool Beats(PublicizeScope candidate, PublicizeScope current)
     {
-        (int candidateDepth, int candidateLength) = candidate.Specificity;
-        (int currentDepth, int currentLength) = current.Specificity;
-
-        if (candidateDepth != currentDepth)
-        {
-            return candidateDepth > currentDepth;
-        }
-
-        if (candidateLength != currentLength)
-        {
-            return candidateLength > currentLength;
-        }
-
-        return candidate.Deny || !current.Deny;
+        int comparison = candidate.Specificity.CompareTo(current.Specificity);
+        return comparison != 0 ? comparison > 0 : candidate.Deny || !current.Deny;
     }
 }

@@ -26,4 +26,17 @@ internal sealed class SweepSettings
     /// walk runs the scan only when it matters, rather than once per member.
     /// </summary>
     internal bool NeedsCompilerGeneratedCheck => Publicize && !IncludeCompilerGeneratedMembers;
+
+    /// <summary>
+    /// These settings as narrowed by <paramref name="scope"/>, which overrides what it sets and
+    /// inherits what it does not. The result depends only on the scope, so it is computed once per
+    /// scope rather than once per type the scope covers.
+    /// </summary>
+    internal SweepSettings NarrowedBy(PublicizeScope scope) => new()
+    {
+        Publicize = !scope.Deny,
+        IncludeVirtualMembers = scope.IncludeVirtualMembers ?? IncludeVirtualMembers,
+        IncludeCompilerGeneratedMembers = scope.IncludeCompilerGeneratedMembers ?? IncludeCompilerGeneratedMembers,
+        MemberPattern = scope.MemberPattern ?? MemberPattern,
+    };
 }
