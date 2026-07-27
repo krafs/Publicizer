@@ -21,11 +21,7 @@ internal static partial class AssemblyPlanTests
         return typePlan!;
     }
 
-    /// <summary>
-    /// The namespace a reflection name implies, for tests that only care about the type. Reading it
-    /// off the name is fine here because the ambiguity it glosses over — is the last segment a type
-    /// or a member? — is exactly what a scope-free plan never asks.
-    /// </summary>
+    /// <summary>The namespace a reflection name implies, for tests that only care about the type.</summary>
     private static string NamespaceOf(string typeName)
     {
         int lastDot = typeName.LastIndexOf('.');

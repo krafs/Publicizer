@@ -115,6 +115,8 @@ For each field, method and property the engine walks a fixed decision ladder and
 
 Rung 5 is where the assembly-wide sweep now lives, alongside namespace and type scopes. `AssemblyPlan.Resolve` picks the scope: a type scope beats a namespace scope, a longer namespace beats the namespace enclosing it, and between equally narrow scopes `DoNotPublicize` wins over `Publicize`, otherwise the later item wins (`TypeScope_BeatsAnEnclosingNamespaceScope`, `InnermostNamespaceScope_Wins`, `DoNotPublicizeScope_BeatsPublicizeScope_AtEqualSpecificity`). With no structured items in play this collapses to the old two rungs — `DoNotPublicize` on the assembly, then `Publicize` on the assembly — which is why the characterization suite is unchanged.
 
+Note that rung 4 sits *above* every scope: a colon-form `DoNotPublicize` naming a type excludes it no matter how specific a structured `Publicize` scope covering it is. This is the one place the two forms interact, and the colon form wins because its behavior is frozen (`ColonFormDoNotPublicizeType_BeatsAnyStructuredScope`).
+
 Consequences worth naming explicitly:
 
 - **`DoNotPublicize` beats `Publicize` at the same specificity.** Naming a member in both excludes it (`MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins`).

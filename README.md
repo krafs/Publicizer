@@ -42,42 +42,6 @@ Publicizer needs to be told what private members you want access to. You do this
 </ItemGroup>
 ```
 
-### Namespaces and types
-
-Namespaces and types can also be named as item metadata instead of packing them into the `Include`-string. This form is additive - the colon-string form above keeps working unchanged - and it exists because the colon-string cannot tell a namespace apart from a nested type.
-
-```xml
-<ItemGroup>
-    <!-- All members in a namespace, and in every namespace under it -->
-    <Publicize Include="MyAssemblyFileName" Namespace="MyNamespace" />
-
-    <!-- A type and all its members -->
-    <Publicize Include="MyAssemblyFileName" Namespace="MyNamespace" Type="MyType" />
-
-    <!-- A nested type. Dots separate nested types; the namespace goes in Namespace -->
-    <Publicize Include="MyAssemblyFileName" Namespace="MyNamespace" Type="MyType.MyNestedType" />
-
-    <!-- A generic type. Braces rather than a backtick, because this is an XML attribute -->
-    <Publicize Include="MyAssemblyFileName" Namespace="MyNamespace" Type="MyType{TKey,TValue}" />
-
-    <!-- A type in the global namespace -->
-    <Publicize Include="MyAssemblyFileName" Type="MyGlobalType" />
-</ItemGroup>
-```
-
-Targets narrow as you add metadata, and each level can carry its own `IncludeVirtualMembers`, `IncludeCompilerGeneratedMembers` and `MemberPattern`, inheriting whatever it does not set. So publicizing a whole assembly except for the virtual members of one namespace is:
-
-```xml
-<ItemGroup>
-    <Publicize Include="MyAssemblyFileName" />
-    <Publicize Include="MyAssemblyFileName" Namespace="MyNamespace" IncludeVirtualMembers="false" />
-</ItemGroup>
-```
-
-`DoNotPublicize` takes the same metadata. Where scopes overlap, the narrower one wins, and between equally narrow ones `DoNotPublicize` wins.
-
-Note that naming a type here publicizes **the type and all of its members**, while `Include="MyAssemblyFileName:MyNamespace.MyType"` publicizes only the type itself. Member-level metadata (`Method`, `Property`, `Field`, `Event`) is not implemented yet and is rejected with an error rather than ignored; use the colon-string form for individual members.
-
 ### Regular expressions
 Regular expressions are supported with the `MemberPattern` attribute.
 ```xml

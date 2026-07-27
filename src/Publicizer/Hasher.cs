@@ -39,6 +39,8 @@ internal static class Hasher
         {
             sb.Append(assemblyContext.PublicizeMemberRegexPattern.ToString());
         }
+        // Scope order is deliberately significant: equally specific scopes are resolved by item
+        // order, so reordering two items really can change what gets publicized.
         foreach (PublicizeScope scope in assemblyContext.Scopes)
         {
             // Delimited, so that Namespace="AB" cannot hash the same as Namespace="A" Type="B".

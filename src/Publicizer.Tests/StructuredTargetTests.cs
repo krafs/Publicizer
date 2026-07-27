@@ -221,6 +221,18 @@ internal static class StructuredTargetTests
     }
 
     [Test]
+    public static void ColonFormDoNotPublicizeType_BeatsAnyStructuredScope()
+    {
+        // Rung 4 sits above every scope: the colon form's behavior is frozen, so it wins however
+        // specific the scope covering the same type is.
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A", "Type", "Type")],
+            [Item("Asm:A.Type")]);
+
+        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.Skip));
+    }
+
+    [Test]
     public static void ScopeFiltersOnDoNotPublicize_AreRejected()
     {
         Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), deny: true), Does.Contain("has no meaning on a DoNotPublicize scope"));
