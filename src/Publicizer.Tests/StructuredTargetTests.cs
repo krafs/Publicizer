@@ -245,15 +245,47 @@ internal static class StructuredTargetTests
     }
 
     [Test]
-    public static void AssemblyDoNotPublicize_VetoesEveryScope()
+    public static void AssemblyDoNotPublicize_IsCarvedOutByAScope()
     {
-        // The assembly-wide deny is frozen behavior and stays a veto, so adding the structured form
-        // cannot turn an assembly that publicized nothing into one that publicizes a namespace.
+        // The assembly-wide rule is the loosest scope there is, so a scope naming part of the
+        // assembly is more specific and wins. This is the same carve-out a colon-form target has
+        // always had over an assembly deny (AssemblyPlanTests.ForType_NamedTargetSurvivesDoNotPublicizeAssembly);
+        // routing both through one lattice is what stops the answer depending on which form was used.
         PublicizerAssemblyContext context = Parse(
             [Item("Asm", "Namespace", "A")],
             [Item("Asm")]);
 
-        Assert.That(Plan(context, "A.Type", "A"), Is.Null);
+        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+
+        // Outside the scope the deny still applies, which is what makes it a carve-out and not a
+        // repeal: nothing else in the assembly is reachable.
+        Assert.That(Plan(context, "B.Type", "B"), Is.Null);
+    }
+
+    [Test]
+    public static void ScopeCarvingOutOfAnAssemblyDeny_Warns()
+    {
+        // The two items are usually authored in different .props files, so the override is easy to
+        // miss. It resolves as intended; it just does not do so silently.
+        var logger = new RecordingTaskLogger();
+
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts([Item("Asm", "Namespace", "A")], [Item("Asm")], logger, out _);
+
+        Assert.That(valid, Is.True);
+        Assert.That(logger.Warnings, Has.Count.EqualTo(1));
+        Assert.That(logger.Warnings[0], Does.Contain("Asm").And.Contain("more specific"));
+    }
+
+    [Test]
+    public static void DenyScopeUnderAnAssemblyDeny_DoesNotWarn()
+    {
+        // Narrowing a deny with more denies changes nothing about what is published, so there is
+        // no override to report.
+        var logger = new RecordingTaskLogger();
+
+        _ = PublicizeAssemblies.TryGetPublicizerAssemblyContexts([], [Item("Asm"), Item("Asm", "Namespace", "A")], logger, out _);
+
+        Assert.That(logger.Warnings, Is.Empty);
     }
 
     [Test]

@@ -117,7 +117,9 @@ Rung 5 is where the assembly-wide sweep now lives, alongside namespace and type 
 
 Note that rung 4 sits *above* every scope: a colon-form `DoNotPublicize` naming a type excludes it no matter how specific a structured `Publicize` scope covering it is. This is the one place the two forms interact, and the colon form wins because its behavior is frozen (`ColonFormDoNotPublicizeType_BeatsAnyStructuredScope`).
 
-An assembly-wide `DoNotPublicize` gets the same precedence, for the same reason: it vetoes every scope rather than being outranked by one as the more specific rule (`AssemblyDoNotPublicize_VetoesEveryScope`). The alternative — letting a scope carve an exception out of a denied assembly — would mean adding the structured form could turn an assembly that publicized nothing into one that publicizes something, which is exactly the widening the frozen forms exist to prevent. `AssemblyPlan.Compile` enforces it by dropping the scopes outright, so the veto cannot be reached by any resolution path. The consequence worth knowing: `DoNotPublicize Include="Asm"` is an unconditional kill switch, and "deny the assembly except namespace N" is not expressible. Omit the deny item instead.
+An assembly-wide `DoNotPublicize` does **not** get that precedence. It is the loosest scope there is, so any scope naming part of the assembly is more specific and carves an exception out of it (`AssemblyDoNotPublicize_IsCarvedOutByAScope`). This makes "deny the assembly except namespace N" expressible, and it is the same carve-out rung 3 has always given a colon-form member target over an assembly deny (`AssemblyPlanTests.ForType_NamedTargetSurvivesDoNotPublicizeAssembly`). Routing both through one lattice is the point: the alternative was a veto that answered the same question — may a narrower allow-target override an assembly-wide deny? — with `yes` for the colon form and `no` for a scope of identical specificity, so the outcome turned on which syntax the author happened to use.
+
+The hazard this leaves is composition, not widening: the deny and the scope are often authored in different `.props` files, so the override can be a surprise to whoever wrote the deny. That is reported rather than prevented — `TryGetPublicizerAssemblyContexts` warns when a `Publicize` scope overrides an assembly-wide deny (`ScopeCarvingOutOfAnAssemblyDeny_Warns`). Note the hazard is not new and is not confined to scopes: a colon-form member target reopens a shared deny the same way, and always has, without a diagnostic.
 
 Consequences worth naming explicitly:
 
@@ -153,7 +155,7 @@ This is defensible — a publicized member is useless in an inaccessible type �
 
 - `IncludeVirtualMembers="false"` leaves virtual methods and virtual property accessors alone but does not affect fields or types (`WholeAssembly_ExcludingVirtualMembers`).
 - `IncludeCompilerGeneratedMembers="false"` skips anything with `[CompilerGenerated]`, which is what keeps event backing fields private and avoids the CS0229 collision that motivated the flag in issue #9 (`WholeAssembly_ExcludingCompilerGeneratedMembers`, `EventBackingField_WholeAssemblyDefault_BecomesPublic_TheCollision`, `EventBackingField_ExcludingCompilerGenerated_StaysPrivate`). The check looks only for that one attribute by full name; it does not recognise other compiler conventions such as `<>`-mangled names.
-- `DoNotPublicize Include="MyAssembly"` suppresses the whole-assembly sweep but does not suppress explicit member targets (`DoNotPublicizeAssembly_PublicizesNothing` covers the sweep; rule 3 above covers the exception).
+- `DoNotPublicize Include="MyAssembly"` suppresses the whole-assembly sweep but does not suppress explicit member targets, nor structured scopes naming part of the assembly (`DoNotPublicizeAssembly_PublicizesNothing` covers the sweep; rule 3 and the precedence section above cover the two exceptions).
 
 ## Diagnostics
 

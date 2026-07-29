@@ -186,6 +186,11 @@ public sealed class PublicizeAssemblies : Task
             valid &= PublicizeItemParser.TryApply(item, deny: true, contexts, logger);
         }
 
+        if (valid)
+        {
+            WarnOnScopesOverridingAnAssemblyDeny(contexts, logger);
+        }
+
         return valid;
     }
 
@@ -211,6 +216,30 @@ public sealed class PublicizeAssemblies : Task
         }
 
         return modified;
+    }
+
+    /// <summary>
+    /// A scope is tighter than the assembly-wide rule, so a <c>Publicize</c> scope carves an
+    /// exception out of a <c>DoNotPublicize</c> naming the whole assembly — the same way a colon-form
+    /// member target always has. That is the intended resolution, but the two items are often
+    /// authored by different people in different .props files, where the override is easy to miss.
+    /// Hence a warning rather than either silence or an error.
+    /// </summary>
+    private static void WarnOnScopesOverridingAnAssemblyDeny(Dictionary<string, PublicizerAssemblyContext> contexts, ITaskLogger logger)
+    {
+        foreach (PublicizerAssemblyContext context in contexts.Values)
+        {
+            if (!context.ExplicitlyDoNotPublicizeAssembly)
+            {
+                continue;
+            }
+
+            int overriding = context.Scopes.Count(scope => !scope.Deny);
+            if (overriding > 0)
+            {
+                logger.Warning($"'{context.AssemblyName}' is marked DoNotPublicize as a whole, but {overriding} Publicize scope(s) name part of it. The scopes are more specific, so they win. Remove the DoNotPublicize item if that is what you meant.");
+            }
+        }
     }
 
     internal static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
