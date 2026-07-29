@@ -6,11 +6,6 @@ namespace Publicizer;
 /// The sweep rules in force for one type, after resolving the assembly scope against any namespace
 /// and type scopes that cover it.
 /// </summary>
-/// <remarks>
-/// These used to live on the assembly and be read directly by the decision ladder. The structured
-/// item form can draw a scope tighter than the assembly, so they are resolved per type instead —
-/// which is what makes "publicize every member of this one type" expressible without a regex.
-/// </remarks>
 internal sealed class SweepSettings
 {
     /// <summary>Whether a sweep reaches this type at all. False both when nothing selects it and
@@ -29,8 +24,7 @@ internal sealed class SweepSettings
 
     /// <summary>
     /// These settings as narrowed by <paramref name="scope"/>, which overrides what it sets and
-    /// inherits what it does not. The result depends only on the scope, so it is computed once per
-    /// scope rather than once per type the scope covers.
+    /// inherits what it does not.
     /// </summary>
     internal SweepSettings NarrowedBy(PublicizeScope scope) => new()
     {

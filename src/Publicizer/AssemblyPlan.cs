@@ -12,8 +12,8 @@ namespace Publicizer;
 /// dictionary lookup per type and plain lookups per member, never concatenating.
 /// </para>
 /// <para>
-/// Such a target is ambiguous by construction: <c>A.B.C</c> may name a type, or member <c>C</c> of
-/// type <c>A.B</c>, and the syntax gives no way to tell. Rather than guess, a target is indexed under
+/// A target is ambiguous by construction: <c>A.B.C</c> may name a type, or member <c>C</c> of type
+/// <c>A.B</c>, and the syntax gives no way to tell. Rather than guess, a target is indexed under
 /// <em>every</em> split point, plus as a type name in its own right. That is exactly equivalent to
 /// the string comparison it replaces — including the doubled dot of <c>Fixture.Shapes..ctor</c>,
 /// which a naive split at the last dot would get wrong. Targets are few and user-authored, so the
@@ -36,27 +36,17 @@ internal sealed class AssemblyPlan
         Dictionary<string, HashSet<string>> deniedMembersByType,
         HashSet<string> allowedTypeNames,
         HashSet<string> deniedTypeNames,
-        PublicizerAssemblyContext context)
+        List<PublicizeScope> scopes,
+        SweepSettings assemblySettings,
+        SweepSettings[] scopeSettings)
     {
         this.allowedMembersByType = allowedMembersByType;
         this.deniedMembersByType = deniedMembersByType;
         this.allowedTypeNames = allowedTypeNames;
         this.deniedTypeNames = deniedTypeNames;
-
-        scopes = context.Scopes;
-        assemblySettings = new SweepSettings
-        {
-            Publicize = context.ExplicitlyPublicizeAssembly && !context.ExplicitlyDoNotPublicizeAssembly,
-            IncludeVirtualMembers = context.IncludeVirtualMembers,
-            IncludeCompilerGeneratedMembers = context.IncludeCompilerGeneratedMembers,
-            MemberPattern = context.PublicizeMemberRegexPattern,
-        };
-
-        scopeSettings = new SweepSettings[scopes.Count];
-        for (int i = 0; i < scopes.Count; i++)
-        {
-            scopeSettings[i] = assemblySettings.NarrowedBy(scopes[i]);
-        }
+        this.scopes = scopes;
+        this.assemblySettings = assemblySettings;
+        this.scopeSettings = scopeSettings;
     }
 
     internal static AssemblyPlan Compile(PublicizerAssemblyContext context)
@@ -77,7 +67,23 @@ internal sealed class AssemblyPlan
         var allowedTypeNames = new HashSet<string>(context.PublicizeMemberPatterns, StringComparer.Ordinal);
         var deniedTypeNames = new HashSet<string>(context.DoNotPublicizeMemberPatterns, StringComparer.Ordinal);
 
-        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, context);
+        var assemblySettings = new SweepSettings
+        {
+            Publicize = context.ExplicitlyPublicizeAssembly && !context.ExplicitlyDoNotPublicizeAssembly,
+            IncludeVirtualMembers = context.IncludeVirtualMembers,
+            IncludeCompilerGeneratedMembers = context.IncludeCompilerGeneratedMembers,
+            MemberPattern = context.PublicizeMemberRegexPattern,
+        };
+
+        // A scope's settings depend only on the scope, so they are resolved once here rather than
+        // once per type the scope covers.
+        var scopeSettings = new SweepSettings[context.Scopes.Count];
+        for (int i = 0; i < context.Scopes.Count; i++)
+        {
+            scopeSettings[i] = assemblySettings.NarrowedBy(context.Scopes[i]);
+        }
+
+        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, context.Scopes, assemblySettings, scopeSettings);
     }
 
     private static void IndexMemberSplits(string target, Dictionary<string, HashSet<string>> index)
@@ -93,7 +99,7 @@ internal sealed class AssemblyPlan
                 index.Add(typeName, memberNames);
             }
 
-            _ = memberNames.Add(memberName);
+            memberNames.Add(memberName);
         }
     }
 
@@ -132,8 +138,7 @@ internal sealed class AssemblyPlan
 
     /// <summary>
     /// The settings of the tightest scope covering this type, or the assembly-wide settings when no
-    /// scope does. Scopes are few and user-authored, so a linear scan costs less than any index
-    /// would, and each scope's narrowed settings were resolved up front.
+    /// scope does. Scopes are few and user-authored, so a linear scan costs less than any index would.
     /// </summary>
     private SweepSettings Resolve(string typeReflectionFullName, string typeNamespace)
     {
@@ -157,6 +162,17 @@ internal sealed class AssemblyPlan
     private static bool Beats(PublicizeScope candidate, PublicizeScope current)
     {
         int comparison = candidate.Specificity.CompareTo(current.Specificity);
-        return comparison != 0 ? comparison > 0 : candidate.Deny || !current.Deny;
+        if (comparison != 0)
+        {
+            return comparison > 0;
+        }
+
+        if (candidate.Deny != current.Deny)
+        {
+            return candidate.Deny;
+        }
+
+        // Equally tight and on the same side: the later item wins.
+        return true;
     }
 }

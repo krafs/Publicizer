@@ -37,23 +37,29 @@ internal sealed class PublicizeScope
     /// How tightly this rule is drawn, for resolving overlapping scopes. A type always beats a
     /// namespace, and a longer namespace beats the namespace enclosing it.
     /// </summary>
-    internal (int Depth, int Length) Specificity => TypeReflectionName is null
+    internal (int Rank, int NameLength) Specificity => TypeReflectionName is null
         ? (0, Namespace.Length)
         : (1, TypeReflectionName.Length);
 
-    internal bool Covers(string typeReflectionFullName, string typeNamespace)
+    internal bool Covers(string typeReflectionFullName, string typeNamespace) => TypeReflectionName is not null
+        // A type scope reaches its nested types, which extend the name with '+'.
+        ? IsSelfOrUnder(typeReflectionFullName, TypeReflectionName, '+')
+        // A namespace scope is recursive, but on segment boundaries: "A.B" covers "A.B.C", not "A.BX".
+        : IsSelfOrUnder(typeNamespace, Namespace, '.');
+
+    /// <summary>
+    /// Whether <paramref name="candidate"/> is <paramref name="prefix"/> itself, or a name nested
+    /// under it — where <paramref name="separator"/> is what joins a parent name to a child.
+    /// </summary>
+    private static bool IsSelfOrUnder(string candidate, string prefix, char separator)
     {
-        if (TypeReflectionName is not null)
+        if (candidate.Length == prefix.Length)
         {
-            // A type scope reaches its nested types, which extend the name with '+'.
-            return typeReflectionFullName == TypeReflectionName
-                || (typeReflectionFullName.StartsWith(TypeReflectionName, StringComparison.Ordinal)
-                    && typeReflectionFullName[TypeReflectionName.Length] == '+');
+            return candidate == prefix;
         }
 
-        // Recursive, but on segment boundaries: "A.B" covers "A.B.C" and not "A.BX".
-        return typeNamespace == Namespace
-            || (typeNamespace.StartsWith(Namespace, StringComparison.Ordinal)
-                && typeNamespace[Namespace.Length] == '.');
+        return candidate.Length > prefix.Length
+            && candidate[prefix.Length] == separator
+            && candidate.StartsWith(prefix, StringComparison.Ordinal);
     }
 }

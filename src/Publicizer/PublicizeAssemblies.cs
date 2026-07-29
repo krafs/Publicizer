@@ -176,12 +176,14 @@ public sealed class PublicizeAssemblies : Task
         contexts = [];
         bool valid = true;
 
-        foreach ((ITaskItem[] items, bool deny) in new[] { (publicizeItems, false), (doNotPublicizeItems, true) })
+        foreach (ITaskItem item in publicizeItems)
         {
-            foreach (ITaskItem item in items)
-            {
-                valid &= PublicizeItemParser.TryApply(item, deny, contexts, logger);
-            }
+            valid &= PublicizeItemParser.TryApply(item, deny: false, contexts, logger);
+        }
+
+        foreach (ITaskItem item in doNotPublicizeItems)
+        {
+            valid &= PublicizeItemParser.TryApply(item, deny: true, contexts, logger);
         }
 
         return valid;

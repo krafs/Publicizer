@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using Microsoft.Build.Framework;
 
@@ -9,34 +8,22 @@ namespace Publicizer;
 /// <see cref="PublicizerAssemblyContext"/>.
 /// </summary>
 /// <remarks>
-/// <para>
-/// An item takes one of two forms. The <em>colon form</em> packs the whole target into the item spec
-/// — <c>Assembly:Namespace.Type.Member</c> — and is the long-standing public contract. The
-/// <em>structured form</em> leaves the item spec as the bare assembly name and moves each qualifier
-/// into its own metadata, which is what lets a namespace be told apart from a nested type.
-/// </para>
-/// <para>
-/// The two cannot be mixed on one item: there is no sensible reading of a colon spec that also
-/// carries <c>Type</c> metadata, and honouring one while dropping the other would publicize
-/// something the author did not ask for. Malformed items are reported as build errors rather than
-/// thrown, so that one bad item does not hide the rest.
-/// </para>
+/// An item takes either the <em>colon form</em>, which packs the whole target into the item spec, or
+/// the <em>structured form</em>, which leaves the item spec as the bare assembly name and moves each
+/// qualifier into its own metadata. The two cannot be mixed on one item, and malformed items are
+/// reported as build errors rather than thrown, so one bad item does not hide the rest. See
+/// docs/publicization-semantics.md.
 /// </remarks>
 internal sealed class PublicizeItemParser
 {
-    /// <summary>
-    /// Qualifiers the structured syntax reserves but does not implement yet. Rejected rather than
-    /// ignored so that a target written against the eventual syntax fails loudly instead of silently
-    /// publicizing a whole type.
-    /// </summary>
+    /// <summary>Qualifiers the structured syntax reserves but does not implement yet.</summary>
     private static readonly string[] unsupportedMetadata = ["Field", "Method", "Property", "Event", "Accessor", "Parameters"];
 
-    /// <summary>
-    /// Qualifiers that turn off a scope's descent. Reserved for the same reason, and with more at
-    /// stake: a scope is recursive unconditionally today, so ignoring an author's request to narrow
-    /// it publicizes strictly more than they asked for.
-    /// </summary>
+    /// <summary>Qualifiers that would turn off a scope's descent, which is unconditional today.</summary>
     private static readonly string[] unsupportedDescentMetadata = ["IncludeSubNamespaces", "IncludeTypeContents"];
+
+    /// <summary>Sweep filters, which a <c>DoNotPublicize</c> scope has no sweep to apply them to.</summary>
+    private static readonly string[] sweepFilterMetadata = ["IncludeVirtualMembers", "IncludeCompilerGeneratedMembers"];
 
     private readonly ITaskItem item;
     private readonly ITaskLogger logger;
@@ -84,12 +71,15 @@ internal sealed class PublicizeItemParser
             return Fail($"the '{itemName} Include=\"Assembly:Member\"' form cannot be combined with 'Namespace' or 'Type' metadata. Use one form or the other.");
         }
 
+        // Reserved qualifiers are rejected rather than ignored, so a target written against the
+        // eventual syntax fails loudly instead of silently sweeping a whole type.
         bool valid = true;
         foreach (string name in unsupportedMetadata)
         {
             if (Metadata(name) is not null)
             {
-                valid = Fail($"'{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
+                Error($"'{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
+                valid = false;
             }
         }
 
@@ -97,7 +87,8 @@ internal sealed class PublicizeItemParser
         {
             if (Metadata(name) is not null)
             {
-                valid = Fail($"'{name}' metadata is not supported yet. A '{itemName}' scope reaches everything beneath the node it names, and that cannot be narrowed yet.");
+                Error($"'{name}' metadata is not supported yet. A '{itemName}' scope reaches everything beneath the node it names, and that cannot be narrowed yet.");
+                valid = false;
             }
         }
 
@@ -155,7 +146,7 @@ internal sealed class PublicizeItemParser
             return Fail($"'Namespace' has an empty name segment: '{namespaceName}'.");
         }
 
-        if (deny && !TryRejectFiltersOnDenyScope())
+        if (deny && HasFiltersOnDenyScope())
         {
             return false;
         }
@@ -163,12 +154,12 @@ internal sealed class PublicizeItemParser
         string? typeReflectionName = null;
         if (typeValue is not null)
         {
-            if (!TryLowerTypeName(typeValue, out string loweredTypeName))
+            if (!TryGetTypeReflectionName(typeValue, out string typeName))
             {
                 return false;
             }
 
-            typeReflectionName = namespaceName.Length == 0 ? loweredTypeName : namespaceName + "." + loweredTypeName;
+            typeReflectionName = namespaceName.Length == 0 ? typeName : namespaceName + "." + typeName;
         }
 
         context.Scopes.Add(new PublicizeScope
@@ -186,55 +177,40 @@ internal sealed class PublicizeItemParser
     }
 
     /// <summary>
-    /// Rejects the sweep filters on a <c>DoNotPublicize</c> scope, which has no sweep for them to
-    /// filter.
+    /// Reports every sweep filter found on a <c>DoNotPublicize</c> scope, and whether there was one.
+    /// A deny scope has no sweep for a filter to apply to; see docs/publicization-semantics.md for
+    /// why neither reading of one is safe to accept.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The two booleans have no defensible reading here: <c>IncludeVirtualMembers="false"</c> on a
-    /// deny scope would have to mean "do not deny the virtual members", and a user who misreads that
-    /// double negative publicizes more than they meant to.
-    /// </para>
-    /// <para>
-    /// <c>MemberPattern</c> does have a coherent reading — deny only the members it matches — but
-    /// that turns a scope from all-or-nothing for a type into a per-member rule, which the
-    /// single-winner resolution in <see cref="AssemblyPlan"/> cannot express. Rejected as
-    /// not-yet-supported rather than as nonsense, since it is a capability worth adding.
-    /// </para>
-    /// </remarks>
-    private bool TryRejectFiltersOnDenyScope()
+    private bool HasFiltersOnDenyScope()
     {
-        bool valid = true;
+        bool found = false;
 
-        foreach (string name in new[] { "IncludeVirtualMembers", "IncludeCompilerGeneratedMembers" })
+        foreach (string name in sweepFilterMetadata)
         {
             if (Metadata(name) is not null)
             {
-                valid = Fail($"'{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
+                Error($"'{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
+                found = true;
             }
         }
 
         if (Metadata("MemberPattern") is not null)
         {
-            valid = Fail("'MemberPattern' on a DoNotPublicize scope is not supported yet. Exclude individual members with the 'DoNotPublicize Include=\"Assembly:Namespace.Type.Member\"' form.");
+            Error("'MemberPattern' on a DoNotPublicize scope is not supported yet. Exclude individual members with the 'DoNotPublicize Include=\"Assembly:Namespace.Type.Member\"' form.");
+            found = true;
         }
 
-        return valid;
+        return found;
     }
 
     /// <summary>
     /// Rewrites a structured type name into the reflection name dnlib reports: <c>.</c> separates
-    /// nested types, and <c>{T1,T2}</c> becomes the arity suffix <c>`2</c>.
+    /// nested types, and <c>{T1,T2}</c> becomes the arity suffix <c>`2</c>. Braces are the only
+    /// accepted spelling of arity, and only the number of arguments is read.
     /// </summary>
-    /// <remarks>
-    /// Braces are the only accepted spelling of generic arity. A backtick is rejected rather than
-    /// passed through, so that <c>Parameters</c> never has to reconcile two spellings of the same
-    /// type once overload targeting lands. Only the number of arguments is read here; the names
-    /// inside the braces mean nothing until then.
-    /// </remarks>
-    private bool TryLowerTypeName(string typeValue, out string loweredTypeName)
+    private bool TryGetTypeReflectionName(string typeValue, out string reflectionName)
     {
-        loweredTypeName = "";
+        reflectionName = "";
 
         if (typeValue.IndexOf('`') >= 0)
         {
@@ -246,65 +222,78 @@ internal sealed class PublicizeItemParser
             return Fail($"'Type' must not contain '+'. Separate a nested type from its enclosing type with '.', as in 'Outer.Inner'.");
         }
 
-        var lowered = new StringBuilder(typeValue.Length);
+        if (!TrySplitNestingChain(typeValue, out List<string> segments))
+        {
+            return false;
+        }
+
+        var builder = new StringBuilder(typeValue.Length);
+        foreach (string segment in segments)
+        {
+            if (!TryGetSegmentReflectionName(segment, typeValue, out string segmentName))
+            {
+                return false;
+            }
+
+            if (builder.Length > 0)
+            {
+                _ = builder.Append('+');
+            }
+
+            _ = builder.Append(segmentName);
+        }
+
+        reflectionName = builder.ToString();
+        return true;
+    }
+
+    /// <summary>
+    /// Splits a type name on the dots that separate nested types, leaving the dots inside a type
+    /// argument list alone.
+    /// </summary>
+    private bool TrySplitNestingChain(string typeValue, out List<string> segments)
+    {
+        segments = [];
+
         // Counted rather than a bool: a nested argument list has to survive this scan intact so that
         // the segment scanner can reject it by name, instead of it surfacing as unbalanced braces.
         int depth = 0;
         int segmentStart = 0;
 
-        for (int i = 0; i <= typeValue.Length; i++)
+        for (int i = 0; i < typeValue.Length; i++)
         {
-            if (i < typeValue.Length)
+            char c = typeValue[i];
+            if (c == '{')
             {
-                char c = typeValue[i];
-                if (c == '{')
+                depth++;
+            }
+            else if (c == '}')
+            {
+                depth--;
+                if (depth < 0)
                 {
-                    depth++;
-                    continue;
-                }
-
-                if (c == '}')
-                {
-                    depth--;
-                    if (depth < 0)
-                    {
-                        return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
-                    }
-
-                    continue;
-                }
-
-                // A dot inside braces belongs to a type argument, not to the nesting chain.
-                if (c != '.' || depth > 0)
-                {
-                    continue;
+                    return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
                 }
             }
-            else if (depth != 0)
+            else if (c == '.' && depth == 0)
             {
-                return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
+                segments.Add(typeValue.Substring(segmentStart, i - segmentStart));
+                segmentStart = i + 1;
             }
-
-            if (!TryLowerSegment(typeValue.Substring(segmentStart, i - segmentStart), typeValue, out string segment))
-            {
-                return false;
-            }
-
-            if (lowered.Length > 0)
-            {
-                _ = lowered.Append('+');
-            }
-            _ = lowered.Append(segment);
-            segmentStart = i + 1;
         }
 
-        loweredTypeName = lowered.ToString();
+        if (depth != 0)
+        {
+            return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
+        }
+
+        segments.Add(typeValue.Substring(segmentStart));
         return true;
     }
 
-    private bool TryLowerSegment(string segment, string typeValue, out string loweredSegment)
+    private bool TryGetSegmentReflectionName(string segment, string typeValue, out string segmentName)
     {
-        loweredSegment = "";
+        segmentName = "";
 
         int brace = segment.IndexOf('{');
         string name = brace < 0 ? segment : segment.Substring(0, brace);
@@ -316,7 +305,7 @@ internal sealed class PublicizeItemParser
 
         if (brace < 0)
         {
-            loweredSegment = name;
+            segmentName = name;
             return true;
         }
 
@@ -338,24 +327,17 @@ internal sealed class PublicizeItemParser
             return Fail($"'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
         }
 
-        // Only the count matters until Parameters lands; the argument names are not resolved yet.
-        int arity = 1;
-        foreach (char c in arguments)
-        {
-            if (c == ',')
-            {
-                arity++;
-            }
-        }
-
-        loweredSegment = name + "`" + arity.ToString(CultureInfo.InvariantCulture);
+        int arity = arguments.Count(c => c == ',') + 1;
+        segmentName = name + "`" + arity;
         return true;
     }
 
-    /// <summary>Logs one rejection and returns <see langword="false"/>, so call sites can return it directly.</summary>
+    private void Error(string message) => logger.Error($"{itemName} item '{spec}': {message}");
+
+    /// <summary>Reports one rejection and returns <see langword="false"/>, so call sites can return it directly.</summary>
     private bool Fail(string message)
     {
-        logger.Error($"{itemName} item '{spec}': {message}");
+        Error(message);
         return false;
     }
 
