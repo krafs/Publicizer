@@ -117,6 +117,8 @@ Rung 5 is where the assembly-wide sweep now lives, alongside namespace and type 
 
 Note that rung 4 sits *above* every scope: a colon-form `DoNotPublicize` naming a type excludes it no matter how specific a structured `Publicize` scope covering it is. This is the one place the two forms interact, and the colon form wins because its behavior is frozen (`ColonFormDoNotPublicizeType_BeatsAnyStructuredScope`).
 
+An assembly-wide `DoNotPublicize` gets the same precedence, for the same reason: it vetoes every scope rather than being outranked by one as the more specific rule (`AssemblyDoNotPublicize_VetoesEveryScope`). The alternative — letting a scope carve an exception out of a denied assembly — would mean adding the structured form could turn an assembly that publicized nothing into one that publicizes something, which is exactly the widening the frozen forms exist to prevent. `AssemblyPlan.Compile` enforces it by dropping the scopes outright, so the veto cannot be reached by any resolution path. The consequence worth knowing: `DoNotPublicize Include="Asm"` is an unconditional kill switch, and "deny the assembly except namespace N" is not expressible. Omit the deny item instead.
+
 Consequences worth naming explicitly:
 
 - **`DoNotPublicize` beats `Publicize` at the same specificity.** Naming a member in both excludes it (`MemberInBothPublicizeAndDoNotPublicize_DoNotPublicizeWins`).

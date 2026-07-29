@@ -75,15 +75,20 @@ internal sealed class AssemblyPlan
             MemberPattern = context.PublicizeMemberRegexPattern,
         };
 
+        // An assembly-wide DoNotPublicize vetoes every scope, the same precedence a colon-form
+        // type-level deny gets. Dropping the scopes here is what enforces it: Resolve then falls
+        // through to assemblySettings, which already says Publicize = false.
+        List<PublicizeScope> scopes = context.ExplicitlyDoNotPublicizeAssembly ? [] : context.Scopes;
+
         // A scope's settings depend only on the scope, so they are resolved once here rather than
         // once per type the scope covers.
-        var scopeSettings = new SweepSettings[context.Scopes.Count];
-        for (int i = 0; i < context.Scopes.Count; i++)
+        var scopeSettings = new SweepSettings[scopes.Count];
+        for (int i = 0; i < scopes.Count; i++)
         {
-            scopeSettings[i] = assemblySettings.NarrowedBy(context.Scopes[i]);
+            scopeSettings[i] = assemblySettings.NarrowedBy(scopes[i]);
         }
 
-        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, context.Scopes, assemblySettings, scopeSettings);
+        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, scopes, assemblySettings, scopeSettings);
     }
 
     private static void IndexMemberSplits(string target, Dictionary<string, HashSet<string>> index)

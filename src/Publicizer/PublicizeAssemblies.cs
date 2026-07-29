@@ -276,7 +276,7 @@ public sealed class PublicizeAssemblies : Task
                             }
                             break;
 
-                        case PublicizeDecision.ByAssemblyRule:
+                        case PublicizeDecision.BySweep:
                             if (AssemblyEditor.PublicizeProperty(propertyDef, typePlan.IncludeVirtualMembers))
                             {
                                 publicizedAnyMemberInType = true;
@@ -318,7 +318,7 @@ public sealed class PublicizeAssemblies : Task
                             }
                             break;
 
-                        case PublicizeDecision.ByAssemblyRule:
+                        case PublicizeDecision.BySweep:
                             if (AssemblyEditor.PublicizeMethod(methodDef, typePlan.IncludeVirtualMembers))
                             {
                                 publicizedAnyMemberInType = true;
@@ -346,7 +346,7 @@ public sealed class PublicizeAssemblies : Task
                             break;
 
                         case PublicizeDecision.Explicit:
-                        case PublicizeDecision.ByAssemblyRule:
+                        case PublicizeDecision.BySweep:
                             // IncludeVirtualMembers has no meaning for fields.
                             if (AssemblyEditor.PublicizeField(fieldDef))
                             {
@@ -387,7 +387,7 @@ public sealed class PublicizeAssemblies : Task
                     break;
 
                 case PublicizeDecision.Explicit:
-                case PublicizeDecision.ByAssemblyRule:
+                case PublicizeDecision.BySweep:
                     if (PublicizeTypeAndEnclosers(typeDef, assemblyPlan))
                     {
                         publicizedAnyMemberInAssembly = true;

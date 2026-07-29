@@ -105,7 +105,7 @@ internal static partial class AssemblyPlanTests
 
         TypePlan typePlan = ForType(context, "Ns.Type");
 
-        Assert.That(typePlan.DecideMember("VisibleMember", isCompilerGenerated: false), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(typePlan.DecideMember("VisibleMember", isCompilerGenerated: false), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(typePlan.DecideMember("HiddenMember", isCompilerGenerated: false), Is.EqualTo(PublicizeDecision.Skip));
     }
 
@@ -161,7 +161,7 @@ internal static partial class AssemblyPlanTests
         TypePlan typePlan = ForType(SweepAll(), "Ns.Type");
 
         Assert.That(typePlan.TryDecideAllMembers(out PublicizeDecision decision), Is.True);
-        Assert.That(decision, Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(decision, Is.EqualTo(PublicizeDecision.BySweep));
     }
 
     [Test]

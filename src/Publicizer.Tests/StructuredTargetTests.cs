@@ -55,8 +55,8 @@ internal static class StructuredTargetTests
     {
         PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A.B")]);
 
-        Assert.That(DecideMember(context, "A.B.Type", "A.B", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
-        Assert.That(DecideMember(context, "A.B.C.Type", "A.B.C", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.B.Type", "A.B", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.B.C.Type", "A.B.C", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
 
         // "A.BX" merely starts with "A.B"; it is not inside it.
         Assert.That(Plan(context, "A.BX.Type", "A.BX"), Is.Null);
@@ -69,7 +69,7 @@ internal static class StructuredTargetTests
         // The deliberate divergence between the two forms: naming a type structurally publicizes it
         // and everything in it, while the colon form publicizes only the type's own accessibility.
         PublicizerAssemblyContext structured = Parse([Item("Asm", "Namespace", "A", "Type", "Type")]);
-        Assert.That(DecideMember(structured, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(structured, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
 
         PublicizerAssemblyContext colonForm = Parse([Item("Asm:A.Type")]);
         Assert.That(DecideMember(colonForm, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.Skip));
@@ -80,7 +80,7 @@ internal static class StructuredTargetTests
     {
         PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A", "Type", "Outer")]);
 
-        Assert.That(DecideMember(context, "A.Outer+Inner", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.Outer+Inner", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(Plan(context, "A.OuterOther", "A"), Is.Null);
     }
 
@@ -89,7 +89,7 @@ internal static class StructuredTargetTests
     {
         PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A", "Type", "Outer.Inner")]);
 
-        Assert.That(DecideMember(context, "A.Outer+Inner", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.Outer+Inner", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(Plan(context, "A.Outer", "A"), Is.Null);
     }
 
@@ -98,7 +98,7 @@ internal static class StructuredTargetTests
     {
         PublicizerAssemblyContext context = Parse([Item("Asm", "Type", "GlobalType")]);
 
-        Assert.That(DecideMember(context, "GlobalType", "", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "GlobalType", "", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(Plan(context, "A.GlobalType", "A"), Is.Null);
     }
 
@@ -109,7 +109,7 @@ internal static class StructuredTargetTests
             [Item("Asm", "Namespace", "A", "Type", "Kept")],
             [Item("Asm", "Namespace", "A")]);
 
-        Assert.That(DecideMember(context, "A.Kept", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.Kept", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(Plan(context, "A.Other", "A"), Is.Null);
     }
 
@@ -120,7 +120,7 @@ internal static class StructuredTargetTests
             [Item("Asm", "Namespace", "A")],
             [Item("Asm", "Namespace", "A.B")]);
 
-        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(Plan(context, "A.B.Type", "A.B"), Is.Null);
     }
 
@@ -158,9 +158,9 @@ internal static class StructuredTargetTests
             Item("Asm"),
             Item("Asm", "Namespace", "A", "MemberPattern", "Visible")]);
 
-        Assert.That(DecideMember(context, "A.Type", "A", "VisibleMember"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.Type", "A", "VisibleMember"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(DecideMember(context, "A.Type", "A", "HiddenMember"), Is.EqualTo(PublicizeDecision.Skip));
-        Assert.That(DecideMember(context, "B.Type", "B", "HiddenMember"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "B.Type", "B", "HiddenMember"), Is.EqualTo(PublicizeDecision.BySweep));
     }
 
     [Test]
@@ -171,9 +171,9 @@ internal static class StructuredTargetTests
             Item("Asm", "Namespace", "A", "Type", "Pair{TKey,TValue}"),
             Item("Asm", "Namespace", "A", "Type", "Outer{T}.Inner{U,V}")]);
 
-        Assert.That(DecideMember(context, "A.Holder`1", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
-        Assert.That(DecideMember(context, "A.Pair`2", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
-        Assert.That(DecideMember(context, "A.Outer`1+Inner`2", "A", "Member"), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(DecideMember(context, "A.Holder`1", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.Pair`2", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.Outer`1+Inner`2", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
 
         // Only the count is read; the argument names mean nothing until Parameters lands.
         Assert.That(Plan(context, "A.Holder", "A"), Is.Null);
@@ -242,6 +242,18 @@ internal static class StructuredTargetTests
             [Item("Asm:A.Type")]);
 
         Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.Skip));
+    }
+
+    [Test]
+    public static void AssemblyDoNotPublicize_VetoesEveryScope()
+    {
+        // The assembly-wide deny is frozen behavior and stays a veto, so adding the structured form
+        // cannot turn an assembly that publicized nothing into one that publicizes a namespace.
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A")],
+            [Item("Asm")]);
+
+        Assert.That(Plan(context, "A.Type", "A"), Is.Null);
     }
 
     [Test]

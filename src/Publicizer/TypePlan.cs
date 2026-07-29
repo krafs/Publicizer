@@ -63,7 +63,7 @@ internal sealed class TypePlan
             return false;
         }
 
-        decision = PublicizeDecision.ByAssemblyRule;
+        decision = PublicizeDecision.BySweep;
         return true;
     }
 
@@ -128,6 +128,6 @@ internal sealed class TypePlan
             }
         }
 
-        return PublicizeDecision.ByAssemblyRule;
+        return PublicizeDecision.BySweep;
     }
 }

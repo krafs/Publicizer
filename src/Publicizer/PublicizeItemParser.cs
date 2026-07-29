@@ -164,7 +164,8 @@ internal sealed class PublicizeItemParser
 
         context.Scopes.Add(new PublicizeScope
         {
-            Namespace = namespaceName,
+            // Only one of the two is kept: a type's reflection name already carries the namespace.
+            Namespace = typeReflectionName is null ? namespaceName : "",
             TypeReflectionName = typeReflectionName,
             Deny = deny,
             IncludeVirtualMembers = NullableBool("IncludeVirtualMembers"),

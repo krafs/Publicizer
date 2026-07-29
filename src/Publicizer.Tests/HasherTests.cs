@@ -111,15 +111,16 @@ internal static partial class HasherTests
     [Test]
     public static void ComputeHash_DistinguishesScopesThatConcatenateAlike()
     {
-        // Namespace="AB" and Namespace="A" Type="B" must not collide, or one target's cached
-        // assembly would be served for the other.
-        var namespaceOnly = new PublicizerAssemblyContext("Fixture");
-        namespaceOnly.Scopes.Add(new PublicizeScope { Namespace = "AB" });
+        // The namespace "A.B" and the global-namespace type "A.B" must not collide, or one target's
+        // cached assembly would be served for the other. They differ only in which field holds the
+        // name, so an undelimited concatenation would hash both as "A.B".
+        var namespaceScope = new PublicizerAssemblyContext("Fixture");
+        namespaceScope.Scopes.Add(new PublicizeScope { Namespace = "A.B" });
 
-        var namespaceAndType = new PublicizerAssemblyContext("Fixture");
-        namespaceAndType.Scopes.Add(new PublicizeScope { Namespace = "A", TypeReflectionName = "B" });
+        var typeScope = new PublicizerAssemblyContext("Fixture");
+        typeScope.Scopes.Add(new PublicizeScope { TypeReflectionName = "A.B" });
 
-        Assert.That(Hash(namespaceAndType), Is.Not.EqualTo(Hash(namespaceOnly)));
+        Assert.That(Hash(typeScope), Is.Not.EqualTo(Hash(namespaceScope)));
     }
 
     [Test]
