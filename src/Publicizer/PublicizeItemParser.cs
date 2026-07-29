@@ -31,6 +31,13 @@ internal sealed class PublicizeItemParser
     /// </summary>
     private static readonly string[] unsupportedMetadata = ["Field", "Method", "Property", "Event", "Accessor", "Parameters"];
 
+    /// <summary>
+    /// Qualifiers that turn off a scope's descent. Reserved for the same reason, and with more at
+    /// stake: a scope is recursive unconditionally today, so ignoring an author's request to narrow
+    /// it publicizes strictly more than they asked for.
+    /// </summary>
+    private static readonly string[] unsupportedDescentMetadata = ["IncludeSubNamespaces", "IncludeTypeContents"];
+
     private readonly ITaskItem item;
     private readonly ITaskLogger logger;
     private readonly bool deny;
@@ -83,6 +90,14 @@ internal sealed class PublicizeItemParser
             if (Metadata(name) is not null)
             {
                 valid = Fail($"'{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
+            }
+        }
+
+        foreach (string name in unsupportedDescentMetadata)
+        {
+            if (Metadata(name) is not null)
+            {
+                valid = Fail($"'{name}' metadata is not supported yet. A '{itemName}' scope reaches everything beneath the node it names, and that cannot be narrowed yet.");
             }
         }
 

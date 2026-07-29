@@ -221,6 +221,18 @@ internal static class StructuredTargetTests
     }
 
     [Test]
+    public static void DescentQualifiers_AreRejectedUntilTheyAreImplemented()
+    {
+        // Ignoring these would publicize more than the author asked for, silently.
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeSubNamespaces", "false")), Does.Contain("'IncludeSubNamespaces' metadata is not supported yet"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Type", "IncludeTypeContents", "false")), Does.Contain("'IncludeTypeContents' metadata is not supported yet"));
+
+        // Rejected on every form, not just a scope: neither has a reading anywhere else either.
+        Assert.That(ErrorFor(Item("Asm", "IncludeTypeContents", "false")), Does.Contain("not supported yet"));
+        Assert.That(ErrorFor(Item("Asm:A.Type", "IncludeTypeContents", "false")), Does.Contain("not supported yet"));
+    }
+
+    [Test]
     public static void ColonFormDoNotPublicizeType_BeatsAnyStructuredScope()
     {
         // Rung 4 sits above every scope: the colon form's behavior is frozen, so it wins however
