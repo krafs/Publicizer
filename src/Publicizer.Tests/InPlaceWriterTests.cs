@@ -1,3 +1,4 @@
+using System.Reflection;
 using dnlib.DotNet;
 using dnlib.DotNet.Writer;
 using NUnit.Framework;
@@ -101,5 +102,39 @@ internal static class InPlaceWriterTests
 
         using var module = ModuleDefMD.Load(patched);
         Assert.That(module.Find("Fixture.Shapes", isReflectionName: true).Fields.Single(f => f.Name == "PrivateField").IsPublic, Is.True);
+    }
+
+    /// <summary>
+    /// Every edit the patch carries over lands in the Flags column of TypeDef, Field or Method. An edit
+    /// anywhere else — a stripped attribute, a rewritten name, a changed signature — would be applied to
+    /// the in-memory module and then silently dropped, because the patch copies the input byte for byte
+    /// and only rewrites those three columns. Nothing else in the suite catches that: the dnlib fallback
+    /// writer would carry the edit faithfully, so a test comparing the two writers only fails if the edit
+    /// happens to alter accessibility too.
+    /// </summary>
+    private static readonly string[] editsThePatchCanCarry =
+    [
+        nameof(AssemblyEditor.PublicizeType),
+        nameof(AssemblyEditor.PublicizeProperty),
+        nameof(AssemblyEditor.PublicizeMethod),
+        nameof(AssemblyEditor.PublicizeField),
+    ];
+
+    [Test]
+    public static void AssemblyEditor_MakesNoEditThePatchCannotCarry()
+    {
+        string[] actual =
+        [
+            .. typeof(AssemblyEditor)
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Select(method => method.Name)
+                .OrderBy(name => name, StringComparer.Ordinal)
+        ];
+        string[] expected = [.. editsThePatchCanCarry.OrderBy(name => name, StringComparer.Ordinal)];
+
+        Assert.That(actual, Is.EqualTo(expected),
+            $"{nameof(AssemblyEditor)} gained or lost an edit. Confirm the change only touches the Flags column of " +
+            $"TypeDef, Field or Method — anything else is dropped by {nameof(InPlaceWriter)} and must either extend " +
+            $"the patch or reject the assembly so the dnlib writer handles it. Then update this list.");
     }
 }
