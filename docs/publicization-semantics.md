@@ -88,7 +88,7 @@ Consequences worth naming explicitly:
 - **Field** — access bits cleared, `Public` set. Unconditional; `IncludeVirtualMembers` has no meaning for fields (`AssemblyEditor.cs:65`).
 - **Method** — access bits cleared, `Public` set, unless `includeVirtual` is false and the method is virtual, in which case nothing happens (`AssemblyEditor.cs:53`).
 - **Property** — the property itself has no accessibility in IL; publicizing one means publicizing its getter and setter, each subject to the virtual check (`AssemblyEditor.cs:36`).
-- **Type** — visibility bits cleared, then `Public` for a top-level type or `NestedPublic` for a nested one. The engine then **walks up the declaring-type chain** and does the same to every enclosing type, because a nested type is unreachable unless all its enclosers are too (`AssemblyEditor.cs:16`). Pinned by `PublicizeType_ByName_PublicizesTypeAndWalksUp` and `NestedMember_AlsoPublicizesEnclosingType`.
+- **Type** — visibility bits cleared, then `Public` for a top-level type or `NestedPublic` for a nested one. The engine then **walks up the declaring-type chain** and does the same to every enclosing type, because a nested type is unreachable unless all its enclosers are too (`PublicizeAssemblies.PublicizeTypeAndEnclosers`). Pinned by `PublicizeType_ByName_PublicizesTypeAndWalksUp` and `NestedMember_AlsoPublicizesEnclosingType`. The walk-up stops at an enclosing type named in `DoNotPublicize`: it is the engine's own inference, so it yields to what the user asked for by name, leaving the nested type public but unreachable (`DoNotPublicizeType_SurvivesTheWalkUpFromItsNestedTypes`).
 
 Each of these returns whether it actually changed anything, so publicizing an already-public member reports no modification.
 
@@ -131,7 +131,7 @@ For completeness, behavior that surrounds publicization but isn't part of the ma
 
 ## Publicization does not close over dependencies
 
-Publicization changes the accessibility of the members it matches by name, and nothing else. It never inspects a member's signature. The only transitive rule in the engine is the declaring-type walk-up for nested types (`AssemblyEditor.cs:16`).
+Publicization changes the accessibility of the members it matches by name, and nothing else. It never inspects a member's signature. The only transitive rule in the engine is the declaring-type walk-up for nested types (`PublicizeAssemblies.PublicizeTypeAndEnclosers`).
 
 So a member can become public and still be unusable:
 
@@ -167,6 +167,6 @@ Collected here as rewrite input. None of these are bugs the current tests fail o
 7. A no-match target is silent.
 8. Assembly name matching is case-sensitive, which is surprising on Windows.
 9. `DoNotPublicize` on a type does not prevent that type from being made public via an explicitly targeted member.
-10. `DoNotPublicize` on a type does not extend to its nested types; each nested type has its own reflection name and must be named separately (`DoNotPublicizeType_DoesNotExtendToNestedTypes`).
+10. `DoNotPublicize` on a type does not extend to its nested types; each nested type has its own reflection name and must be named separately (`DoNotPublicizeType_DoesNotExtendToNestedTypes`). Publicizing those nested types no longer drags the excluded encloser public via the walk-up (`DoNotPublicizeType_SurvivesTheWalkUpFromItsNestedTypes`).
 11. Publicization does not close over signature types, so targeted publicization can produce public-but-unusable members.
 12. Per-item options only exist on the assembly form, so "all members of this type" is only expressible as a regex.

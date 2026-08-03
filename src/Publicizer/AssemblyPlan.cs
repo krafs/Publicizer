@@ -98,6 +98,13 @@ internal sealed class AssemblyPlan
     }
 
     /// <summary>
+    /// Whether a <c>DoNotPublicize</c> target names this type. Only consulted for the enclosing
+    /// types the walk-up would otherwise publicize; deciding a type the walk reached on its own
+    /// goes through <see cref="ForType"/>.
+    /// </summary>
+    internal bool IsDeniedType(string typeReflectionFullName) => deniedTypeNames.Contains(typeReflectionFullName);
+
+    /// <summary>
     /// Returns the rules that can apply inside <paramref name="typeReflectionFullName"/>, or
     /// <see langword="null"/> when nothing in the type is reachable by any rule and the whole type
     /// can be skipped without inspecting a single member.

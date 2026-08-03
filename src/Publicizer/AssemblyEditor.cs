@@ -7,30 +7,18 @@ namespace Publicizer;
 /// </summary>
 internal static class AssemblyEditor
 {
+    /// <summary>
+    /// Publicizes this type alone. Making a nested type actually reachable also takes its
+    /// enclosing types, which is the engine's call to make, not this one's: see
+    /// <c>PublicizeAssemblies.PublicizeTypeAndEnclosers</c>.
+    /// </summary>
     internal static bool PublicizeType(TypeDef type)
     {
-        bool modified = false;
+        TypeAttributes oldAttributes = type.Attributes;
+        type.Attributes &= ~TypeAttributes.VisibilityMask;
+        type.Attributes |= type.IsNested ? TypeAttributes.NestedPublic : TypeAttributes.Public;
 
-        // A nested type is only reachable if every enclosing type is accessible too,
-        // so walk up the declaring-type chain and publicize each one.
-        for (TypeDef? current = type; current is not null; current = current.DeclaringType)
-        {
-            TypeAttributes oldAttributes = current.Attributes;
-            current.Attributes &= ~TypeAttributes.VisibilityMask;
-
-            if (current.IsNested)
-            {
-                current.Attributes |= TypeAttributes.NestedPublic;
-            }
-            else
-            {
-                current.Attributes |= TypeAttributes.Public;
-            }
-
-            modified |= current.Attributes != oldAttributes;
-        }
-
-        return modified;
+        return type.Attributes != oldAttributes;
     }
 
     internal static bool PublicizeProperty(PropertyDef property, bool includeVirtual = true)
