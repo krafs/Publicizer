@@ -1,4 +1,6 @@
 using dnlib.DotNet;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
 using NUnit.Framework;
 
 namespace Publicizer.Tests;
@@ -25,6 +27,17 @@ internal static class WalkUpDenialTests
                     private int NestedPrivateField;
                 }
             }
+
+            internal class Deep
+            {
+                private class Mid
+                {
+                    private class Leaf
+                    {
+                        private int LeafPrivateField;
+                    }
+                }
+            }
         }
         """;
 
@@ -36,6 +49,28 @@ internal static class WalkUpDenialTests
 
     private static void Publicize(ModuleDef module, PublicizerAssemblyContext context) =>
         PublicizeAssemblies.PublicizeAssembly(module, context, NullTaskLogger.Instance);
+
+    private static TaskItem Item(string spec, params string[] metadata)
+    {
+        var item = new TaskItem(spec);
+        for (int i = 0; i < metadata.Length; i += 2)
+        {
+            item.SetMetadata(metadata[i], metadata[i + 1]);
+        }
+
+        return item;
+    }
+
+    /// <summary>
+    /// Builds the context from real items rather than by setting fields, so these tests cover the
+    /// structured form as authored - the parse is where the two item forms diverge.
+    /// </summary>
+    private static PublicizerAssemblyContext Parse(ITaskItem[] publicizes, ITaskItem[] doNotPublicizes)
+    {
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, doNotPublicizes, NullTaskLogger.Instance, out Dictionary<string, PublicizerAssemblyContext> contexts);
+        Assert.That(valid, Is.True, "expected every item to parse");
+        return contexts["Denial"];
+    }
 
     [Test]
     public static void DoNotPublicizeType_SurvivesTheWalkUpFromItsNestedTypes()
@@ -80,5 +115,65 @@ internal static class WalkUpDenialTests
         // nested type reachable by publicizing its encloser.
         Assert.That(Type(module, "Fixture.Outer+Nested").IsNestedPublic, Is.True);
         Assert.That(Type(module, "Fixture.Outer").IsPublic, Is.True);
+    }
+
+    /// <summary>
+    /// The gate is a type named by name, and the structured form names types too. Saying the same
+    /// thing in the two syntaxes has to produce the same assembly, so this is the structured twin of
+    /// <see cref="DoNotPublicizeType_SurvivesTheWalkUpFromItsNestedTypes"/>.
+    /// </summary>
+    [Test]
+    public static void StructuredDoNotPublicizeTypeScope_SurvivesTheWalkUpFromItsNestedTypes()
+    {
+        using ModuleDefMD module = LoadDenialModule();
+        PublicizerAssemblyContext context = Parse(
+            [Item("Denial:Fixture.Outer+Nested")],
+            [Item("Denial", "Namespace", "Fixture", "Type", "Outer")]);
+
+        Publicize(module, context);
+
+        Assert.That(Type(module, "Fixture.Outer+Nested").IsNestedPublic, Is.True);
+        Assert.That(Type(module, "Fixture.Outer").IsNotPublic, Is.True);
+    }
+
+    /// <summary>
+    /// A namespace scope names no type, so it is a sweep rather than a statement about any one type
+    /// - and the walk-up is only inference too. Between the two, reachability wins: stopping here
+    /// would leave the explicitly named type public but unreachable, defeating the carve-out for a
+    /// result nobody can use. A type scope is the way to say "not this type".
+    /// </summary>
+    [Test]
+    public static void StructuredDoNotPublicizeNamespaceScope_DoesNotStopTheWalkUp()
+    {
+        using ModuleDefMD module = LoadDenialModule();
+        PublicizerAssemblyContext context = Parse(
+            [Item("Denial:Fixture.Outer+Nested")],
+            [Item("Denial", "Namespace", "Fixture")]);
+
+        Publicize(module, context);
+
+        Assert.That(Type(module, "Fixture.Outer+Nested").IsNestedPublic, Is.True);
+        Assert.That(Type(module, "Fixture.Outer").IsPublic, Is.True);
+    }
+
+    /// <summary>
+    /// The gate is name equality, not scope coverage: a deny on <c>Deep</c> sweeps <c>Deep.Mid</c>
+    /// but does not name it, so the walk publicizes Mid and stops at Deep. That leaves Mid and Leaf
+    /// public but unreachable - an accepted end state, the same one the colon form already produces,
+    /// and the price of letting an explicit name be absolute.
+    /// </summary>
+    [Test]
+    public static void StructuredDoNotPublicizeTypeScope_StopsOnlyAtTheTypeItNames()
+    {
+        using ModuleDefMD module = LoadDenialModule();
+        PublicizerAssemblyContext context = Parse(
+            [Item("Denial:Fixture.Deep+Mid+Leaf")],
+            [Item("Denial", "Namespace", "Fixture", "Type", "Deep")]);
+
+        Publicize(module, context);
+
+        Assert.That(Type(module, "Fixture.Deep+Mid+Leaf").IsNestedPublic, Is.True);
+        Assert.That(Type(module, "Fixture.Deep+Mid").IsNestedPublic, Is.True);
+        Assert.That(Type(module, "Fixture.Deep").IsNotPublic, Is.True);
     }
 }

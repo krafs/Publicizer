@@ -27,6 +27,7 @@ internal sealed class AssemblyPlan
     private readonly Dictionary<string, HashSet<string>> deniedMembersByType;
     private readonly HashSet<string> allowedTypeNames;
     private readonly HashSet<string> deniedTypeNames;
+    private readonly HashSet<string> walkUpBlockingTypeNames;
     private readonly List<PublicizeScope> scopes;
     private readonly SweepSettings[] scopeSettings;
     private readonly SweepSettings assemblySettings;
@@ -36,6 +37,7 @@ internal sealed class AssemblyPlan
         Dictionary<string, HashSet<string>> deniedMembersByType,
         HashSet<string> allowedTypeNames,
         HashSet<string> deniedTypeNames,
+        HashSet<string> walkUpBlockingTypeNames,
         List<PublicizeScope> scopes,
         SweepSettings assemblySettings,
         SweepSettings[] scopeSettings)
@@ -44,6 +46,7 @@ internal sealed class AssemblyPlan
         this.deniedMembersByType = deniedMembersByType;
         this.allowedTypeNames = allowedTypeNames;
         this.deniedTypeNames = deniedTypeNames;
+        this.walkUpBlockingTypeNames = walkUpBlockingTypeNames;
         this.scopes = scopes;
         this.assemblySettings = assemblySettings;
         this.scopeSettings = scopeSettings;
@@ -67,6 +70,22 @@ internal sealed class AssemblyPlan
         var allowedTypeNames = new HashSet<string>(context.PublicizeMemberPatterns, StringComparer.Ordinal);
         var deniedTypeNames = new HashSet<string>(context.DoNotPublicizeMemberPatterns, StringComparer.Ordinal);
 
+        // What blocks the declaring-type walk-up is a type named by name, in either item form - a
+        // name is an explicit statement about that type, and the walk-up is only the engine's own
+        // inference. Deliberately not PublicizeScope.Covers: a deny Type="Outer" stops the walk at
+        // Outer, not at an intermediate Outer+Mid it merely sweeps. Namespace scopes name no type at
+        // all, so they never stop it - between a sweep and an inference, reachability wins, because
+        // the alternative is publicizing a type nothing can reach. Kept apart from deniedTypeNames,
+        // which decides the type's own rung and must keep meaning "named by the colon form".
+        var walkUpBlockingTypeNames = new HashSet<string>(deniedTypeNames, StringComparer.Ordinal);
+        foreach (PublicizeScope scope in context.Scopes)
+        {
+            if (scope is { Deny: true, TypeReflectionName: not null })
+            {
+                walkUpBlockingTypeNames.Add(scope.TypeReflectionName);
+            }
+        }
+
         // The assembly-wide rule is the loosest scope there is, so it lives where Resolve already
         // falls through to: no scope covers a type, these settings apply. Deny beating allow here
         // is the same tie-break Beats applies between two equally tight scopes.
@@ -86,7 +105,7 @@ internal sealed class AssemblyPlan
             scopeSettings[i] = assemblySettings.NarrowedBy(context.Scopes[i]);
         }
 
-        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, context.Scopes, assemblySettings, scopeSettings);
+        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, walkUpBlockingTypeNames, context.Scopes, assemblySettings, scopeSettings);
     }
 
     private static void IndexMemberSplits(string target, Dictionary<string, HashSet<string>> index)
@@ -107,11 +126,11 @@ internal sealed class AssemblyPlan
     }
 
     /// <summary>
-    /// Whether a <c>DoNotPublicize</c> target names this type. Only consulted for the enclosing
-    /// types the walk-up would otherwise publicize; deciding a type the walk reached on its own
-    /// goes through <see cref="ForType"/>.
+    /// Whether a <c>DoNotPublicize</c> item names this type by name, in either item form. Only
+    /// consulted for the enclosing types the walk-up would otherwise publicize; deciding a type the
+    /// walk reached on its own goes through <see cref="ForType"/>.
     /// </summary>
-    internal bool IsDeniedType(string typeReflectionFullName) => deniedTypeNames.Contains(typeReflectionFullName);
+    internal bool IsDeniedType(string typeReflectionFullName) => walkUpBlockingTypeNames.Contains(typeReflectionFullName);
 
     /// <summary>
     /// Returns the rules that can apply inside <paramref name="typeReflectionFullName"/>, or
