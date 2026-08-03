@@ -1,8 +1,13 @@
 # Publicization semantics
 
-This document describes what the current publicization engine actually does, member by member and rule by rule. It is a baseline: it records behavior as of today, including behavior that is accidental or undesirable, so that a future rewrite can decide deliberately what to preserve and what to change.
+This document describes what the publicization engine actually does, member by member and rule by rule. It is not user documentation — the README is the user-facing contract; this covers the implementation's observable behavior, including corners the README doesn't mention.
 
-It is not user documentation. The README is the user-facing contract; this describes the implementation's observable behavior, including corners the README doesn't mention.
+It does two jobs, and they call for different kinds of writing:
+
+- **The colon form is characterized.** What is recorded here is behavior as it is, accidents included, because it is frozen: real builds depend on it and it cannot change. Sections about it state what happens and cite the test that pins it. They do not argue.
+- **The structured form is specified.** It is unreleased, so its semantics are still being chosen rather than discovered. Sections about it may record *why* a rule is the way it is — but only where the reasoning is not recoverable from the rule itself, typically an asymmetry between the two forms that would otherwise read as a bug and get "fixed".
+
+Design rationale that fits neither — why an implementation is shaped a certain way, what a change cost — belongs in the commit that made it.
 
 Every claim below is pinned by a test. Test names refer to `src/Publicizer.Tests/PublicizeAssemblyCharacterizationTests.cs` unless stated otherwise. The engine itself lives in `src/Publicizer/PublicizeAssemblies.cs` (traversal and edits), `src/Publicizer/PublicizeItemParser.cs` (which items mean what), `src/Publicizer/AssemblyPlan.cs` and `src/Publicizer/TypePlan.cs` (which target matches what), and `src/Publicizer/AssemblyEditor.cs` (what publicizing does).
 
