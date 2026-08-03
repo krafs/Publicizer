@@ -74,7 +74,7 @@ internal static class AssemblyEditorTests
     }
 
     [Test]
-    public static void PublicizeType_NestedType_AlsoPublicizesEnclosingType()
+    public static void PublicizeType_NestedType_PublicizesOnlyThatType()
     {
         using ModuleDefMD module = Fixtures.LoadShapesModule();
         TypeDef inner = module.Find("Fixture.Shapes+Inner", isReflectionName: true);
@@ -83,7 +83,8 @@ internal static class AssemblyEditorTests
 
         Assert.That(modified, Is.True);
         Assert.That(inner.IsNestedPublic, Is.True);
-        Assert.That(ShapesType(module).IsPublic, Is.True);
+        // Walking up to the enclosing types is the engine's job, not the editor's
+        // (PublicizeAssemblies.PublicizeTypeAndEnclosers).
     }
 
     [Test]

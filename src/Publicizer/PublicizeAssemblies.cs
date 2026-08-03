@@ -223,6 +223,30 @@ public sealed class PublicizeAssemblies : Task
         return contexts;
     }
 
+    /// <summary>
+    /// Publicizes a type and every type enclosing it, because a nested type is unreachable unless
+    /// all its enclosers are too. The walk stops at an encloser named in <c>DoNotPublicize</c>:
+    /// reaching it is the engine's own inference, and inference yields to an explicit rule. The
+    /// type itself is never subject to that check - it was already decided by the caller, where an
+    /// explicitly publicized member outranks an excluded type.
+    /// </summary>
+    private static bool PublicizeTypeAndEnclosers(TypeDef type, AssemblyPlan plan)
+    {
+        bool modified = AssemblyEditor.PublicizeType(type);
+
+        for (TypeDef? enclosing = type.DeclaringType; enclosing is not null; enclosing = enclosing.DeclaringType)
+        {
+            if (plan.IsDeniedType(enclosing.ReflectionFullName))
+            {
+                break;
+            }
+
+            modified |= AssemblyEditor.PublicizeType(enclosing);
+        }
+
+        return modified;
+    }
+
     internal static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
     {
         var assemblyPlan = AssemblyPlan.Compile(assemblyContext);
@@ -381,7 +405,7 @@ public sealed class PublicizeAssemblies : Task
             // publicized member is useless in an inaccessible type.
             if (publicizedAnyMemberInType)
             {
-                if (AssemblyEditor.PublicizeType(typeDef))
+                if (PublicizeTypeAndEnclosers(typeDef, assemblyPlan))
                 {
                     publicizedAnyMemberInAssembly = true;
                     publicizedTypesCount++;
@@ -398,7 +422,7 @@ public sealed class PublicizeAssemblies : Task
 
                 case PublicizeDecision.Explicit:
                 case PublicizeDecision.ByAssemblyRule:
-                    if (AssemblyEditor.PublicizeType(typeDef))
+                    if (PublicizeTypeAndEnclosers(typeDef, assemblyPlan))
                     {
                         publicizedAnyMemberInAssembly = true;
                         publicizedTypesCount++;
