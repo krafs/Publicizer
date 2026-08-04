@@ -76,7 +76,10 @@ public sealed class PublicizeAssemblies : Task
             return false;
         }
 
-        Dictionary<string, PublicizerAssemblyContext> assemblyContexts = GetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes, logger);
+        if (!TryGetPublicizerAssemblyContexts(Publicizes, DoNotPublicizes, logger, out Dictionary<string, PublicizerAssemblyContext> assemblyContexts))
+        {
+            return false;
+        }
 
         var referencePathsToDelete = new List<ITaskItem>();
         var referencePathsToAdd = new List<ITaskItem>();
@@ -160,67 +163,40 @@ public sealed class PublicizeAssemblies : Task
         return true;
     }
 
-    internal static Dictionary<string, PublicizerAssemblyContext> GetPublicizerAssemblyContexts(
+    /// <summary>
+    /// Parses every item into per-assembly contexts, returning <see langword="false"/> if any item
+    /// was malformed. All items are parsed regardless, so one bad target does not hide the rest.
+    /// </summary>
+    internal static bool TryGetPublicizerAssemblyContexts(
         ITaskItem[] publicizeItems,
         ITaskItem[] doNotPublicizeItems,
-        ITaskLogger logger)
+        ITaskLogger logger,
+        out Dictionary<string, PublicizerAssemblyContext> contexts)
     {
-        var contexts = new Dictionary<string, PublicizerAssemblyContext>();
+        contexts = [];
+        bool valid = true;
 
         foreach (ITaskItem item in publicizeItems)
         {
-            int index = item.ItemSpec.IndexOf(':');
-            bool isAssemblyPattern = index == -1;
-            string assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
-
-            if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
-            {
-                assemblyContext = new PublicizerAssemblyContext(assemblyName);
-                contexts.Add(assemblyName, assemblyContext);
-            }
-
-            if (isAssemblyPattern)
-            {
-                assemblyContext.IncludeCompilerGeneratedMembers = item.IncludeCompilerGeneratedMembers();
-                assemblyContext.IncludeVirtualMembers = item.IncludeVirtualMembers();
-                assemblyContext.ExplicitlyPublicizeAssembly = true;
-                assemblyContext.PublicizeMemberRegexPattern = item.MemberPattern();
-                logger.Info($"Publicize: {item}, virtual members: {assemblyContext.IncludeVirtualMembers}, compiler-generated members: {assemblyContext.IncludeCompilerGeneratedMembers}, member pattern: {assemblyContext.PublicizeMemberRegexPattern}");
-            }
-            else
-            {
-                string memberPattern = item.ItemSpec.Substring(index + 1);
-                assemblyContext.PublicizeMemberPatterns.Add(memberPattern);
-                logger.Info($"Publicize: {item}");
-            }
+            valid &= PublicizeItemParser.TryApply(item, deny: false, contexts, logger);
         }
 
         foreach (ITaskItem item in doNotPublicizeItems)
         {
-            int index = item.ItemSpec.IndexOf(':');
-            bool isAssemblyPattern = index == -1;
-            string assemblyName = isAssemblyPattern ? item.ItemSpec : item.ItemSpec.Substring(0, index);
-
-            if (!contexts.TryGetValue(assemblyName, out PublicizerAssemblyContext? assemblyContext))
-            {
-                assemblyContext = new PublicizerAssemblyContext(assemblyName);
-                contexts.Add(assemblyName, assemblyContext);
-            }
-
-            if (isAssemblyPattern)
-            {
-                assemblyContext.ExplicitlyDoNotPublicizeAssembly = true;
-            }
-            else
-            {
-                string memberPattern = item.ItemSpec.Substring(index + 1);
-                assemblyContext.DoNotPublicizeMemberPatterns.Add(memberPattern);
-            }
-
-            logger.Info($"DoNotPublicize: {item}");
+            valid &= PublicizeItemParser.TryApply(item, deny: true, contexts, logger);
         }
 
-        return contexts;
+        if (valid)
+        {
+            valid = ScopeFilterInheritanceIsDecidable(contexts, logger);
+        }
+
+        if (valid)
+        {
+            WarnOnScopesOverridingAnAssemblyDeny(contexts, logger);
+        }
+
+        return valid;
     }
 
     /// <summary>
@@ -247,6 +223,79 @@ public sealed class PublicizeAssemblies : Task
         return modified;
     }
 
+    /// <summary>
+    /// Rejects an inner scope that leaves a sweep filter unset which an enclosing scope sets.
+    /// <para>
+    /// Whether such a scope should inherit that filter from the scope enclosing it or from the
+    /// assembly is a real design question, and both answers are defensible. It is left open rather
+    /// than settled here because settling it wrong is unrecoverable: the two readings differ only in
+    /// which members end up public, so changing the answer later would silently rewrite assemblies
+    /// that build fine today. Refusing the item keeps both doors open at the cost of one attribute.
+    /// </para>
+    /// <para>
+    /// Assembly-to-scope inheritance is not affected — that one is decided, documented and pinned.
+    /// Neither is a <c>DoNotPublicize</c> scope, which publicizes nothing and so cannot be swayed by
+    /// a filter either way.
+    /// </para>
+    /// </summary>
+    private static bool ScopeFilterInheritanceIsDecidable(Dictionary<string, PublicizerAssemblyContext> contexts, ITaskLogger logger)
+    {
+        bool decidable = true;
+
+        foreach (PublicizerAssemblyContext context in contexts.Values)
+        {
+            foreach (PublicizeScope inner in context.Scopes)
+            {
+                if (inner.Deny)
+                {
+                    continue;
+                }
+
+                foreach (PublicizeScope outer in context.Scopes)
+                {
+                    // Equally specific scopes resolve to a single winner, so neither inherits from the
+                    // other and there is nothing to be ambiguous about.
+                    if (inner.Specificity.CompareTo(outer.Specificity) <= 0 || !outer.Contains(inner))
+                    {
+                        continue;
+                    }
+
+                    foreach (string filter in outer.FiltersLeftUnsetOn(inner))
+                    {
+                        logger.Error($"Publicize scope '{inner.Display}' on '{context.AssemblyName}' sits inside '{outer.Display}', which sets '{filter}'. Set '{filter}' explicitly on the inner scope: whether an inner scope inherits an enclosing scope's filters or the assembly's is not decided yet.");
+                        decidable = false;
+                    }
+                }
+            }
+        }
+
+        return decidable;
+    }
+
+    /// <summary>
+    /// A scope is tighter than the assembly-wide rule, so a <c>Publicize</c> scope carves an
+    /// exception out of a <c>DoNotPublicize</c> naming the whole assembly — the same way a colon-form
+    /// member target always has. That is the intended resolution, but the two items are often
+    /// authored by different people in different .props files, where the override is easy to miss.
+    /// Hence a warning rather than either silence or an error.
+    /// </summary>
+    private static void WarnOnScopesOverridingAnAssemblyDeny(Dictionary<string, PublicizerAssemblyContext> contexts, ITaskLogger logger)
+    {
+        foreach (PublicizerAssemblyContext context in contexts.Values)
+        {
+            if (!context.ExplicitlyDoNotPublicizeAssembly)
+            {
+                continue;
+            }
+
+            int overriding = context.Scopes.Count(scope => !scope.Deny);
+            if (overriding > 0)
+            {
+                logger.Warning($"'{context.AssemblyName}' is marked DoNotPublicize as a whole, but {overriding} Publicize scope(s) name part of it. The scopes are more specific, so they win. Remove the DoNotPublicize item if that is what you meant.");
+            }
+        }
+    }
+
     internal static bool PublicizeAssembly(ModuleDef module, PublicizerAssemblyContext assemblyContext, ITaskLogger logger)
     {
         var assemblyPlan = AssemblyPlan.Compile(assemblyContext);
@@ -262,7 +311,7 @@ public sealed class PublicizeAssemblies : Task
         foreach (TypeDef? typeDef in module.GetTypes())
         {
             string typeName = typeDef.ReflectionFullName;
-            if (assemblyPlan.ForType(typeName) is not TypePlan typePlan)
+            if (assemblyPlan.ForType(typeName, NamespaceOf(typeDef)) is not TypePlan typePlan)
             {
                 // No rule can reach anything in this type; skip it without touching a member.
                 continue;
@@ -310,7 +359,7 @@ public sealed class PublicizeAssemblies : Task
                             }
                             break;
 
-                        case PublicizeDecision.ByAssemblyRule:
+                        case PublicizeDecision.BySweep:
                             if (AssemblyEditor.PublicizeProperty(propertyDef, typePlan.IncludeVirtualMembers))
                             {
                                 publicizedAnyMemberInType = true;
@@ -352,7 +401,7 @@ public sealed class PublicizeAssemblies : Task
                             }
                             break;
 
-                        case PublicizeDecision.ByAssemblyRule:
+                        case PublicizeDecision.BySweep:
                             if (AssemblyEditor.PublicizeMethod(methodDef, typePlan.IncludeVirtualMembers))
                             {
                                 publicizedAnyMemberInType = true;
@@ -380,7 +429,7 @@ public sealed class PublicizeAssemblies : Task
                             break;
 
                         case PublicizeDecision.Explicit:
-                        case PublicizeDecision.ByAssemblyRule:
+                        case PublicizeDecision.BySweep:
                             // IncludeVirtualMembers has no meaning for fields.
                             if (AssemblyEditor.PublicizeField(fieldDef))
                             {
@@ -421,7 +470,7 @@ public sealed class PublicizeAssemblies : Task
                     break;
 
                 case PublicizeDecision.Explicit:
-                case PublicizeDecision.ByAssemblyRule:
+                case PublicizeDecision.BySweep:
                     if (PublicizeTypeAndEnclosers(typeDef, assemblyPlan))
                     {
                         publicizedAnyMemberInAssembly = true;
@@ -445,6 +494,21 @@ public sealed class PublicizeAssemblies : Task
         logger.Info("Publicized fields: " + publicizedFieldsCount);
 
         return publicizedAnyMemberInAssembly;
+    }
+
+    /// <summary>
+    /// The namespace a type belongs to. dnlib leaves <see cref="TypeDef.Namespace"/> empty on nested
+    /// types, so the namespace has to come from the outermost enclosing type.
+    /// </summary>
+    private static string NamespaceOf(TypeDef typeDef)
+    {
+        TypeDef outermost = typeDef;
+        while (outermost.DeclaringType is TypeDef declaringType)
+        {
+            outermost = declaringType;
+        }
+
+        return outermost.Namespace?.String ?? "";
     }
 
     private static bool IsCompilerGenerated(IHasCustomAttribute memberDef) => memberDef.CustomAttributes.Any(x => x.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");

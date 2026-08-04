@@ -14,11 +14,18 @@ internal static partial class AssemblyPlanTests
     [GeneratedRegex("Visible")]
     private static partial Regex VisiblePattern();
 
-    private static TypePlan ForType(PublicizerAssemblyContext context, string typeName)
+    private static TypePlan ForType(PublicizerAssemblyContext context, string typeName, string? typeNamespace = null)
     {
-        TypePlan? typePlan = AssemblyPlan.Compile(context).ForType(typeName);
+        TypePlan? typePlan = AssemblyPlan.Compile(context).ForType(typeName, typeNamespace ?? NamespaceOf(typeName));
         Assert.That(typePlan, Is.Not.Null, $"expected a plan for {typeName}");
         return typePlan!;
+    }
+
+    /// <summary>The namespace a reflection name implies, for tests that only care about the type.</summary>
+    private static string NamespaceOf(string typeName)
+    {
+        int lastDot = typeName.LastIndexOf('.');
+        return lastDot < 0 ? "" : typeName[..lastDot];
     }
 
     private static PublicizerAssemblyContext SweepAll() =>
@@ -30,7 +37,7 @@ internal static partial class AssemblyPlanTests
         var context = new PublicizerAssemblyContext("Asm");
         context.PublicizeMemberPatterns.Add("Ns.Other.Member");
 
-        Assert.That(AssemblyPlan.Compile(context).ForType("Ns.Type"), Is.Null);
+        Assert.That(AssemblyPlan.Compile(context).ForType("Ns.Type", "Ns"), Is.Null);
     }
 
     [Test]
@@ -38,7 +45,7 @@ internal static partial class AssemblyPlanTests
     {
         var context = new PublicizerAssemblyContext("Asm") { ExplicitlyDoNotPublicizeAssembly = true };
 
-        Assert.That(AssemblyPlan.Compile(context).ForType("Ns.Type"), Is.Null);
+        Assert.That(AssemblyPlan.Compile(context).ForType("Ns.Type", "Ns"), Is.Null);
     }
 
     [Test]
@@ -98,7 +105,7 @@ internal static partial class AssemblyPlanTests
 
         TypePlan typePlan = ForType(context, "Ns.Type");
 
-        Assert.That(typePlan.DecideMember("VisibleMember", isCompilerGenerated: false), Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(typePlan.DecideMember("VisibleMember", isCompilerGenerated: false), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(typePlan.DecideMember("HiddenMember", isCompilerGenerated: false), Is.EqualTo(PublicizeDecision.Skip));
     }
 
@@ -154,7 +161,7 @@ internal static partial class AssemblyPlanTests
         TypePlan typePlan = ForType(SweepAll(), "Ns.Type");
 
         Assert.That(typePlan.TryDecideAllMembers(out PublicizeDecision decision), Is.True);
-        Assert.That(decision, Is.EqualTo(PublicizeDecision.ByAssemblyRule));
+        Assert.That(decision, Is.EqualTo(PublicizeDecision.BySweep));
     }
 
     [Test]
@@ -190,12 +197,13 @@ internal static partial class AssemblyPlanTests
     {
         PublicizerAssemblyContext filtering = SweepAll();
         filtering.IncludeCompilerGeneratedMembers = false;
-        Assert.That(AssemblyPlan.Compile(filtering).NeedsCompilerGeneratedCheck, Is.True);
+        Assert.That(ForType(filtering, "Ns.Type").NeedsCompilerGeneratedCheck, Is.True);
 
-        Assert.That(AssemblyPlan.Compile(SweepAll()).NeedsCompilerGeneratedCheck, Is.False);
+        Assert.That(ForType(SweepAll(), "Ns.Type").NeedsCompilerGeneratedCheck, Is.False);
 
+        // No sweep reaches this type, so the scan cannot change any decision in it.
         var namedOnly = new PublicizerAssemblyContext("Asm") { IncludeCompilerGeneratedMembers = false };
         namedOnly.PublicizeMemberPatterns.Add("Ns.Type.Member");
-        Assert.That(AssemblyPlan.Compile(namedOnly).NeedsCompilerGeneratedCheck, Is.False);
+        Assert.That(ForType(namedOnly, "Ns.Type").NeedsCompilerGeneratedCheck, Is.False);
     }
 }

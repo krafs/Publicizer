@@ -94,4 +94,50 @@ internal static class PublicizerTests
         Assert.That(runResult.ExitCode, Is.Zero, runResult.Output);
         Assert.That(runResult.Output, Is.EqualTo("foobarfoobar"), runResult.Output);
     }
+
+    // The structured item form carries its qualifiers as MSBuild metadata rather than in the
+    // ItemSpec, so this is the one place that proves the metadata actually survives the trip through
+    // @(Publicize) into the task. Naming a type structurally also sweeps its members, which is what
+    // lets this compile without naming each member.
+    [Test]
+    public static void StructuredTypeTarget_CompilesAndRunsWithExitCode0AndPrintsReturnValuesFromAllPrivateMembersInPrivateClass()
+    {
+        using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassIn("PrivateNamespace")).BuildOrFail();
+
+        string appCode = """
+            var privateClass = new PrivateNamespace.PrivateClass();
+            var result = privateClass.PrivateField;
+            result += privateClass.PrivateProperty;
+            result += privateClass.PrivateMethod();
+            System.Console.Write(result);
+            """;
+
+        using TestProject app = TestProject.App(appCode)
+            .Referencing(library)
+            .ConsumingPublicizer()
+            .Item("Publicize", "PrivateAssembly", """Namespace="PrivateNamespace" Type="PrivateClass" """);
+
+        ProcessResult buildResult = app.Build();
+        ProcessResult runResult = app.Run();
+
+        Assert.That(buildResult.ExitCode, Is.Zero, buildResult.Output);
+        Assert.That(runResult.ExitCode, Is.Zero, runResult.Output);
+        Assert.That(runResult.Output, Is.EqualTo("foobar"), runResult.Output);
+    }
+
+    [Test]
+    public static void MalformedStructuredTarget_FailsTheBuildWithAnExplanation()
+    {
+        using TestProject library = TestProject.Library("PrivateAssembly", PrivateClassIn("PrivateNamespace")).BuildOrFail();
+
+        using TestProject app = TestProject.App("System.Console.Write(\"unused\");")
+            .Referencing(library)
+            .ConsumingPublicizer()
+            .Item("Publicize", "PrivateAssembly", """Type="PrivateClass`1" """);
+
+        ProcessResult buildResult = app.Build();
+
+        Assert.That(buildResult.ExitCode, Is.Not.Zero, buildResult.Output);
+        Assert.That(buildResult.Output, Does.Contain("must not contain a backtick"), buildResult.Output);
+    }
 }

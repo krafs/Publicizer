@@ -97,4 +97,53 @@ internal static partial class HasherTests
 
         Assert.That(Hash(context), Is.Not.EqualTo(baseline));
     }
+
+    [Test]
+    public static void ComputeHash_AddingScope_ChangesHash()
+    {
+        string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
+        var context = new PublicizerAssemblyContext("Fixture");
+        context.Scopes.Add(new PublicizeScope { Namespace = "Fixture" });
+
+        Assert.That(Hash(context), Is.Not.EqualTo(baseline));
+    }
+
+    [Test]
+    public static void ComputeHash_DistinguishesScopesThatConcatenateAlike()
+    {
+        // The namespace "A.B" and the global-namespace type "A.B" must not collide, or one target's
+        // cached assembly would be served for the other. They differ only in which field holds the
+        // name, so an undelimited concatenation would hash both as "A.B".
+        var namespaceScope = new PublicizerAssemblyContext("Fixture");
+        namespaceScope.Scopes.Add(new PublicizeScope { Namespace = "A.B" });
+
+        var typeScope = new PublicizerAssemblyContext("Fixture");
+        typeScope.Scopes.Add(new PublicizeScope { TypeReflectionName = "A.B" });
+
+        Assert.That(Hash(typeScope), Is.Not.EqualTo(Hash(namespaceScope)));
+    }
+
+    [Test]
+    public static void ComputeHash_ScopeFilters_ChangeHash()
+    {
+        var baseline = new PublicizerAssemblyContext("Fixture");
+        baseline.Scopes.Add(new PublicizeScope { Namespace = "Fixture" });
+
+        var filtered = new PublicizerAssemblyContext("Fixture");
+        filtered.Scopes.Add(new PublicizeScope { Namespace = "Fixture", IncludeVirtualMembers = false });
+
+        Assert.That(Hash(filtered), Is.Not.EqualTo(Hash(baseline)));
+    }
+
+    [Test]
+    public static void ComputeHash_DenyScope_DiffersFromPublicizeScope()
+    {
+        var publicize = new PublicizerAssemblyContext("Fixture");
+        publicize.Scopes.Add(new PublicizeScope { Namespace = "Fixture" });
+
+        var deny = new PublicizerAssemblyContext("Fixture");
+        deny.Scopes.Add(new PublicizeScope { Namespace = "Fixture", Deny = true });
+
+        Assert.That(Hash(deny), Is.Not.EqualTo(Hash(publicize)));
+    }
 }

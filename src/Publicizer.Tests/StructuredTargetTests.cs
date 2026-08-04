@@ -1,0 +1,423 @@
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+using NUnit.Framework;
+
+namespace Publicizer.Tests;
+
+/// <summary>
+/// Covers the structured item form: <c>Namespace</c> and <c>Type</c> metadata on a bare-assembly
+/// <c>Include</c>, how overlapping scopes resolve, and which malformed items fail the build.
+/// </summary>
+internal static class StructuredTargetTests
+{
+    private static TaskItem Item(string spec, params string[] metadata)
+    {
+        var item = new TaskItem(spec);
+        for (int i = 0; i < metadata.Length; i += 2)
+        {
+            item.SetMetadata(metadata[i], metadata[i + 1]);
+        }
+
+        return item;
+    }
+
+    private static PublicizerAssemblyContext Parse(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null)
+    {
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? [], NullTaskLogger.Instance, out Dictionary<string, PublicizerAssemblyContext> contexts);
+        Assert.That(valid, Is.True, "expected every item to parse");
+        return contexts["Asm"];
+    }
+
+    private static string ErrorFor(ITaskItem item, bool deny = false)
+    {
+        var logger = new RecordingTaskLogger();
+        ITaskItem[] publicizes = deny ? [] : [item];
+        ITaskItem[] doNotPublicizes = deny ? [item] : [];
+
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, doNotPublicizes, logger, out _);
+
+        Assert.That(valid, Is.False, "expected the item to be rejected");
+        Assert.That(logger.Errors, Is.Not.Empty);
+        return string.Join(" | ", logger.Errors);
+    }
+
+    private static string ErrorForAll(params ITaskItem[] publicizes)
+    {
+        var logger = new RecordingTaskLogger();
+
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, [], logger, out _);
+
+        Assert.That(valid, Is.False, "expected the items to be rejected");
+        Assert.That(logger.Errors, Is.Not.Empty);
+        return string.Join(" | ", logger.Errors);
+    }
+
+    private static TypePlan? Plan(PublicizerAssemblyContext context, string typeReflectionName, string typeNamespace) =>
+        AssemblyPlan.Compile(context).ForType(typeReflectionName, typeNamespace);
+
+    private static PublicizeDecision DecideMember(PublicizerAssemblyContext context, string typeReflectionName, string typeNamespace, string memberName)
+    {
+        TypePlan? plan = Plan(context, typeReflectionName, typeNamespace);
+        return plan is null ? PublicizeDecision.Skip : plan.DecideMember(memberName, isCompilerGenerated: false);
+    }
+
+    [Test]
+    public static void NamespaceScope_IsRecursiveOnSegmentBoundaries()
+    {
+        PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A.B")]);
+
+        Assert.That(DecideMember(context, "A.B.Type", "A.B", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.B.C.Type", "A.B.C", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+
+        // "A.BX" merely starts with "A.B"; it is not inside it.
+        Assert.That(Plan(context, "A.BX.Type", "A.BX"), Is.Null);
+        Assert.That(Plan(context, "A.Type", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void TypeScope_SweepsMembers_UnlikeTheColonForm()
+    {
+        // The deliberate divergence between the two forms: naming a type structurally publicizes it
+        // and everything in it, while the colon form publicizes only the type's own accessibility.
+        PublicizerAssemblyContext structured = Parse([Item("Asm", "Namespace", "A", "Type", "Type")]);
+        Assert.That(DecideMember(structured, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+
+        PublicizerAssemblyContext colonForm = Parse([Item("Asm:A.Type")]);
+        Assert.That(DecideMember(colonForm, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.Skip));
+    }
+
+    [Test]
+    public static void TypeScope_CoversNestedTypes()
+    {
+        PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A", "Type", "Outer")]);
+
+        Assert.That(DecideMember(context, "A.Outer+Inner", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(Plan(context, "A.OuterOther", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void TypeScope_NamesNestedTypesWithDots()
+    {
+        PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A", "Type", "Outer.Inner")]);
+
+        Assert.That(DecideMember(context, "A.Outer+Inner", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(Plan(context, "A.Outer", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void TypeScope_WithoutNamespace_IsTheGlobalNamespace()
+    {
+        PublicizerAssemblyContext context = Parse([Item("Asm", "Type", "GlobalType")]);
+
+        Assert.That(DecideMember(context, "GlobalType", "", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(Plan(context, "A.GlobalType", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void TypeScope_BeatsAnEnclosingNamespaceScope()
+    {
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A", "Type", "Kept")],
+            [Item("Asm", "Namespace", "A")]);
+
+        Assert.That(DecideMember(context, "A.Kept", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(Plan(context, "A.Other", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void InnermostNamespaceScope_Wins()
+    {
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A")],
+            [Item("Asm", "Namespace", "A.B")]);
+
+        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(Plan(context, "A.B.Type", "A.B"), Is.Null);
+    }
+
+    [Test]
+    public static void DoNotPublicizeScope_BeatsPublicizeScope_AtEqualSpecificity()
+    {
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A")],
+            [Item("Asm", "Namespace", "A")]);
+
+        Assert.That(Plan(context, "A.Type", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void ScopeFilters_OverrideTheAssemblySweep_AndInheritWhenAbsent()
+    {
+        // The assembly sweep excludes virtual members; the type scope opts back into them, and
+        // inherits the compiler-generated filter it does not mention.
+        PublicizerAssemblyContext context = Parse([
+            Item("Asm", "IncludeVirtualMembers", "false", "IncludeCompilerGeneratedMembers", "false"),
+            Item("Asm", "Namespace", "A", "Type", "Type", "IncludeVirtualMembers", "true")]);
+
+        TypePlan scoped = Plan(context, "A.Type", "A")!;
+        Assert.That(scoped.IncludeVirtualMembers, Is.True);
+        Assert.That(scoped.NeedsCompilerGeneratedCheck, Is.True);
+
+        TypePlan elsewhere = Plan(context, "B.Type", "B")!;
+        Assert.That(elsewhere.IncludeVirtualMembers, Is.False);
+    }
+
+    /// <summary>
+    /// An inner scope could inherit the outer scope's filter or the assembly's, and the two readings
+    /// differ only in which members end up public — so picking one now and changing it later would
+    /// silently rewrite working builds. The ambiguous item is refused instead. See
+    /// <c>PublicizeAssemblies.ScopeFilterInheritanceIsDecidable</c>.
+    /// </summary>
+    [Test]
+    public static void InnerScope_LeavingAnEnclosingScopesFilterUnset_IsRejected()
+    {
+        string namespaceInNamespace = ErrorForAll(
+            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"),
+            Item("Asm", "Namespace", "A.B", "IncludeCompilerGeneratedMembers", "false"));
+        Assert.That(namespaceInNamespace, Does.Contain("IncludeVirtualMembers").And.Contains("not decided yet"));
+        Assert.That(namespaceInNamespace, Does.Contain("Namespace=\"A.B\"").And.Contains("Namespace=\"A\""));
+
+        // A type scope inside a namespace scope, and a nested type scope inside its encloser.
+        Assert.That(
+            ErrorForAll(Item("Asm", "Type", "Outer", "IncludeCompilerGeneratedMembers", "false"), Item("Asm", "Type", "Outer.Inner")),
+            Does.Contain("IncludeCompilerGeneratedMembers"));
+
+        // The authored spelling is quoted back, not the lowered reflection name.
+        Assert.That(
+            ErrorForAll(Item("Asm", "Type", "Outer{T}", "IncludeVirtualMembers", "false"), Item("Asm", "Type", "Outer{T}.Inner")),
+            Does.Contain("Type=\"Outer{T}.Inner\"").And.Contains("Type=\"Outer{T}\""));
+    }
+
+    [Test]
+    public static void InnerScope_SettingTheFilterItself_IsAccepted()
+    {
+        PublicizerAssemblyContext context = Parse([
+            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"),
+            Item("Asm", "Namespace", "A.B", "IncludeVirtualMembers", "false")]);
+
+        Assert.That(Plan(context, "A.B.Type", "A.B")!.IncludeVirtualMembers, Is.False);
+    }
+
+    /// <summary>
+    /// The check is about scopes that genuinely enclose one another. Scopes that merely sit near each
+    /// other resolve to a single winner with no inheritance between them.
+    /// </summary>
+    [Test]
+    public static void ScopesThatDoNotEncloseEachOther_AreUnaffected()
+    {
+        // Siblings.
+        _ = Parse([Item("Asm", "Namespace", "A.X", "IncludeVirtualMembers", "false"), Item("Asm", "Namespace", "A.Y")]);
+
+        // Not a segment boundary: "A" does not enclose "AB".
+        _ = Parse([Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), Item("Asm", "Namespace", "AB")]);
+
+        // Equal specificity - a single winner, so neither inherits from the other.
+        _ = Parse([Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), Item("Asm", "Namespace", "A")]);
+
+        // A nested type in the global namespace is under no namespace, however its name reads.
+        _ = Parse([Item("Asm", "Namespace", "Outer", "IncludeVirtualMembers", "false"), Item("Asm", "Type", "Outer.Inner")]);
+
+        // A deny scope publicizes nothing, so no filter it inherited could change its outcome.
+        _ = Parse(
+            [Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false")],
+            [Item("Asm", "Namespace", "A.B")]);
+    }
+
+    /// <summary>
+    /// The regex matches dnlib's reflection name, the spelling 'Type' refuses. Honoring it on a scope
+    /// would freeze that spelling in a second place, so it stays assembly-only — where it already is
+    /// slated to be re-anchored or dropped.
+    /// </summary>
+    [Test]
+    public static void MemberPatternOnAScope_IsRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "MemberPattern", "Visible")), Does.Contain("not supported on a scope"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "T", "MemberPattern", "Visible")), Does.Contain("not supported on a scope"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "MemberPattern", "Secret"), deny: true), Does.Contain("not supported on a scope"));
+    }
+
+    /// <summary>The assembly-wide pattern is untouched, and still applies inside a scope.</summary>
+    [Test]
+    public static void AssemblyMemberPattern_StillAppliesInsideAScope()
+    {
+        PublicizerAssemblyContext context = Parse([
+            Item("Asm", "MemberPattern", "Visible"),
+            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false")]);
+
+        Assert.That(DecideMember(context, "A.Type", "A", "VisibleMember"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.Type", "A", "HiddenMember"), Is.EqualTo(PublicizeDecision.Skip));
+    }
+
+    [Test]
+    public static void GenericBraces_LowerToArity()
+    {
+        PublicizerAssemblyContext context = Parse([
+            Item("Asm", "Namespace", "A", "Type", "Holder{T}"),
+            Item("Asm", "Namespace", "A", "Type", "Pair{TKey,TValue}"),
+            Item("Asm", "Namespace", "A", "Type", "Outer{T}.Inner{U,V}")]);
+
+        Assert.That(DecideMember(context, "A.Holder`1", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.Pair`2", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+        Assert.That(DecideMember(context, "A.Outer`1+Inner`2", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+
+        // Only the count is read; the argument names mean nothing until Parameters lands.
+        Assert.That(Plan(context, "A.Holder", "A"), Is.Null);
+    }
+
+    [Test]
+    public static void ColonFormCombinedWithStructuredMetadata_IsRejected() =>
+        Assert.That(ErrorFor(Item("Asm:A.Type", "Type", "Type")), Does.Contain("cannot be combined"));
+
+    [Test]
+    public static void BacktickInType_IsRejectedInFavorOfBraces() =>
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder`1")), Does.Contain("MyType{T1,T2}"));
+
+    [Test]
+    public static void PlusInType_IsRejectedInFavorOfDots() =>
+        Assert.That(ErrorFor(Item("Asm", "Type", "Outer+Inner")), Does.Contain("Outer.Inner"));
+
+    [Test]
+    public static void MalformedTypeArgumentList_IsRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder{T")), Does.Contain("unbalanced braces"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder{}")), Does.Contain("empty type argument list"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "A..B")), Does.Contain("empty name segment"));
+
+        // The commas inside would be counted as arity, so 'Holder{Dictionary{K,V}}' would silently
+        // lower to Holder`2 and match nothing.
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder{Dictionary{K,V}}")), Does.Contain("nested type argument list"));
+    }
+
+    /// <summary>
+    /// Only the count is read today, so 'Pair{,}' would work — but the names are reserved for
+    /// 'Parameters', and tightening this later would break items that build now.
+    /// </summary>
+    [Test]
+    public static void EmptyTypeArgumentName_IsRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Type", "Pair{,}")), Does.Contain("empty type argument name"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Pair{T,}")), Does.Contain("empty type argument name"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Pair{ , }")), Does.Contain("empty type argument name"));
+    }
+
+    [Test]
+    public static void NamedTypeArguments_AreStillAcceptedWithWhitespace()
+    {
+        PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A", "Type", "Pair{TKey, TValue}")]);
+
+        Assert.That(DecideMember(context, "A.Pair`2", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+    }
+
+    [Test]
+    public static void MalformedNamespace_IsRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A+B")), Does.Contain("plain dotted namespace name"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A..B")), Does.Contain("empty name segment"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A.")), Does.Contain("empty name segment"));
+    }
+
+    [Test]
+    public static void MemberQualifiers_AreRejectedUntilTheyAreImplemented()
+    {
+        foreach (string qualifier in new[] { "Field", "Method", "Property", "Event", "Accessor", "Parameters" })
+        {
+            Assert.That(ErrorFor(Item("Asm", "Type", "Type", qualifier, "Whatever")), Does.Contain($"'{qualifier}' metadata is not supported yet"));
+        }
+    }
+
+    [Test]
+    public static void DescentQualifiers_AreRejectedUntilTheyAreImplemented()
+    {
+        // Ignoring these would publicize more than the author asked for, silently.
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeSubNamespaces", "false")), Does.Contain("'IncludeSubNamespaces' metadata is not supported yet"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Type", "IncludeTypeContents", "false")), Does.Contain("'IncludeTypeContents' metadata is not supported yet"));
+
+        // Rejected on every form, not just a scope: neither has a reading anywhere else either.
+        Assert.That(ErrorFor(Item("Asm", "IncludeTypeContents", "false")), Does.Contain("not supported yet"));
+        Assert.That(ErrorFor(Item("Asm:A.Type", "IncludeTypeContents", "false")), Does.Contain("not supported yet"));
+    }
+
+    [Test]
+    public static void ColonFormDoNotPublicizeType_BeatsAnyStructuredScope()
+    {
+        // Rung 4 sits above every scope: the colon form's behavior is frozen, so it wins however
+        // specific the scope covering the same type is.
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A", "Type", "Type")],
+            [Item("Asm:A.Type")]);
+
+        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.Skip));
+    }
+
+    [Test]
+    public static void AssemblyDoNotPublicize_IsCarvedOutByAScope()
+    {
+        // The assembly-wide rule is the loosest scope there is, so a scope naming part of the
+        // assembly is more specific and wins. This is the same carve-out a colon-form target has
+        // always had over an assembly deny (AssemblyPlanTests.ForType_NamedTargetSurvivesDoNotPublicizeAssembly);
+        // routing both through one lattice is what stops the answer depending on which form was used.
+        PublicizerAssemblyContext context = Parse(
+            [Item("Asm", "Namespace", "A")],
+            [Item("Asm")]);
+
+        Assert.That(DecideMember(context, "A.Type", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
+
+        // Outside the scope the deny still applies, which is what makes it a carve-out and not a
+        // repeal: nothing else in the assembly is reachable.
+        Assert.That(Plan(context, "B.Type", "B"), Is.Null);
+    }
+
+    [Test]
+    public static void ScopeCarvingOutOfAnAssemblyDeny_Warns()
+    {
+        // The two items are usually authored in different .props files, so the override is easy to
+        // miss. It resolves as intended; it just does not do so silently.
+        var logger = new RecordingTaskLogger();
+
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts([Item("Asm", "Namespace", "A")], [Item("Asm")], logger, out _);
+
+        Assert.That(valid, Is.True);
+        Assert.That(logger.Warnings, Has.Count.EqualTo(1));
+        Assert.That(logger.Warnings[0], Does.Contain("Asm").And.Contain("more specific"));
+    }
+
+    [Test]
+    public static void DenyScopeUnderAnAssemblyDeny_DoesNotWarn()
+    {
+        // Narrowing a deny with more denies changes nothing about what is published, so there is
+        // no override to report.
+        var logger = new RecordingTaskLogger();
+
+        _ = PublicizeAssemblies.TryGetPublicizerAssemblyContexts([], [Item("Asm"), Item("Asm", "Namespace", "A")], logger, out _);
+
+        Assert.That(logger.Warnings, Is.Empty);
+    }
+
+    [Test]
+    public static void ScopeFiltersOnDoNotPublicize_AreRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), deny: true), Does.Contain("has no meaning on a DoNotPublicize scope"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeCompilerGeneratedMembers", "false"), deny: true), Does.Contain("has no meaning on a DoNotPublicize scope"));
+
+        // Coherent as a rule, but per-member rather than per-type, which the resolver cannot express yet.
+    }
+
+    [Test]
+    public static void RejectedItems_AreAllReported_NotJustTheFirst()
+    {
+        var logger = new RecordingTaskLogger();
+
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(
+            [Item("Asm", "Type", "Holder`1"), Item("Asm", "Namespace", "A+B")],
+            [],
+            logger,
+            out _);
+
+        Assert.That(valid, Is.False);
+        Assert.That(logger.Errors, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public static void DoNotPublicizeErrors_NameTheItemKind() =>
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder`1"), deny: true), Does.StartWith("DoNotPublicize item"));
+}

@@ -5,13 +5,18 @@ using NUnit.Framework;
 namespace Publicizer.Tests;
 
 /// <summary>
-/// Characterizes <see cref="PublicizeAssemblies.GetPublicizerAssemblyContexts"/>:
+/// Characterizes <see cref="PublicizeAssemblies.TryGetPublicizerAssemblyContexts"/>:
 /// how Publicize / DoNotPublicize item specs and metadata parse into per-assembly
 /// contexts.
 /// </summary>
 internal static class GetPublicizerAssemblyContextsTests
 {
-    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null) => PublicizeAssemblies.GetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? [], NullTaskLogger.Instance);
+    private static Dictionary<string, PublicizerAssemblyContext> Build(ITaskItem[] publicizes, ITaskItem[]? doNotPublicizes = null)
+    {
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, doNotPublicizes ?? [], NullTaskLogger.Instance, out Dictionary<string, PublicizerAssemblyContext> contexts);
+        Assert.That(valid, Is.True, "expected every item to parse");
+        return contexts;
+    }
 
     [Test]
     public static void AssemblyWidePublicize_SetsExplicitlyPublicizeAssemblyWithDefaults()

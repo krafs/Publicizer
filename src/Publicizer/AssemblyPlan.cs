@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Publicizer;
 
 /// <summary>
@@ -7,7 +5,7 @@ namespace Publicizer;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The context stores targets as flat dotted strings that are compared against
+/// The colon-string item form stores targets as flat dotted strings that are compared against
 /// <c>{TypeReflectionFullName}.{MemberName}</c>. Rebuilding that concatenation for every member of
 /// every type is the dominant cost of matching, so instead each target is decomposed once, up front,
 /// into the (type name, member name) pairs it could denote. The member walk then does a single
@@ -19,7 +17,8 @@ namespace Publicizer;
 /// <em>every</em> split point, plus as a type name in its own right. That is exactly equivalent to
 /// the string comparison it replaces — including the doubled dot of <c>Fixture.Shapes..ctor</c>,
 /// which a naive split at the last dot would get wrong. Targets are few and user-authored, so the
-/// extra entries cost nothing.
+/// extra entries cost nothing. The structured item form exists precisely to avoid this guesswork,
+/// and its targets arrive here already unambiguous, as <see cref="PublicizeScope"/>s.
 /// </para>
 /// </remarks>
 internal sealed class AssemblyPlan
@@ -28,36 +27,30 @@ internal sealed class AssemblyPlan
     private readonly Dictionary<string, HashSet<string>> deniedMembersByType;
     private readonly HashSet<string> allowedTypeNames;
     private readonly HashSet<string> deniedTypeNames;
+    private readonly HashSet<string> walkUpBlockingTypeNames;
+    private readonly List<PublicizeScope> scopes;
+    private readonly SweepSettings[] scopeSettings;
+    private readonly SweepSettings assemblySettings;
 
     private AssemblyPlan(
         Dictionary<string, HashSet<string>> allowedMembersByType,
         Dictionary<string, HashSet<string>> deniedMembersByType,
         HashSet<string> allowedTypeNames,
         HashSet<string> deniedTypeNames,
-        PublicizerAssemblyContext context)
+        HashSet<string> walkUpBlockingTypeNames,
+        List<PublicizeScope> scopes,
+        SweepSettings assemblySettings,
+        SweepSettings[] scopeSettings)
     {
         this.allowedMembersByType = allowedMembersByType;
         this.deniedMembersByType = deniedMembersByType;
         this.allowedTypeNames = allowedTypeNames;
         this.deniedTypeNames = deniedTypeNames;
-
-        PublicizeAll = context.ExplicitlyPublicizeAssembly;
-        DenyAll = context.ExplicitlyDoNotPublicizeAssembly;
-        IncludeVirtualMembers = context.IncludeVirtualMembers;
-        MemberRegex = context.PublicizeMemberRegexPattern;
-        NeedsCompilerGeneratedCheck = context.ExplicitlyPublicizeAssembly && !context.IncludeCompilerGeneratedMembers;
+        this.walkUpBlockingTypeNames = walkUpBlockingTypeNames;
+        this.scopes = scopes;
+        this.assemblySettings = assemblySettings;
+        this.scopeSettings = scopeSettings;
     }
-
-    internal bool PublicizeAll { get; }
-    internal bool DenyAll { get; }
-    internal bool IncludeVirtualMembers { get; }
-    internal Regex? MemberRegex { get; }
-
-    /// <summary>
-    /// Whether the compiler-generated attribute scan can affect any decision. Hoisted here so the
-    /// walk runs the scan only when it matters, rather than once per member.
-    /// </summary>
-    internal bool NeedsCompilerGeneratedCheck { get; }
 
     internal static AssemblyPlan Compile(PublicizerAssemblyContext context)
     {
@@ -77,7 +70,42 @@ internal sealed class AssemblyPlan
         var allowedTypeNames = new HashSet<string>(context.PublicizeMemberPatterns, StringComparer.Ordinal);
         var deniedTypeNames = new HashSet<string>(context.DoNotPublicizeMemberPatterns, StringComparer.Ordinal);
 
-        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, context);
+        // What blocks the declaring-type walk-up is a type named by name, in either item form - a
+        // name is an explicit statement about that type, and the walk-up is only the engine's own
+        // inference. Deliberately not PublicizeScope.Covers: a deny Type="Outer" stops the walk at
+        // Outer, not at an intermediate Outer+Mid it merely sweeps. Namespace scopes name no type at
+        // all, so they never stop it - between a sweep and an inference, reachability wins, because
+        // the alternative is publicizing a type nothing can reach. Kept apart from deniedTypeNames,
+        // which decides the type's own rung and must keep meaning "named by the colon form".
+        var walkUpBlockingTypeNames = new HashSet<string>(deniedTypeNames, StringComparer.Ordinal);
+        foreach (PublicizeScope scope in context.Scopes)
+        {
+            if (scope is { Deny: true, TypeReflectionName: not null })
+            {
+                walkUpBlockingTypeNames.Add(scope.TypeReflectionName);
+            }
+        }
+
+        // The assembly-wide rule is the loosest scope there is, so it lives where Resolve already
+        // falls through to: no scope covers a type, these settings apply. Deny beating allow here
+        // is the same tie-break Beats applies between two equally tight scopes.
+        var assemblySettings = new SweepSettings
+        {
+            Publicize = context.ExplicitlyPublicizeAssembly && !context.ExplicitlyDoNotPublicizeAssembly,
+            IncludeVirtualMembers = context.IncludeVirtualMembers,
+            IncludeCompilerGeneratedMembers = context.IncludeCompilerGeneratedMembers,
+            MemberPattern = context.PublicizeMemberRegexPattern,
+        };
+
+        // A scope's settings depend only on the scope, so they are resolved once here rather than
+        // once per type the scope covers.
+        var scopeSettings = new SweepSettings[context.Scopes.Count];
+        for (int i = 0; i < context.Scopes.Count; i++)
+        {
+            scopeSettings[i] = assemblySettings.NarrowedBy(context.Scopes[i]);
+        }
+
+        return new AssemblyPlan(allowedMembersByType, deniedMembersByType, allowedTypeNames, deniedTypeNames, walkUpBlockingTypeNames, context.Scopes, assemblySettings, scopeSettings);
     }
 
     private static void IndexMemberSplits(string target, Dictionary<string, HashSet<string>> index)
@@ -98,30 +126,75 @@ internal sealed class AssemblyPlan
     }
 
     /// <summary>
-    /// Whether a <c>DoNotPublicize</c> target names this type. Only consulted for the enclosing
-    /// types the walk-up would otherwise publicize; deciding a type the walk reached on its own
-    /// goes through <see cref="ForType"/>.
+    /// Whether a <c>DoNotPublicize</c> item names this type by name, in either item form. Only
+    /// consulted for the enclosing types the walk-up would otherwise publicize; deciding a type the
+    /// walk reached on its own goes through <see cref="ForType"/>.
     /// </summary>
-    internal bool IsDeniedType(string typeReflectionFullName) => deniedTypeNames.Contains(typeReflectionFullName);
+    internal bool IsDeniedType(string typeReflectionFullName) => walkUpBlockingTypeNames.Contains(typeReflectionFullName);
 
     /// <summary>
     /// Returns the rules that can apply inside <paramref name="typeReflectionFullName"/>, or
     /// <see langword="null"/> when nothing in the type is reachable by any rule and the whole type
     /// can be skipped without inspecting a single member.
     /// </summary>
-    internal TypePlan? ForType(string typeReflectionFullName)
+    /// <param name="typeReflectionFullName">dnlib's <c>ReflectionFullName</c> for the type.</param>
+    /// <param name="typeNamespace">The namespace of the outermost enclosing type, which is the
+    /// namespace a nested type belongs to.</param>
+    internal TypePlan? ForType(string typeReflectionFullName, string typeNamespace)
     {
         _ = allowedMembersByType.TryGetValue(typeReflectionFullName, out HashSet<string>? allowedMembers);
         _ = deniedMembersByType.TryGetValue(typeReflectionFullName, out HashSet<string>? deniedMembers);
         bool allowedAsType = allowedTypeNames.Contains(typeReflectionFullName);
         bool deniedAsType = deniedTypeNames.Contains(typeReflectionFullName);
 
+        SweepSettings settings = Resolve(typeReflectionFullName, typeNamespace);
+
         bool hasNamedTarget = allowedMembers is not null || deniedMembers is not null || allowedAsType || deniedAsType;
-        if (!hasNamedTarget && !PublicizeAll)
+        if (!hasNamedTarget && !settings.Publicize)
         {
             return null;
         }
 
-        return new TypePlan(this, typeReflectionFullName, allowedMembers, deniedMembers, allowedAsType, deniedAsType);
+        return new TypePlan(settings, typeReflectionFullName, allowedMembers, deniedMembers, allowedAsType, deniedAsType);
+    }
+
+    /// <summary>
+    /// The settings of the tightest scope covering this type, or the assembly-wide settings when no
+    /// scope does. Scopes are few and user-authored, so a linear scan costs less than any index would.
+    /// </summary>
+    private SweepSettings Resolve(string typeReflectionFullName, string typeNamespace)
+    {
+        int winner = -1;
+        for (int i = 0; i < scopes.Count; i++)
+        {
+            if (scopes[i].Covers(typeReflectionFullName, typeNamespace) && (winner < 0 || Beats(scopes[i], scopes[winner])))
+            {
+                winner = i;
+            }
+        }
+
+        return winner < 0 ? assemblySettings : scopeSettings[winner];
+    }
+
+    /// <summary>
+    /// A tighter scope always wins. Between equally tight scopes, <c>DoNotPublicize</c> wins over
+    /// <c>Publicize</c> — matching the colon form, where naming a member in both excludes it — and
+    /// otherwise the later item wins.
+    /// </summary>
+    private static bool Beats(PublicizeScope candidate, PublicizeScope current)
+    {
+        int comparison = candidate.Specificity.CompareTo(current.Specificity);
+        if (comparison != 0)
+        {
+            return comparison > 0;
+        }
+
+        if (candidate.Deny != current.Deny)
+        {
+            return candidate.Deny;
+        }
+
+        // Equally tight and on the same side: the later item wins.
+        return true;
     }
 }

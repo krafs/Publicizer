@@ -7,7 +7,7 @@ namespace Publicizer;
 /// </summary>
 internal sealed class TypePlan
 {
-    private readonly AssemblyPlan assemblyPlan;
+    private readonly SweepSettings settings;
     private readonly string typeReflectionFullName;
     private readonly HashSet<string>? allowedMembers;
     private readonly HashSet<string>? deniedMembers;
@@ -15,14 +15,14 @@ internal sealed class TypePlan
     private readonly bool deniedAsType;
 
     internal TypePlan(
-        AssemblyPlan assemblyPlan,
+        SweepSettings settings,
         string typeReflectionFullName,
         HashSet<string>? allowedMembers,
         HashSet<string>? deniedMembers,
         bool allowedAsType,
         bool deniedAsType)
     {
-        this.assemblyPlan = assemblyPlan;
+        this.settings = settings;
         this.typeReflectionFullName = typeReflectionFullName;
         this.allowedMembers = allowedMembers;
         this.deniedMembers = deniedMembers;
@@ -30,9 +30,9 @@ internal sealed class TypePlan
         this.deniedAsType = deniedAsType;
     }
 
-    internal bool NeedsCompilerGeneratedCheck => assemblyPlan.NeedsCompilerGeneratedCheck;
+    internal bool NeedsCompilerGeneratedCheck => settings.NeedsCompilerGeneratedCheck;
 
-    internal bool IncludeVirtualMembers => assemblyPlan.IncludeVirtualMembers;
+    internal bool IncludeVirtualMembers => settings.IncludeVirtualMembers;
 
     /// <summary>
     /// The name a diagnostic or the <c>MemberPattern</c> regex needs. Built on demand only, since
@@ -53,17 +53,17 @@ internal sealed class TypePlan
             return false;
         }
 
-        if (deniedAsType || assemblyPlan.DenyAll || !assemblyPlan.PublicizeAll)
+        if (deniedAsType || !settings.Publicize)
         {
             return true;
         }
 
-        if (assemblyPlan.MemberRegex is not null || assemblyPlan.NeedsCompilerGeneratedCheck)
+        if (settings.MemberPattern is not null || settings.NeedsCompilerGeneratedCheck)
         {
             return false;
         }
 
-        decision = PublicizeDecision.ByAssemblyRule;
+        decision = PublicizeDecision.BySweep;
         return true;
     }
 
@@ -103,31 +103,31 @@ internal sealed class TypePlan
     }
 
     /// <summary>
-    /// The assembly-wide sweep and its filters. <paramref name="memberName"/> is
-    /// <see langword="null"/> when deciding the type itself.
+    /// The sweep in force here — assembly-wide, or narrowed by a namespace or type scope — and its
+    /// filters. <paramref name="memberName"/> is <see langword="null"/> when deciding the type itself.
     /// </summary>
     private PublicizeDecision DecideBySweep(string? memberName, bool isCompilerGenerated)
     {
-        if (assemblyPlan.DenyAll || !assemblyPlan.PublicizeAll)
+        if (!settings.Publicize)
         {
             return PublicizeDecision.Skip;
         }
 
-        if (isCompilerGenerated && assemblyPlan.NeedsCompilerGeneratedCheck)
+        if (isCompilerGenerated && settings.NeedsCompilerGeneratedCheck)
         {
             return PublicizeDecision.Skip;
         }
 
-        if (assemblyPlan.MemberRegex is not null)
+        if (settings.MemberPattern is not null)
         {
             // The only place the flat name is still needed, and only when a regex was configured.
             string matchedName = memberName is null ? typeReflectionFullName : FullNameOf(memberName);
-            if (!assemblyPlan.MemberRegex.IsMatch(matchedName))
+            if (!settings.MemberPattern.IsMatch(matchedName))
             {
                 return PublicizeDecision.Skip;
             }
         }
 
-        return PublicizeDecision.ByAssemblyRule;
+        return PublicizeDecision.BySweep;
     }
 }
