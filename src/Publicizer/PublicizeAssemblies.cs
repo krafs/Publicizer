@@ -188,6 +188,11 @@ public sealed class PublicizeAssemblies : Task
 
         if (valid)
         {
+            valid = ScopeFilterInheritanceIsDecidable(contexts, logger);
+        }
+
+        if (valid)
+        {
             WarnOnScopesOverridingAnAssemblyDeny(contexts, logger);
         }
 
@@ -216,6 +221,55 @@ public sealed class PublicizeAssemblies : Task
         }
 
         return modified;
+    }
+
+    /// <summary>
+    /// Rejects an inner scope that leaves a sweep filter unset which an enclosing scope sets.
+    /// <para>
+    /// Whether such a scope should inherit that filter from the scope enclosing it or from the
+    /// assembly is a real design question, and both answers are defensible. It is left open rather
+    /// than settled here because settling it wrong is unrecoverable: the two readings differ only in
+    /// which members end up public, so changing the answer later would silently rewrite assemblies
+    /// that build fine today. Refusing the item keeps both doors open at the cost of one attribute.
+    /// </para>
+    /// <para>
+    /// Assembly-to-scope inheritance is not affected — that one is decided, documented and pinned.
+    /// Neither is a <c>DoNotPublicize</c> scope, which publicizes nothing and so cannot be swayed by
+    /// a filter either way.
+    /// </para>
+    /// </summary>
+    private static bool ScopeFilterInheritanceIsDecidable(Dictionary<string, PublicizerAssemblyContext> contexts, ITaskLogger logger)
+    {
+        bool decidable = true;
+
+        foreach (PublicizerAssemblyContext context in contexts.Values)
+        {
+            foreach (PublicizeScope inner in context.Scopes)
+            {
+                if (inner.Deny)
+                {
+                    continue;
+                }
+
+                foreach (PublicizeScope outer in context.Scopes)
+                {
+                    // Equally specific scopes resolve to a single winner, so neither inherits from the
+                    // other and there is nothing to be ambiguous about.
+                    if (inner.Specificity.CompareTo(outer.Specificity) <= 0 || !outer.Contains(inner))
+                    {
+                        continue;
+                    }
+
+                    foreach (string filter in outer.FiltersLeftUnsetOn(inner))
+                    {
+                        logger.Error($"Publicize scope '{inner.Display}' on '{context.AssemblyName}' sits inside '{outer.Display}', which sets '{filter}'. Set '{filter}' explicitly on the inner scope: whether an inner scope inherits an enclosing scope's filters or the assembly's is not decided yet.");
+                        decidable = false;
+                    }
+                }
+            }
+        }
+
+        return decidable;
     }
 
     /// <summary>

@@ -30,6 +30,13 @@ internal sealed class PublicizeScope
     /// <summary>Whether this came from a <c>DoNotPublicize</c> item.</summary>
     internal bool Deny { get; init; }
 
+    /// <summary>
+    /// The metadata as authored, for diagnostics. Deliberately not hashed: it is derived from the
+    /// values that already are, and two spellings that lower to the same scope — <c>Pair{T,U}</c> and
+    /// <c>Pair{K,V}</c> — must keep sharing a cache entry.
+    /// </summary>
+    internal string Display { get; init; } = "";
+
     internal bool? IncludeVirtualMembers { get; init; }
     internal bool? IncludeCompilerGeneratedMembers { get; init; }
     internal Regex? MemberPattern { get; init; }
@@ -57,18 +64,48 @@ internal sealed class PublicizeScope
         : IsSelfOrUnder(typeNamespace, Namespace, '.');
 
     /// <summary>
+    /// Whether every type <paramref name="inner"/> covers is also covered here, and strictly fewer
+    /// than this scope covers. Only meaningful against a scope that is already the more specific of
+    /// the two; equal names are not containment, and neither is a type scope holding a namespace.
+    /// </summary>
+    internal bool Contains(PublicizeScope inner) => TypeReflectionName is null
+        // A namespace holds both the namespaces and the types under it, and both spell descent '.'.
+        // A type in the global namespace spells its own nesting '+', so it is under no namespace.
+        ? IsStrictlyUnder(inner.TypeReflectionName ?? inner.Namespace, Namespace, '.')
+        : inner.TypeReflectionName is not null && IsStrictlyUnder(inner.TypeReflectionName, TypeReflectionName, '+');
+
+    /// <summary>
+    /// The names of the sweep filters this scope sets and <paramref name="inner"/> leaves unset —
+    /// exactly the ones whose value inside <paramref name="inner"/> depends on an inheritance rule.
+    /// </summary>
+    internal IEnumerable<string> FiltersLeftUnsetOn(PublicizeScope inner)
+    {
+        if (IncludeVirtualMembers is not null && inner.IncludeVirtualMembers is null)
+        {
+            yield return nameof(IncludeVirtualMembers);
+        }
+
+        if (IncludeCompilerGeneratedMembers is not null && inner.IncludeCompilerGeneratedMembers is null)
+        {
+            yield return nameof(IncludeCompilerGeneratedMembers);
+        }
+
+        if (MemberPattern is not null && inner.MemberPattern is null)
+        {
+            yield return nameof(MemberPattern);
+        }
+    }
+
+    /// <summary>
     /// Whether <paramref name="candidate"/> is <paramref name="prefix"/> itself, or a name nested
     /// under it — where <paramref name="separator"/> is what joins a parent name to a child.
     /// </summary>
-    private static bool IsSelfOrUnder(string candidate, string prefix, char separator)
-    {
-        if (candidate.Length == prefix.Length)
-        {
-            return candidate == prefix;
-        }
+    private static bool IsSelfOrUnder(string candidate, string prefix, char separator) =>
+        candidate == prefix || IsStrictlyUnder(candidate, prefix, separator);
 
-        return candidate.Length > prefix.Length
-            && candidate[prefix.Length] == separator
-            && candidate.StartsWith(prefix, StringComparison.Ordinal);
-    }
+    /// <summary>As <see cref="IsSelfOrUnder"/>, but the two being equal does not count.</summary>
+    private static bool IsStrictlyUnder(string candidate, string prefix, char separator) =>
+        candidate.Length > prefix.Length
+        && candidate[prefix.Length] == separator
+        && candidate.StartsWith(prefix, StringComparison.Ordinal);
 }

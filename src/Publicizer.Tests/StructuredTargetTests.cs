@@ -41,6 +41,17 @@ internal static class StructuredTargetTests
         return string.Join(" | ", logger.Errors);
     }
 
+    private static string ErrorForAll(params ITaskItem[] publicizes)
+    {
+        var logger = new RecordingTaskLogger();
+
+        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, [], logger, out _);
+
+        Assert.That(valid, Is.False, "expected the items to be rejected");
+        Assert.That(logger.Errors, Is.Not.Empty);
+        return string.Join(" | ", logger.Errors);
+    }
+
     private static TypePlan? Plan(PublicizerAssemblyContext context, string typeReflectionName, string typeNamespace) =>
         AssemblyPlan.Compile(context).ForType(typeReflectionName, typeNamespace);
 
@@ -151,6 +162,70 @@ internal static class StructuredTargetTests
         Assert.That(elsewhere.IncludeVirtualMembers, Is.False);
     }
 
+    /// <summary>
+    /// An inner scope could inherit the outer scope's filter or the assembly's, and the two readings
+    /// differ only in which members end up public — so picking one now and changing it later would
+    /// silently rewrite working builds. The ambiguous item is refused instead. See
+    /// <c>PublicizeAssemblies.ScopeFilterInheritanceIsDecidable</c>.
+    /// </summary>
+    [Test]
+    public static void InnerScope_LeavingAnEnclosingScopesFilterUnset_IsRejected()
+    {
+        string namespaceInNamespace = ErrorForAll(
+            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"),
+            Item("Asm", "Namespace", "A.B", "MemberPattern", "Damage"));
+        Assert.That(namespaceInNamespace, Does.Contain("IncludeVirtualMembers").And.Contains("not decided yet"));
+        Assert.That(namespaceInNamespace, Does.Contain("Namespace=\"A.B\"").And.Contains("Namespace=\"A\""));
+
+        // A type scope inside a namespace scope, and a nested type scope inside its encloser.
+        Assert.That(
+            ErrorForAll(Item("Asm", "Namespace", "A", "MemberPattern", "Damage"), Item("Asm", "Namespace", "A", "Type", "T")),
+            Does.Contain("MemberPattern"));
+        Assert.That(
+            ErrorForAll(Item("Asm", "Type", "Outer", "IncludeCompilerGeneratedMembers", "false"), Item("Asm", "Type", "Outer.Inner")),
+            Does.Contain("IncludeCompilerGeneratedMembers"));
+
+        // The authored spelling is quoted back, not the lowered reflection name.
+        Assert.That(
+            ErrorForAll(Item("Asm", "Type", "Outer{T}", "IncludeVirtualMembers", "false"), Item("Asm", "Type", "Outer{T}.Inner")),
+            Does.Contain("Type=\"Outer{T}.Inner\"").And.Contains("Type=\"Outer{T}\""));
+    }
+
+    [Test]
+    public static void InnerScope_SettingTheFilterItself_IsAccepted()
+    {
+        PublicizerAssemblyContext context = Parse([
+            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"),
+            Item("Asm", "Namespace", "A.B", "IncludeVirtualMembers", "false")]);
+
+        Assert.That(Plan(context, "A.B.Type", "A.B")!.IncludeVirtualMembers, Is.False);
+    }
+
+    /// <summary>
+    /// The check is about scopes that genuinely enclose one another. Scopes that merely sit near each
+    /// other resolve to a single winner with no inheritance between them.
+    /// </summary>
+    [Test]
+    public static void ScopesThatDoNotEncloseEachOther_AreUnaffected()
+    {
+        // Siblings.
+        _ = Parse([Item("Asm", "Namespace", "A.X", "IncludeVirtualMembers", "false"), Item("Asm", "Namespace", "A.Y")]);
+
+        // Not a segment boundary: "A" does not enclose "AB".
+        _ = Parse([Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), Item("Asm", "Namespace", "AB")]);
+
+        // Equal specificity - a single winner, so neither inherits from the other.
+        _ = Parse([Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"), Item("Asm", "Namespace", "A")]);
+
+        // A nested type in the global namespace is under no namespace, however its name reads.
+        _ = Parse([Item("Asm", "Namespace", "Outer", "IncludeVirtualMembers", "false"), Item("Asm", "Type", "Outer.Inner")]);
+
+        // A deny scope publicizes nothing, so no filter it inherited could change its outcome.
+        _ = Parse(
+            [Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false")],
+            [Item("Asm", "Namespace", "A.B")]);
+    }
+
     [Test]
     public static void ScopeMemberPattern_AppliesOnlyInsideTheScope()
     {
@@ -201,6 +276,26 @@ internal static class StructuredTargetTests
         // The commas inside would be counted as arity, so 'Holder{Dictionary{K,V}}' would silently
         // lower to Holder`2 and match nothing.
         Assert.That(ErrorFor(Item("Asm", "Type", "Holder{Dictionary{K,V}}")), Does.Contain("nested type argument list"));
+    }
+
+    /// <summary>
+    /// Only the count is read today, so 'Pair{,}' would work — but the names are reserved for
+    /// 'Parameters', and tightening this later would break items that build now.
+    /// </summary>
+    [Test]
+    public static void EmptyTypeArgumentName_IsRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Type", "Pair{,}")), Does.Contain("empty type argument name"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Pair{T,}")), Does.Contain("empty type argument name"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Pair{ , }")), Does.Contain("empty type argument name"));
+    }
+
+    [Test]
+    public static void NamedTypeArguments_AreStillAcceptedWithWhitespace()
+    {
+        PublicizerAssemblyContext context = Parse([Item("Asm", "Namespace", "A", "Type", "Pair{TKey, TValue}")]);
+
+        Assert.That(DecideMember(context, "A.Pair`2", "A", "Member"), Is.EqualTo(PublicizeDecision.BySweep));
     }
 
     [Test]
