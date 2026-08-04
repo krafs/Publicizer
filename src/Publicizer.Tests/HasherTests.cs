@@ -99,6 +99,51 @@ internal static partial class HasherTests
     }
 
     [Test]
+    public static void ComputeHash_DistinguishesMemberPatternsThatConcatenateAlike()
+    {
+        // One target "AB" and the two targets "A" and "B" must not collide: the second build would
+        // silently reuse the first build's publicized assembly.
+        var single = new PublicizerAssemblyContext("Fixture");
+        single.PublicizeMemberPatterns.Add("AB");
+
+        var split = new PublicizerAssemblyContext("Fixture");
+        split.PublicizeMemberPatterns.Add("A");
+        split.PublicizeMemberPatterns.Add("B");
+
+        Assert.That(Hash(split), Is.Not.EqualTo(Hash(single)));
+    }
+
+    [Test]
+    public static void ComputeHash_DistinguishesPublicizeFromDoNotPublicizeMemberPattern()
+    {
+        // The same member named by opposite intents. Both leave every Explicitly* flag false, so
+        // the pattern set is the only thing telling them apart: without a per-set tag the
+        // deny-only build finds the allow build's file cached and hands the compiler a publicized
+        // assembly it explicitly asked not to have.
+        var publicize = new PublicizerAssemblyContext("Fixture");
+        publicize.PublicizeMemberPatterns.Add("Fixture.Shapes.PrivateField");
+
+        var doNotPublicize = new PublicizerAssemblyContext("Fixture");
+        doNotPublicize.DoNotPublicizeMemberPatterns.Add("Fixture.Shapes.PrivateField");
+
+        Assert.That(Hash(doNotPublicize), Is.Not.EqualTo(Hash(publicize)));
+    }
+
+    [Test]
+    public static void ComputeHash_MemberPatternOrder_DoesNotChangeHash()
+    {
+        var first = new PublicizerAssemblyContext("Fixture");
+        first.PublicizeMemberPatterns.Add("A");
+        first.PublicizeMemberPatterns.Add("B");
+
+        var second = new PublicizerAssemblyContext("Fixture");
+        second.PublicizeMemberPatterns.Add("B");
+        second.PublicizeMemberPatterns.Add("A");
+
+        Assert.That(Hash(second), Is.EqualTo(Hash(first)));
+    }
+
+    [Test]
     public static void ComputeHash_AddingScope_ChangesHash()
     {
         string baseline = Hash(new PublicizerAssemblyContext("Fixture"));
