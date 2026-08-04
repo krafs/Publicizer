@@ -35,6 +35,7 @@ internal sealed class SweepSettings
         Publicize = !scope.Deny,
         IncludeVirtualMembers = scope.IncludeVirtualMembers ?? IncludeVirtualMembers,
         IncludeCompilerGeneratedMembers = scope.IncludeCompilerGeneratedMembers ?? IncludeCompilerGeneratedMembers,
-        MemberPattern = scope.MemberPattern ?? MemberPattern,
+        // A scope cannot carry a pattern of its own, but the assembly's still applies inside it.
+        MemberPattern = MemberPattern,
     };
 }

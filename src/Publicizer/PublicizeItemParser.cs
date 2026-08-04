@@ -146,6 +146,15 @@ internal sealed class PublicizeItemParser
             return Fail($"'Namespace' has an empty name segment: '{namespaceName}'.");
         }
 
+        // Rejected on every scope, not just a deny one. The regex is matched against dnlib's
+        // reflection name — '+' for nesting, '`2' for arity — which is the exact spelling this form
+        // refuses in 'Type'. Honoring it on a scope would freeze that spelling in a second place,
+        // and the assembly-level pattern is already slated to be re-anchored or dropped.
+        if (Metadata("MemberPattern") is not null)
+        {
+            return Fail($"'MemberPattern' is not supported on a scope. Put it on the bare '{itemName} Include=\"Assembly\"' item, which still applies inside every scope, or name the members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
+        }
+
         if (deny && HasFiltersOnDenyScope())
         {
             return false;
@@ -171,7 +180,6 @@ internal sealed class PublicizeItemParser
             Display = Describe(namespaceName, typeValue),
             IncludeVirtualMembers = NullableBool("IncludeVirtualMembers"),
             IncludeCompilerGeneratedMembers = NullableBool("IncludeCompilerGeneratedMembers"),
-            MemberPattern = item.MemberPattern(),
         });
 
         logger.Info($"{itemName}: {spec}, namespace: '{namespaceName}', type: {typeReflectionName ?? "(whole namespace)"}");
@@ -194,12 +202,6 @@ internal sealed class PublicizeItemParser
                 Error($"'{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
                 found = true;
             }
-        }
-
-        if (Metadata("MemberPattern") is not null)
-        {
-            Error("'MemberPattern' on a DoNotPublicize scope is not supported yet. Exclude individual members with the 'DoNotPublicize Include=\"Assembly:Namespace.Type.Member\"' form.");
-            found = true;
         }
 
         return found;

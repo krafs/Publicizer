@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Publicizer;
 
 /// <summary>
@@ -39,7 +37,6 @@ internal sealed class PublicizeScope
 
     internal bool? IncludeVirtualMembers { get; init; }
     internal bool? IncludeCompilerGeneratedMembers { get; init; }
-    internal Regex? MemberPattern { get; init; }
 
     /// <summary>
     /// How tightly this rule is drawn, for resolving overlapping scopes. A type always beats a
@@ -88,11 +85,6 @@ internal sealed class PublicizeScope
         if (IncludeCompilerGeneratedMembers is not null && inner.IncludeCompilerGeneratedMembers is null)
         {
             yield return nameof(IncludeCompilerGeneratedMembers);
-        }
-
-        if (MemberPattern is not null && inner.MemberPattern is null)
-        {
-            yield return nameof(MemberPattern);
         }
     }
 

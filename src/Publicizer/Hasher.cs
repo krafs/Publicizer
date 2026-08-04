@@ -48,8 +48,7 @@ internal static class Hasher
                 .Append('|').Append(scope.Namespace)
                 .Append('|').Append(scope.TypeReflectionName)
                 .Append('|').Append(scope.IncludeVirtualMembers)
-                .Append('|').Append(scope.IncludeCompilerGeneratedMembers)
-                .Append('|').Append(scope.MemberPattern);
+                .Append('|').Append(scope.IncludeCompilerGeneratedMembers);
         }
 
         byte[] patternBytes = Encoding.UTF8.GetBytes(sb.ToString());

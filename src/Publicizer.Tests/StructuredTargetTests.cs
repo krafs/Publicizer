@@ -173,14 +173,11 @@ internal static class StructuredTargetTests
     {
         string namespaceInNamespace = ErrorForAll(
             Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"),
-            Item("Asm", "Namespace", "A.B", "MemberPattern", "Damage"));
+            Item("Asm", "Namespace", "A.B", "IncludeCompilerGeneratedMembers", "false"));
         Assert.That(namespaceInNamespace, Does.Contain("IncludeVirtualMembers").And.Contains("not decided yet"));
         Assert.That(namespaceInNamespace, Does.Contain("Namespace=\"A.B\"").And.Contains("Namespace=\"A\""));
 
         // A type scope inside a namespace scope, and a nested type scope inside its encloser.
-        Assert.That(
-            ErrorForAll(Item("Asm", "Namespace", "A", "MemberPattern", "Damage"), Item("Asm", "Namespace", "A", "Type", "T")),
-            Does.Contain("MemberPattern"));
         Assert.That(
             ErrorForAll(Item("Asm", "Type", "Outer", "IncludeCompilerGeneratedMembers", "false"), Item("Asm", "Type", "Outer.Inner")),
             Does.Contain("IncludeCompilerGeneratedMembers"));
@@ -226,16 +223,29 @@ internal static class StructuredTargetTests
             [Item("Asm", "Namespace", "A.B")]);
     }
 
+    /// <summary>
+    /// The regex matches dnlib's reflection name, the spelling 'Type' refuses. Honoring it on a scope
+    /// would freeze that spelling in a second place, so it stays assembly-only — where it already is
+    /// slated to be re-anchored or dropped.
+    /// </summary>
     [Test]
-    public static void ScopeMemberPattern_AppliesOnlyInsideTheScope()
+    public static void MemberPatternOnAScope_IsRejected()
+    {
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "MemberPattern", "Visible")), Does.Contain("not supported on a scope"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "T", "MemberPattern", "Visible")), Does.Contain("not supported on a scope"));
+        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "MemberPattern", "Secret"), deny: true), Does.Contain("not supported on a scope"));
+    }
+
+    /// <summary>The assembly-wide pattern is untouched, and still applies inside a scope.</summary>
+    [Test]
+    public static void AssemblyMemberPattern_StillAppliesInsideAScope()
     {
         PublicizerAssemblyContext context = Parse([
-            Item("Asm"),
-            Item("Asm", "Namespace", "A", "MemberPattern", "Visible")]);
+            Item("Asm", "MemberPattern", "Visible"),
+            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false")]);
 
         Assert.That(DecideMember(context, "A.Type", "A", "VisibleMember"), Is.EqualTo(PublicizeDecision.BySweep));
         Assert.That(DecideMember(context, "A.Type", "A", "HiddenMember"), Is.EqualTo(PublicizeDecision.Skip));
-        Assert.That(DecideMember(context, "B.Type", "B", "HiddenMember"), Is.EqualTo(PublicizeDecision.BySweep));
     }
 
     [Test]
@@ -390,7 +400,6 @@ internal static class StructuredTargetTests
         Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "IncludeCompilerGeneratedMembers", "false"), deny: true), Does.Contain("has no meaning on a DoNotPublicize scope"));
 
         // Coherent as a rule, but per-member rather than per-type, which the resolver cannot express yet.
-        Assert.That(ErrorFor(Item("Asm", "Namespace", "A", "MemberPattern", "Secret"), deny: true), Does.Contain("is not supported yet"));
     }
 
     [Test]
