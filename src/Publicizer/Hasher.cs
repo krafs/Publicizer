@@ -27,14 +27,13 @@ internal static class Hasher
         sb.Append(assemblyContext.IncludeVirtualMembers);
         sb.Append(assemblyContext.ExplicitlyPublicizeAssembly);
         sb.Append(assemblyContext.ExplicitlyDoNotPublicizeAssembly);
-        foreach (string publicizePattern in assemblyContext.PublicizeMemberPatterns)
-        {
-            sb.Append(publicizePattern);
-        }
-        foreach (string doNotPublicizePattern in assemblyContext.DoNotPublicizeMemberPatterns)
-        {
-            sb.Append(doNotPublicizePattern);
-        }
+        // Delimited and tagged per set, so that "Asm:AB" cannot hash the same as "Asm:A" plus
+        // "Asm:B", and so that a lone Publicize target cannot hash the same as the lone
+        // DoNotPublicize target naming the same member. Sorted because these are HashSets, whose
+        // enumeration order is not contractual: the same targets authored in a different order
+        // must not cost a second cache entry.
+        AppendPatterns(sb, "|publicize|", assemblyContext.PublicizeMemberPatterns);
+        AppendPatterns(sb, "|donotpublicize|", assemblyContext.DoNotPublicizeMemberPatterns);
         if (assemblyContext.PublicizeMemberRegexPattern is not null)
         {
             sb.Append(assemblyContext.PublicizeMemberRegexPattern.ToString());
@@ -56,6 +55,14 @@ internal static class Hasher
         byte[] allBytes = [.. assemblyBytes, .. patternBytes];
 
         return ComputeHash(allBytes);
+    }
+
+    private static void AppendPatterns(StringBuilder sb, string tag, HashSet<string> patterns)
+    {
+        foreach (string pattern in patterns.OrderBy(pattern => pattern, StringComparer.Ordinal))
+        {
+            _ = sb.Append(tag).Append(pattern);
+        }
     }
 
     private static string ComputeHash(byte[] bytes)
