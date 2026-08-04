@@ -168,6 +168,7 @@ internal sealed class PublicizeItemParser
             Namespace = typeReflectionName is null ? namespaceName : "",
             TypeReflectionName = typeReflectionName,
             Deny = deny,
+            Display = Describe(namespaceName, typeValue),
             IncludeVirtualMembers = NullableBool("IncludeVirtualMembers"),
             IncludeCompilerGeneratedMembers = NullableBool("IncludeCompilerGeneratedMembers"),
             MemberPattern = item.MemberPattern(),
@@ -328,9 +329,27 @@ internal sealed class PublicizeItemParser
             return Fail($"'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
         }
 
-        int arity = arguments.Count(c => c == ',') + 1;
-        segmentName = name + "`" + arity;
+        // Only the count is read today, but the names are reserved for 'Parameters'. Accepting a
+        // nameless argument now would freeze a spelling that has to mean something once they are.
+        string[] typeArguments = arguments.Split(',');
+        if (Array.Exists(typeArguments, argument => argument.Trim().Length == 0))
+        {
+            return Fail($"'Type' segment '{segment}' has an empty type argument name. Name every argument, as in 'MyType{{T1,T2}}'.");
+        }
+
+        segmentName = name + "`" + typeArguments.Length;
         return true;
+    }
+
+    /// <summary>The scope as the author wrote it, so a diagnostic quotes their spelling rather than the lowered name.</summary>
+    private static string Describe(string namespaceName, string? typeValue)
+    {
+        if (typeValue is null)
+        {
+            return $"Namespace=\"{namespaceName}\"";
+        }
+
+        return namespaceName.Length == 0 ? $"Type=\"{typeValue}\"" : $"Namespace=\"{namespaceName}\" Type=\"{typeValue}\"";
     }
 
     private void Error(string message) => logger.Error($"{itemName} item '{spec}': {message}");
