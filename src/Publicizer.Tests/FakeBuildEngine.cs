@@ -12,9 +12,21 @@ internal sealed class FakeBuildEngine : IBuildEngine
     internal List<string> Errors { get; } = [];
     internal List<string> Warnings { get; } = [];
     internal List<string> Messages { get; } = [];
+    internal List<string> ErrorCodes { get; } = [];
+    internal List<string> WarningCodes { get; } = [];
 
-    public void LogErrorEvent(BuildErrorEventArgs e) => Errors.Add(e.Message ?? string.Empty);
-    public void LogWarningEvent(BuildWarningEventArgs e) => Warnings.Add(e.Message ?? string.Empty);
+    public void LogErrorEvent(BuildErrorEventArgs e)
+    {
+        Errors.Add(e.Message ?? string.Empty);
+        ErrorCodes.Add(e.Code ?? string.Empty);
+    }
+
+    public void LogWarningEvent(BuildWarningEventArgs e)
+    {
+        Warnings.Add(e.Message ?? string.Empty);
+        WarningCodes.Add(e.Code ?? string.Empty);
+    }
+
     public void LogMessageEvent(BuildMessageEventArgs e) => Messages.Add(e.Message ?? string.Empty);
     public void LogCustomEvent(CustomBuildEventArgs e) { }
 

@@ -43,7 +43,7 @@ public sealed class PublicizeAssemblies : Task
             }
             catch (Exception e)
             {
-                Log.LogError($"Error creating Publicizer log file: {e.Message}");
+                Log.LogError(null, DiagnosticCode.LogFileNotCreated, null, null, 0, 0, 0, 0, $"Error creating Publicizer log file: {e.Message}");
             }
         }
 
@@ -72,7 +72,7 @@ public sealed class PublicizeAssemblies : Task
         }
         catch (Exception e)
         {
-            logger.Error($"{nameof(OutputDirectory)} '{OutputDirectory}' is not a valid directory path: {e.Message}");
+            logger.Error(DiagnosticCode.InvalidOutputDirectory, $"{nameof(OutputDirectory)} '{OutputDirectory}' is not a valid directory path: {e.Message}");
             return false;
         }
 
@@ -115,7 +115,7 @@ public sealed class PublicizeAssemblies : Task
                 bool isAssemblyModified = PublicizeAssembly(module, assemblyContext, scopedLogger);
                 if (!isAssemblyModified)
                 {
-                    scopedLogger.Warning("Assembly is marked for publicization, but no members were publicized");
+                    scopedLogger.Warning(DiagnosticCode.NothingPublicized, "Assembly is marked for publicization, but no members were publicized");
                     continue;
                 }
 
@@ -262,7 +262,7 @@ public sealed class PublicizeAssemblies : Task
 
                     foreach (string filter in outer.FiltersLeftUnsetOn(inner))
                     {
-                        logger.Error($"Publicize scope '{inner.Display}' on '{context.AssemblyName}' sits inside '{outer.Display}', which sets '{filter}'. Set '{filter}' explicitly on the inner scope: whether an inner scope inherits an enclosing scope's filters or the assembly's is not decided yet.");
+                        logger.Error(DiagnosticCode.UndecidedScopeInheritance, $"Publicize scope '{inner.Display}' on '{context.AssemblyName}' sits inside '{outer.Display}', which sets '{filter}'. Set '{filter}' explicitly on the inner scope: whether an inner scope inherits an enclosing scope's filters or the assembly's is not decided yet.");
                         decidable = false;
                     }
                 }
@@ -291,7 +291,7 @@ public sealed class PublicizeAssemblies : Task
             int overriding = context.Scopes.Count(scope => !scope.Deny);
             if (overriding > 0)
             {
-                logger.Warning($"'{context.AssemblyName}' is marked DoNotPublicize as a whole, but {overriding} Publicize scope(s) name part of it. The scopes are more specific, so they win. Remove the DoNotPublicize item if that is what you meant.");
+                logger.Warning(DiagnosticCode.AssemblyDenyOverriddenByScopes, $"'{context.AssemblyName}' is marked DoNotPublicize as a whole, but {overriding} Publicize scope(s) name part of it. The scopes are more specific, so they win. Remove the DoNotPublicize item if that is what you meant.");
             }
         }
     }

@@ -68,7 +68,7 @@ internal sealed class PublicizeItemParser
 
         if (colon >= 0 && isStructured)
         {
-            return Fail($"the '{itemName} Include=\"Assembly:Member\"' form cannot be combined with 'Namespace' or 'Type' metadata. Use one form or the other.");
+            return Fail(DiagnosticCode.FormsMixed, $"the '{itemName} Include=\"Assembly:Member\"' form cannot be combined with 'Namespace' or 'Type' metadata. Use one form or the other.");
         }
 
         // Reserved qualifiers are rejected rather than ignored, so a target written against the
@@ -78,7 +78,7 @@ internal sealed class PublicizeItemParser
         {
             if (Metadata(name) is not null)
             {
-                Error($"'{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
+                Error(DiagnosticCode.UnsupportedMemberMetadata, $"'{name}' metadata is not supported yet. Target members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
                 valid = false;
             }
         }
@@ -87,7 +87,7 @@ internal sealed class PublicizeItemParser
         {
             if (Metadata(name) is not null)
             {
-                Error($"'{name}' metadata is not supported yet. A '{itemName}' scope reaches everything beneath the node it names, and that cannot be narrowed yet.");
+                Error(DiagnosticCode.UnsupportedDescentMetadata, $"'{name}' metadata is not supported yet. A '{itemName}' scope reaches everything beneath the node it names, and that cannot be narrowed yet.");
                 valid = false;
             }
         }
@@ -137,13 +137,13 @@ internal sealed class PublicizeItemParser
 
         if (namespaceName.IndexOfAny(['`', '{', '}', '+']) >= 0)
         {
-            return Fail($"'Namespace' must be a plain dotted namespace name, but was '{namespaceName}'.");
+            return Fail(DiagnosticCode.InvalidNamespace, $"'Namespace' must be a plain dotted namespace name, but was '{namespaceName}'.");
         }
 
         // Same segment rule 'Type' is held to: a dot separates two names, so neither side may be empty.
         if (namespaceName.Length > 0 && Array.Exists(namespaceName.Split('.'), segment => segment.Length == 0))
         {
-            return Fail($"'Namespace' has an empty name segment: '{namespaceName}'.");
+            return Fail(DiagnosticCode.InvalidNamespace, $"'Namespace' has an empty name segment: '{namespaceName}'.");
         }
 
         // Rejected on every scope, not just a deny one. The regex is matched against dnlib's
@@ -152,7 +152,7 @@ internal sealed class PublicizeItemParser
         // and the assembly-level pattern is already slated to be re-anchored or dropped.
         if (Metadata("MemberPattern") is not null)
         {
-            return Fail($"'MemberPattern' is not supported on a scope. Put it on the bare '{itemName} Include=\"Assembly\"' item, which still applies inside every scope, or name the members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
+            return Fail(DiagnosticCode.MemberPatternOnScope, $"'MemberPattern' is not supported on a scope. Put it on the bare '{itemName} Include=\"Assembly\"' item, which still applies inside every scope, or name the members with the '{itemName} Include=\"Assembly:Namespace.Type.Member\"' form.");
         }
 
         if (deny && HasFiltersOnDenyScope())
@@ -199,7 +199,7 @@ internal sealed class PublicizeItemParser
         {
             if (Metadata(name) is not null)
             {
-                Error($"'{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
+                Error(DiagnosticCode.FilterOnDenyScope, $"'{name}' has no meaning on a DoNotPublicize scope, which excludes members rather than sweeping them. Put it on the Publicize item whose sweep you want to filter.");
                 found = true;
             }
         }
@@ -218,12 +218,12 @@ internal sealed class PublicizeItemParser
 
         if (typeValue.IndexOf('`') >= 0)
         {
-            return Fail($"'Type' must not contain a backtick. Write generic arity as 'MyType{{T1,T2}}' rather than 'MyType`2'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' must not contain a backtick. Write generic arity as 'MyType{{T1,T2}}' rather than 'MyType`2'.");
         }
 
         if (typeValue.IndexOf('+') >= 0)
         {
-            return Fail($"'Type' must not contain '+'. Separate a nested type from its enclosing type with '.', as in 'Outer.Inner'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' must not contain '+'. Separate a nested type from its enclosing type with '.', as in 'Outer.Inner'.");
         }
 
         if (!TrySplitNestingChain(typeValue, out List<string> segments))
@@ -276,7 +276,7 @@ internal sealed class PublicizeItemParser
                 depth--;
                 if (depth < 0)
                 {
-                    return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
+                    return Fail(DiagnosticCode.InvalidType, $"'Type' has unbalanced braces: '{typeValue}'.");
                 }
             }
             else if (c == '.' && depth == 0)
@@ -288,7 +288,7 @@ internal sealed class PublicizeItemParser
 
         if (depth != 0)
         {
-            return Fail($"'Type' has unbalanced braces: '{typeValue}'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' has unbalanced braces: '{typeValue}'.");
         }
 
         segments.Add(typeValue.Substring(segmentStart));
@@ -304,7 +304,7 @@ internal sealed class PublicizeItemParser
 
         if (name.Length == 0)
         {
-            return Fail($"'Type' has an empty name segment: '{typeValue}'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' has an empty name segment: '{typeValue}'.");
         }
 
         if (brace < 0)
@@ -315,20 +315,20 @@ internal sealed class PublicizeItemParser
 
         if (segment[segment.Length - 1] != '}')
         {
-            return Fail($"'Type' segment '{segment}' must end its type argument list with '}}'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' segment '{segment}' must end its type argument list with '}}'.");
         }
 
         string arguments = segment.Substring(brace + 1, segment.Length - brace - 2);
         if (arguments.Trim().Length == 0)
         {
-            return Fail($"'Type' segment '{segment}' has an empty type argument list. Drop the braces for a non-generic type.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' segment '{segment}' has an empty type argument list. Drop the braces for a non-generic type.");
         }
 
         // A nested argument list would make the commas ambiguous — 'Holder{Dictionary{K,V}}' has one
         // argument, not two — and nothing reads the names yet anyway, so refuse rather than guess.
         if (arguments.IndexOf('{') >= 0)
         {
-            return Fail($"'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' segment '{segment}' has a nested type argument list, which is not supported. Only the number of type arguments is read, so write 'MyType{{T1,T2}}'.");
         }
 
         // Only the count is read today, but the names are reserved for 'Parameters'. Accepting a
@@ -336,7 +336,7 @@ internal sealed class PublicizeItemParser
         string[] typeArguments = arguments.Split(',');
         if (Array.Exists(typeArguments, argument => argument.Trim().Length == 0))
         {
-            return Fail($"'Type' segment '{segment}' has an empty type argument name. Name every argument, as in 'MyType{{T1,T2}}'.");
+            return Fail(DiagnosticCode.InvalidType, $"'Type' segment '{segment}' has an empty type argument name. Name every argument, as in 'MyType{{T1,T2}}'.");
         }
 
         segmentName = name + "`" + typeArguments.Length;
@@ -354,12 +354,12 @@ internal sealed class PublicizeItemParser
         return namespaceName.Length == 0 ? $"Type=\"{typeValue}\"" : $"Namespace=\"{namespaceName}\" Type=\"{typeValue}\"";
     }
 
-    private void Error(string message) => logger.Error($"{itemName} item '{spec}': {message}");
+    private void Error(string code, string message) => logger.Error(code, $"{itemName} item '{spec}': {message}");
 
     /// <summary>Reports one rejection and returns <see langword="false"/>, so call sites can return it directly.</summary>
-    private bool Fail(string message)
+    private bool Fail(string code, string message)
     {
-        Error(message);
+        Error(code, message);
         return false;
     }
 

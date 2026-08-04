@@ -419,5 +419,5 @@ internal static class StructuredTargetTests
 
     [Test]
     public static void DoNotPublicizeErrors_NameTheItemKind() =>
-        Assert.That(ErrorFor(Item("Asm", "Type", "Holder`1"), deny: true), Does.StartWith("DoNotPublicize item"));
+        Assert.That(ErrorFor(Item("Asm", "Type", "Holder`1"), deny: true), Does.StartWith($"{DiagnosticCode.InvalidType}: DoNotPublicize item"));
 }
