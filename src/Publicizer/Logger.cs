@@ -41,16 +41,18 @@ internal sealed class Logger : ITaskLogger, IDisposable
         this.scope = $" [{scope}]";
     }
 
-    public void Error(string message)
+    public void Error(string code, string message)
     {
-        taskLogger.LogError(message);
-        Write("ERR", message);
+        // The overload carrying a code is the only one MSBuild lets a consumer key on, and the
+        // messages hold literal braces, so no format arguments are passed.
+        taskLogger.LogError(null, code, null, null, 0, 0, 0, 0, message);
+        Write("ERR", $"{code}: {message}");
     }
 
-    public void Warning(string message)
+    public void Warning(string code, string message)
     {
-        taskLogger.LogWarning(message);
-        Write("WRN", message);
+        taskLogger.LogWarning(null, code, null, null, 0, 0, 0, 0, message);
+        Write("WRN", $"{code}: {message}");
     }
 
     public void Info(string message)
