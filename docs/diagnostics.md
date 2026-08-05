@@ -46,6 +46,6 @@ A code is permanent **once it has appeared in a release**: a retired diagnostic 
 </PropertyGroup>
 ```
 
-This is not an SDK feature. `Microsoft.Common.CurrentVersion.targets` folds `NoWarn` into `MSBuildWarningsAsMessages` and `WarningsAsErrors` into `MSBuildWarningsAsErrors`, so it works in non-SDK projects too. Those `MSBuild`-prefixed properties can also be set directly, alongside `MSBuildWarningsNotAsErrors` to exempt a code from a blanket `MSBuildTreatWarningsAsErrors`.
+That works because `Microsoft.Common.CurrentVersion.targets` folds `NoWarn` into `MSBuildWarningsAsMessages` and `WarningsAsErrors` into `MSBuildWarningsAsErrors`. Either `MSBuild`-prefixed property can be set directly instead, alongside `MSBuildWarningsNotAsErrors` to exempt a code from a blanket `MSBuildTreatWarningsAsErrors`.
 
 Errors cannot be suppressed. Each one names an item the task refuses to guess at, and continuing would publicize something other than what was asked for.
