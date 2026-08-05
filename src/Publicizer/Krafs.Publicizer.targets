@@ -28,8 +28,16 @@
       <_UseIactStrategy>$([System.Text.RegularExpressions.Regex]::IsMatch($(PublicizerRuntimeStrategies), $(_IactPattern), RegexOptions.IgnoreCase))</_UseIactStrategy>
     </PropertyGroup>
 
-    <Error Text="'PublicizerRuntimeStrategies' must contain one or both of 'Unsafe' and 'IgnoresAccessChecksTo'. Defaults to both ('Unsafe;IgnoresAccessChecksTo') if unspecified."
-           Condition="!$(_UseUnsafeStrategy) AND !$(_UseIactStrategy)"/>
+    <!--
+      A warning, not an error: with neither strategy the publicized members still compile, and a
+      consumer whose target assembly is already public at run time genuinely needs neither. That
+      case suppresses PUB4001; a misspelled strategy still gets caught rather than surfacing later
+      as a MethodAccessException. Only raised once a reference was actually swapped, so merely
+      referencing the package with an empty value stays silent.
+    -->
+    <Warning Code="PUB4001"
+             Text="'PublicizerRuntimeStrategies' contains neither 'Unsafe' nor 'IgnoresAccessChecksTo', so publicized members will fail their visibility check at run time. Defaults to both ('Unsafe;IgnoresAccessChecksTo') if unspecified."
+             Condition="!$(_UseUnsafeStrategy) AND !$(_UseIactStrategy) AND '@(_ReferencePathsToAdd)' != ''"/>
 
     <ItemGroup Condition="$(_UseIactStrategy)" >
       <AssemblyAttribute Include="System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute">

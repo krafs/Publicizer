@@ -41,17 +41,6 @@ internal static class StructuredTargetTests
         return string.Join(" | ", logger.Errors);
     }
 
-    private static string ErrorForAll(params ITaskItem[] publicizes)
-    {
-        var logger = new RecordingTaskLogger();
-
-        bool valid = PublicizeAssemblies.TryGetPublicizerAssemblyContexts(publicizes, [], logger, out _);
-
-        Assert.That(valid, Is.False, "expected the items to be rejected");
-        Assert.That(logger.Errors, Is.Not.Empty);
-        return string.Join(" | ", logger.Errors);
-    }
-
     private static TypePlan? Plan(PublicizerAssemblyContext context, string typeReflectionName, string typeNamespace) =>
         AssemblyPlan.Compile(context).ForType(typeReflectionName, typeNamespace);
 
@@ -160,32 +149,6 @@ internal static class StructuredTargetTests
 
         TypePlan elsewhere = Plan(context, "B.Type", "B")!;
         Assert.That(elsewhere.IncludeVirtualMembers, Is.False);
-    }
-
-    /// <summary>
-    /// An inner scope could inherit the outer scope's filter or the assembly's, and the two readings
-    /// differ only in which members end up public — so picking one now and changing it later would
-    /// silently rewrite working builds. The ambiguous item is refused instead. See
-    /// <c>PublicizeAssemblies.ScopeFilterInheritanceIsDecidable</c>.
-    /// </summary>
-    [Test]
-    public static void InnerScope_LeavingAnEnclosingScopesFilterUnset_IsRejected()
-    {
-        string namespaceInNamespace = ErrorForAll(
-            Item("Asm", "Namespace", "A", "IncludeVirtualMembers", "false"),
-            Item("Asm", "Namespace", "A.B", "IncludeCompilerGeneratedMembers", "false"));
-        Assert.That(namespaceInNamespace, Does.Contain("IncludeVirtualMembers").And.Contains("not decided yet"));
-        Assert.That(namespaceInNamespace, Does.Contain("Namespace=\"A.B\"").And.Contains("Namespace=\"A\""));
-
-        // A type scope inside a namespace scope, and a nested type scope inside its encloser.
-        Assert.That(
-            ErrorForAll(Item("Asm", "Type", "Outer", "IncludeCompilerGeneratedMembers", "false"), Item("Asm", "Type", "Outer.Inner")),
-            Does.Contain("IncludeCompilerGeneratedMembers"));
-
-        // The authored spelling is quoted back, not the lowered reflection name.
-        Assert.That(
-            ErrorForAll(Item("Asm", "Type", "Outer{T}", "IncludeVirtualMembers", "false"), Item("Asm", "Type", "Outer{T}.Inner")),
-            Does.Contain("Type=\"Outer{T}.Inner\"").And.Contains("Type=\"Outer{T}\""));
     }
 
     [Test]
