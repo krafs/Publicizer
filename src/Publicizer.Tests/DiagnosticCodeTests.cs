@@ -46,7 +46,50 @@ internal static class DiagnosticCodeTests
 
         foreach ((string name, string code) in Codes())
         {
-            Assert.That(documentation, Does.Contain($"`{code}`"), $"{name} = '{code}' is missing from docs/diagnostics.md");
+            Assert.That(documentation, Does.Contain($"| `{code}` |"), $"{name} = '{code}' has no row in docs/diagnostics.md");
+        }
+    }
+
+    [Test]
+    public static void DocumentedCodes_StillExist()
+    {
+        // The other direction: a removed code leaves a row behind that nothing raises, which reads
+        // as a diagnostic a user can expect and never gets.
+        string[] declared = [.. Codes().Select(entry => entry.Code)];
+        // Only rows naming a concrete code: the band table above them spells its rows 'PUB1xxx'.
+        string[] documented = [.. File.ReadAllLines(DocumentationPath())
+            .Where(line => line.StartsWith("| `PUB", StringComparison.Ordinal))
+            .Select(line => line.Split('`')[1])
+            .Where(code => code[3..].All(char.IsAsciiDigit))];
+
+        Assert.That(documented, Is.Not.Empty);
+
+        foreach (string code in documented)
+        {
+            Assert.That(declared, Does.Contain(code), $"docs/diagnostics.md documents '{code}', which no longer exists in DiagnosticCode");
+        }
+    }
+
+    [Test]
+    public static void TargetsRaisedCode_MatchesItsConstant()
+    {
+        // PUB4001 is raised by the targets, so the constant is the only thing tying it to this
+        // table — nothing would otherwise notice the two drifting apart.
+        string targets = File.ReadAllText(Path.Combine(Path.GetDirectoryName(DocumentationPath())!, "..", "src", "Publicizer", "Krafs.Publicizer.targets"));
+
+        Assert.That(targets, Does.Contain($"""Code="{DiagnosticCode.NoRuntimeStrategy}" """.TrimEnd()));
+    }
+
+    [Test]
+    public static void Codes_AreBanded()
+    {
+        // An unbanded code would sit in whichever band it happens to collide with, and the band is
+        // the thing that keeps room to insert later.
+        string[] bands = ["PUB1", "PUB2", "PUB3", "PUB4", "PUB9"];
+
+        foreach ((string name, string code) in Codes())
+        {
+            Assert.That(bands, Has.Some.EqualTo(code[..4]), $"{name} = '{code}' is outside every documented band");
         }
     }
 
