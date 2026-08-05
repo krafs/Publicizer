@@ -80,6 +80,8 @@ If the file does not exist it will be created.
 
 The file is overwritten on every execution.
 
+Every error and warning carries a `PUBxxxx` code, so a warning can be suppressed with `NoWarn` or promoted with `WarningsAsErrors` like any compiler warning. See [docs/diagnostics.md](docs/diagnostics.md) for the full table.
+
 ### Clean
 You can instruct Publicizer to clear its cache everytime the project is cleaned:
 ```xml
