@@ -43,7 +43,7 @@ public sealed class PublicizeAssemblies : Task
             }
             catch (Exception e)
             {
-                Log.LogError($"Error creating Publicizer log file: {e.Message}");
+                Log.LogError(null, DiagnosticCode.LogFileNotCreated, null, null, 0, 0, 0, 0, $"Error creating Publicizer log file: {e.Message}");
             }
         }
 
@@ -72,7 +72,7 @@ public sealed class PublicizeAssemblies : Task
         }
         catch (Exception e)
         {
-            logger.Error($"{nameof(OutputDirectory)} '{OutputDirectory}' is not a valid directory path: {e.Message}");
+            logger.Error(DiagnosticCode.InvalidOutputDirectory, $"{nameof(OutputDirectory)} '{OutputDirectory}' is not a valid directory path: {e.Message}");
             return false;
         }
 
@@ -115,7 +115,7 @@ public sealed class PublicizeAssemblies : Task
                 bool isAssemblyModified = PublicizeAssembly(module, assemblyContext, scopedLogger);
                 if (!isAssemblyModified)
                 {
-                    scopedLogger.Warning("Assembly is marked for publicization, but no members were publicized");
+                    scopedLogger.Warning(DiagnosticCode.NothingPublicized, "Assembly is marked for publicization, but no members were publicized");
                     continue;
                 }
 
@@ -188,11 +188,6 @@ public sealed class PublicizeAssemblies : Task
 
         if (valid)
         {
-            valid = ScopeFilterInheritanceIsDecidable(contexts, logger);
-        }
-
-        if (valid)
-        {
             WarnOnScopesOverridingAnAssemblyDeny(contexts, logger);
         }
 
@@ -224,55 +219,6 @@ public sealed class PublicizeAssemblies : Task
     }
 
     /// <summary>
-    /// Rejects an inner scope that leaves a sweep filter unset which an enclosing scope sets.
-    /// <para>
-    /// Whether such a scope should inherit that filter from the scope enclosing it or from the
-    /// assembly is a real design question, and both answers are defensible. It is left open rather
-    /// than settled here because settling it wrong is unrecoverable: the two readings differ only in
-    /// which members end up public, so changing the answer later would silently rewrite assemblies
-    /// that build fine today. Refusing the item keeps both doors open at the cost of one attribute.
-    /// </para>
-    /// <para>
-    /// Assembly-to-scope inheritance is not affected — that one is decided, documented and pinned.
-    /// Neither is a <c>DoNotPublicize</c> scope, which publicizes nothing and so cannot be swayed by
-    /// a filter either way.
-    /// </para>
-    /// </summary>
-    private static bool ScopeFilterInheritanceIsDecidable(Dictionary<string, PublicizerAssemblyContext> contexts, ITaskLogger logger)
-    {
-        bool decidable = true;
-
-        foreach (PublicizerAssemblyContext context in contexts.Values)
-        {
-            foreach (PublicizeScope inner in context.Scopes)
-            {
-                if (inner.Deny)
-                {
-                    continue;
-                }
-
-                foreach (PublicizeScope outer in context.Scopes)
-                {
-                    // Equally specific scopes resolve to a single winner, so neither inherits from the
-                    // other and there is nothing to be ambiguous about.
-                    if (inner.Specificity.CompareTo(outer.Specificity) <= 0 || !outer.Contains(inner))
-                    {
-                        continue;
-                    }
-
-                    foreach (string filter in outer.FiltersLeftUnsetOn(inner))
-                    {
-                        logger.Error($"Publicize scope '{inner.Display}' on '{context.AssemblyName}' sits inside '{outer.Display}', which sets '{filter}'. Set '{filter}' explicitly on the inner scope: whether an inner scope inherits an enclosing scope's filters or the assembly's is not decided yet.");
-                        decidable = false;
-                    }
-                }
-            }
-        }
-
-        return decidable;
-    }
-
-    /// <summary>
     /// A scope is tighter than the assembly-wide rule, so a <c>Publicize</c> scope carves an
     /// exception out of a <c>DoNotPublicize</c> naming the whole assembly — the same way a colon-form
     /// member target always has. That is the intended resolution, but the two items are often
@@ -291,7 +237,7 @@ public sealed class PublicizeAssemblies : Task
             int overriding = context.Scopes.Count(scope => !scope.Deny);
             if (overriding > 0)
             {
-                logger.Warning($"'{context.AssemblyName}' is marked DoNotPublicize as a whole, but {overriding} Publicize scope(s) name part of it. The scopes are more specific, so they win. Remove the DoNotPublicize item if that is what you meant.");
+                logger.Warning(DiagnosticCode.AssemblyDenyOverriddenByScopes, $"'{context.AssemblyName}' is marked DoNotPublicize as a whole, but {overriding} Publicize scope(s) name part of it. The scopes are more specific, so they win. Remove the DoNotPublicize item if that is what you meant.");
             }
         }
     }
