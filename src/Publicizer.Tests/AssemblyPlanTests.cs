@@ -24,7 +24,7 @@ internal static partial class AssemblyPlanTests
     /// <summary>The namespace a reflection name implies, for tests that only care about the type.</summary>
     private static string NamespaceOf(string typeName)
     {
-        int lastDot = typeName.LastIndexOf('.');
+        int lastDot = typeName.LastIndexOf('.', StringComparison.Ordinal);
         return lastDot < 0 ? "" : typeName[..lastDot];
     }
 
