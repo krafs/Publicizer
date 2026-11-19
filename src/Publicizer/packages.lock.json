@@ -20,11 +20,11 @@
       },
       "Microsoft.Build.Utilities.Core": {
         "type": "Direct",
-        "requested": "[18.10.1, )",
-        "resolved": "18.10.1",
-        "contentHash": "MXBaRIyOuy55jMsv8YMUEsyM9itWaPnfB56qe2St9fYF1YavL4MnCZovKP4Q1AiR1+RgMyLql3OfNbghDM3PbA==",
+        "requested": "[18.12.2, )",
+        "resolved": "18.12.2",
+        "contentHash": "xaXBe2bF2zpWXoupmplgFFPorBNvuDsUZQdAGrbyLWhVAUBvy6qjEWBvEWUuuYYlauzXAaUseUVARhi9yfiEcw==",
         "dependencies": {
-          "Microsoft.Build.Framework": "[18.10.1]",
+          "Microsoft.Build.Framework": "[18.12.2]",
           "System.Memory": "4.6.3",
           "System.Runtime.CompilerServices.Unsafe": "6.1.2"
         }
@@ -40,18 +40,18 @@
       },
       "Microsoft.Build.Framework": {
         "type": "Transitive",
-        "resolved": "18.10.1",
-        "contentHash": "nL8dvvg9V/6PJQ92iQheiGnpkgS/VTBV2py8XM0pzxRYc8byHY83IuriHa3YXkLf3KMWnKlkdoTTt0c5irOXZQ==",
+        "resolved": "18.12.2",
+        "contentHash": "+sSdqeFtdZKl7AITUkqirWOfrJPrQJ74wHtiwHoVqaGkTrXie5vELQzGxvgF4b4+p0i09t2KrdT3ml8MOIjFzw==",
         "dependencies": {
-          "Microsoft.NET.StringTools": "[18.10.1]",
+          "Microsoft.NET.StringTools": "[18.12.2]",
           "System.Memory": "4.6.3",
           "System.Runtime.CompilerServices.Unsafe": "6.1.2"
         }
       },
       "Microsoft.NET.StringTools": {
         "type": "Transitive",
-        "resolved": "18.10.1",
-        "contentHash": "/fIQMMIRzamkho+Teh7K0G8YaH85s2meFwxjFleBJ1DMnX2RHnRjg4xyWoFbmj260Vl4W2b1r7CuvbMAC+W+nQ==",
+        "resolved": "18.12.2",
+        "contentHash": "qw/bBa2GCn4jBm/zCTOxyEGN6xUkd5QeXe119DLMtv+umudhMT1ZT16r/FPz+mqPgQYodaaLVG0CmB/5X8/pqg==",
         "dependencies": {
           "System.Memory": "4.6.3",
           "System.Runtime.CompilerServices.Unsafe": "6.1.2"
