@@ -16,6 +16,12 @@
     </Compile>
   </ItemGroup>
 
+  <!--
+    The sweep filter defaults are load-bearing beyond their values: because every Publicize item
+    carries them, a scope nested inside another scope always has a concrete value and never has to
+    inherit one. That is what keeps the scope-to-scope filter inheritance rule an open question
+    rather than something already pinned by shipped behaviour. Dropping the defaults here reopens it.
+  -->
   <ItemDefinitionGroup>
     <Publicize Visible="false" IncludeCompilerGeneratedMembers="true" IncludeVirtualMembers="true" />
     <DoNotPublicize Visible="false" />

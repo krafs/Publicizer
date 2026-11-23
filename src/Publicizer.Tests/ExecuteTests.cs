@@ -93,6 +93,7 @@ internal static class ExecuteTests
         Assert.That(task.ReferencePathsToAdd, Is.Empty);
         Assert.That(task.ReferencePathsToDelete, Is.Empty);
         Assert.That(engine.Warnings, Has.Some.Contains("no members were publicized"));
+        Assert.That(engine.WarningCodes, Has.Some.EqualTo(DiagnosticCode.NothingPublicized));
     }
 
     [Test]

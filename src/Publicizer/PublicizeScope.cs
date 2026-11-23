@@ -72,23 +72,6 @@ internal sealed class PublicizeScope
         : inner.TypeReflectionName is not null && IsStrictlyUnder(inner.TypeReflectionName, TypeReflectionName, '+');
 
     /// <summary>
-    /// The names of the sweep filters this scope sets and <paramref name="inner"/> leaves unset —
-    /// exactly the ones whose value inside <paramref name="inner"/> depends on an inheritance rule.
-    /// </summary>
-    internal IEnumerable<string> FiltersLeftUnsetOn(PublicizeScope inner)
-    {
-        if (IncludeVirtualMembers is not null && inner.IncludeVirtualMembers is null)
-        {
-            yield return nameof(IncludeVirtualMembers);
-        }
-
-        if (IncludeCompilerGeneratedMembers is not null && inner.IncludeCompilerGeneratedMembers is null)
-        {
-            yield return nameof(IncludeCompilerGeneratedMembers);
-        }
-    }
-
-    /// <summary>
     /// Whether <paramref name="candidate"/> is <paramref name="prefix"/> itself, or a name nested
     /// under it — where <paramref name="separator"/> is what joins a parent name to a child.
     /// </summary>
